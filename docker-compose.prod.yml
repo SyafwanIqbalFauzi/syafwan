@@ -1,0 +1,57 @@
+# Production stack on the VPS (sejarah-persib). Joins the existing internal network so
+# the shared Caddy can reach `syafwan-web` and `syafwan-directus`. No published ports.
+# Secrets live in ~/syafwan/.env on the server (never committed).
+name: syafwan
+
+services:
+  directus:
+    image: directus/directus:11.17.4
+    container_name: syafwan-directus
+    restart: unless-stopped
+    mem_limit: 320m
+    environment:
+      KEY: ${DIRECTUS_KEY}
+      SECRET: ${DIRECTUS_SECRET}
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD}
+      PUBLIC_URL: ${DIRECTUS_PUBLIC_URL}
+      DB_CLIENT: pg
+      DB_HOST: ${SUPABASE_DB_HOST}
+      DB_PORT: ${SUPABASE_DB_PORT}
+      DB_DATABASE: ${SUPABASE_DB_DATABASE}
+      DB_USER: ${SUPABASE_DB_USER}
+      DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
+      DB_SSL__REJECT_UNAUTHORIZED: "false"
+      DB_POOL__MIN: "1"
+      DB_POOL__MAX: "4"
+      STORAGE_LOCATIONS: local
+      STORAGE_LOCAL_ROOT: ./uploads
+      CACHE_ENABLED: "false"
+      WEBSOCKETS_ENABLED: "false"
+      RATE_LIMITER_ENABLED: "true"
+      TELEMETRY: "false"
+    volumes:
+      - ./uploads:/directus/uploads
+    networks:
+      - internal
+
+  web:
+    image: ghcr.io/syafwaniqbalfauzi/syafwan-web:latest
+    container_name: syafwan-web
+    restart: unless-stopped
+    mem_limit: 160m
+    depends_on:
+      - directus
+    environment:
+      NODE_ENV: production
+      PUBLIC_SITE_URL: ${PUBLIC_SITE_URL}
+      PUBLIC_CMS_URL: ${PUBLIC_CMS_URL}
+      DIRECTUS_INTERNAL_URL: ${DIRECTUS_INTERNAL_URL}
+      DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+    networks:
+      - internal
+
+networks:
+  internal:
+    external: true
+    name: sejarah-persib_internal

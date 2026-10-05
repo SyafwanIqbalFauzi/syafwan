@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/.astro
+.git
+.github
+docs
+cms/uploads
+cms/data
+.env
+.env.*
+!.env.example
+**/*.log
