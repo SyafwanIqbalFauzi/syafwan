@@ -8,6 +8,13 @@ cms/                    Directus schema (schema/snapshot.yaml) + setup scripts
 scripts/import-brains/  One-time importer: Obsidian vault -> Directus REST API
 ```
 
+## Database
+
+Directus uses **Supabase Postgres** (session pooler). Connection settings are read from `.env`
+(`SUPABASE_DB_*`). `docker-compose.supabase.yml` overrides the Directus service to use them.
+The local Postgres in `docker-compose.dev.yml` is kept as an offline copy (`npm run cms:local-db`)
+but Directus does not use it by default. Uploaded files are still on `cms/uploads/` (local volume).
+
 ## Local development
 
 Requirements: Node 22+, Docker.

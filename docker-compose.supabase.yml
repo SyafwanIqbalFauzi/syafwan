@@ -1,0 +1,16 @@
+# Overlay: run the local Directus against the Supabase Postgres instead of the
+# local container. Usage: docker compose -f docker-compose.dev.yml -f docker-compose.supabase.yml up -d directus
+# Uploads stay on the local volume (cms/uploads) for now.
+services:
+  directus:
+    environment:
+      DB_HOST: ${SUPABASE_DB_HOST}
+      DB_PORT: ${SUPABASE_DB_PORT}
+      DB_DATABASE: ${SUPABASE_DB_DATABASE}
+      DB_USER: ${SUPABASE_DB_USER}
+      DB_PASSWORD: ${SUPABASE_DB_PASSWORD}
+      DB_SSL__REJECT_UNAUTHORIZED: "false"
+      # Supabase session pooler: keep the pool small, the project's connection budget is shared.
+      DB_POOL__MIN: "1"
+      DB_POOL__MAX: "4"
+    depends_on: {}

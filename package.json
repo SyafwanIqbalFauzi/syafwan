@@ -10,15 +10,16 @@
   "scripts": {
     "dev": "npm -w web run dev",
     "build": "npm -w web run build",
-    "cms:up": "docker compose -f docker-compose.dev.yml up -d --wait",
-    "cms:down": "docker compose -f docker-compose.dev.yml down",
-    "cms:logs": "docker compose -f docker-compose.dev.yml logs -f directus",
+    "cms:up": "docker compose -f docker-compose.dev.yml -f docker-compose.supabase.yml up -d --wait",
+    "cms:down": "docker compose -f docker-compose.dev.yml -f docker-compose.supabase.yml down",
+    "cms:logs": "docker compose -f docker-compose.dev.yml -f docker-compose.supabase.yml logs -f directus",
     "cms:init-schema": "node cms/init-schema.mjs",
     "cms:snapshot": "docker compose -f docker-compose.dev.yml exec -T directus npx directus schema snapshot --yes /directus/schema/snapshot.yaml",
     "cms:apply": "docker compose -f docker-compose.dev.yml exec -T directus npx directus schema apply --yes /directus/schema/snapshot.yaml && docker compose -f docker-compose.dev.yml restart directus && docker compose -f docker-compose.dev.yml up -d --wait directus",
     "cms:bootstrap": "node cms/bootstrap.mjs",
     "import": "node scripts/import-brains/index.mjs",
-    "import:translations": "node scripts/import-brains/translations.mjs"
+    "import:translations": "node scripts/import-brains/translations.mjs",
+    "cms:local-db": "docker compose -f docker-compose.dev.yml up -d --wait postgres"
   },
   "engines": {
     "node": ">=22"
