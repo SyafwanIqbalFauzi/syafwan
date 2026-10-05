@@ -1,0 +1,30 @@
+---
+// Placeholder (M1): proves the Astro server can reach Directus with the read-only token.
+// Replaced by the real home page in M3.
+import { DIRECTUS_INTERNAL_URL, DIRECTUS_TOKEN } from 'astro:env/server';
+
+const { lang } = Astro.params;
+if (lang !== 'en' && lang !== 'id') return new Response(null, { status: 404 });
+
+let status = 'not connected';
+try {
+  const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/languages`, {
+    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
+  });
+  const { data } = await res.json();
+  status = `connected · ${data.length} languages`;
+} catch (error) {
+  status = `error: ${(error as Error).message}`;
+}
+---
+<html lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Syafwan Iqbal Fauzi</title>
+  </head>
+  <body>
+    <p>syafwan iqbal fauzi — {lang}</p>
+    <p>directus: {status}</p>
+  </body>
+</html>

@@ -1,0 +1,20 @@
+# Dokumen perencanaan lokal (tidak di-commit)
+docs/PLAN.md
+
+# Dependencies & build output
+node_modules/
+dist/
+.astro/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Directus dev data
+cms/uploads/
+cms/data/
+
+# OS / editor
+.DS_Store
+Thumbs.db

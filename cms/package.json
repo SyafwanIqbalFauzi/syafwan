@@ -1,0 +1,6 @@
+{
+  "name": "@syafwan/cms",
+  "private": true,
+  "type": "module",
+  "description": "Schema & bootstrap scripts for the Directus instance"
+}

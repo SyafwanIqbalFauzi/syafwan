@@ -1,0 +1,8 @@
+---
+// Root: send visitors to their language, remembering an explicit choice via cookie.
+const LOCALES = ['en', 'id'];
+const saved = Astro.cookies.get('lang')?.value;
+const preferred = Astro.preferredLocale;
+const lang = saved && LOCALES.includes(saved) ? saved : preferred && LOCALES.includes(preferred) ? preferred : 'en';
+return Astro.redirect(`/${lang}`, 302);
+---
