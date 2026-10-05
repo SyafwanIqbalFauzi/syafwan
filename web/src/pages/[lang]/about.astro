@@ -126,7 +126,15 @@ const sections = [
               <div class="exp-main">
                 <h3 class="role">{tr?.role}</h3>
                 <p class="company">
-                  {e.company}
+                  {
+                    e.company_url ? (
+                      <a href={e.company_url} class="company-link" target="_blank" rel="noopener noreferrer">
+                        {e.company}
+                      </a>
+                    ) : (
+                      e.company
+                    )
+                  }
                   {e.employment_type !== 'full_time' && (
                     <span class="tag">{t(locale, `employment.${e.employment_type as Exclude<typeof e.employment_type, 'full_time'>}`)}</span>
                   )}
@@ -404,6 +412,17 @@ const sections = [
     flex-wrap: wrap;
     align-items: center;
     gap: 8px;
+  }
+
+  .company-link {
+    color: var(--te-blue);
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  .company-link:hover {
+    text-decoration-thickness: 2px;
   }
 
   .exp-details {

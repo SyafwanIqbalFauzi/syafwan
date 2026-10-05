@@ -1,9 +1,8 @@
 ---
 // Header after teenage.engineering: two-line wordmark, then each section as a solid
 // pictogram + large thin label + three small sub-links. Collapses to a compact row
-// of labels on small screens. The SIF monogram sits top-right, like TE's logo.
+// of labels on small screens.
 import Pictogram from './Pictogram.astro';
-import Monogram from './Monogram.astro';
 import { otherLocale, switchLocalePath, t, type Locale } from '../lib/i18n';
 
 interface Props {
@@ -85,9 +84,6 @@ const other = otherLocale(locale);
         <span class="slash" aria-hidden="true">/</span>
         <a href={switchLocalePath(path, other)} hreflang={other} lang={other} title={t(locale, 'lang.switch')}>{other}</a>
       </p>
-      <a href={base} class="logo" aria-label={t(locale, 'nav.home')}>
-        <Monogram height={72} />
-      </a>
     </div>
   </div>
 </header>
@@ -168,16 +164,6 @@ const other = otherLocale(locale);
     gap: var(--s-33);
   }
 
-  .logo {
-    display: block;
-    color: var(--te-black);
-    transition: opacity 0.15s;
-  }
-
-  .logo:hover {
-    opacity: 0.75;
-  }
-
   .lang {
     display: flex;
     gap: 4px;
@@ -218,10 +204,6 @@ const other = otherLocale(locale);
       gap: var(--s-22);
     }
 
-    .logo :global(.monogram) {
-      width: auto;
-      height: 40px;
-    }
   }
 
   /* Phone: wordmark on one line, labels in a row, no pictograms */
@@ -267,10 +249,6 @@ const other = otherLocale(locale);
 
     .lang {
       font-size: var(--text-body);
-    }
-
-    .logo :global(.monogram) {
-      height: 22px;
     }
   }
 </style>
