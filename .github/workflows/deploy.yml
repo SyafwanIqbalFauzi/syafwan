@@ -31,6 +31,8 @@ jobs:
           tags: |
             ghcr.io/syafwaniqbalfauzi/syafwan-web:latest
             ghcr.io/syafwaniqbalfauzi/syafwan-web:${{ github.sha }}
+          build-args: |
+            PUBLIC_SITE_URL=https://syafwan.sejarahpersib.com
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

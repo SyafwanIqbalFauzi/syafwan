@@ -21,7 +21,8 @@ export default defineConfig({
     schema: {
       DIRECTUS_INTERNAL_URL: envField.string({ context: 'server', access: 'secret', default: 'http://localhost:8055' }),
       DIRECTUS_TOKEN: envField.string({ context: 'server', access: 'secret' }),
-      PUBLIC_CMS_URL: envField.string({ context: 'server', access: 'public', default: 'http://localhost:8055' }),
+      // Read at runtime: a "public" field would be inlined at build time with the localhost default.
+      PUBLIC_CMS_URL: envField.string({ context: 'server', access: 'secret', default: 'http://localhost:8055' }),
     },
   },
   // Single .env at the repo root, shared with docker-compose and the cms/ scripts.
