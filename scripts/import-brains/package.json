@@ -1,0 +1,9 @@
+{
+  "name": "@syafwan/import-brains",
+  "private": true,
+  "type": "module",
+  "description": "One-time import of the Obsidian vault into Directus via its REST API",
+  "dependencies": {
+    "gray-matter": "^4.0.3"
+  }
+}

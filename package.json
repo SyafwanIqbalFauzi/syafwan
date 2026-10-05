@@ -4,7 +4,8 @@
   "type": "module",
   "workspaces": [
     "web",
-    "cms"
+    "cms",
+    "scripts/import-brains"
   ],
   "scripts": {
     "dev": "npm -w web run dev",
@@ -15,7 +16,9 @@
     "cms:init-schema": "node cms/init-schema.mjs",
     "cms:snapshot": "docker compose -f docker-compose.dev.yml exec -T directus npx directus schema snapshot --yes /directus/schema/snapshot.yaml",
     "cms:apply": "docker compose -f docker-compose.dev.yml exec -T directus npx directus schema apply --yes /directus/schema/snapshot.yaml && docker compose -f docker-compose.dev.yml restart directus && docker compose -f docker-compose.dev.yml up -d --wait directus",
-    "cms:bootstrap": "node cms/bootstrap.mjs"
+    "cms:bootstrap": "node cms/bootstrap.mjs",
+    "import": "node scripts/import-brains/index.mjs",
+    "import:translations": "node scripts/import-brains/translations.mjs"
   },
   "engines": {
     "node": ">=22"

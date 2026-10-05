@@ -3,8 +3,9 @@
 Personal website of Syafwan Iqbal Fauzi: an Astro (SSR) frontend reading from a Directus CMS.
 
 ```
-web/   Astro app (output: server, @astrojs/node)
-cms/   Directus schema (schema/snapshot.yaml) + setup scripts
+web/                    Astro app (output: server, @astrojs/node)
+cms/                    Directus schema (schema/snapshot.yaml) + setup scripts
+scripts/import-brains/  One-time importer: Obsidian vault -> Directus REST API
 ```
 
 ## Local development
@@ -21,6 +22,19 @@ npm run dev                 # Astro at http://localhost:4321
 ```
 
 `cms:bootstrap` is idempotent; re-run it any time.
+
+## Importing content (one-time)
+
+Content was imported once from the Obsidian vault; Directus is the source of truth afterwards.
+
+```bash
+npm run import -- --dry-run --out payload.json   # parse the vault, review the payload
+npm run import                                   # create missing items (never overwrites)
+npm run import:translations -- file.json         # add id-ID translations to existing items
+```
+
+Set `BRAINS_DIR` to point at the vault (default `G:/My Drive/[999] Brains`) and
+`DIRECTUS_URL` to choose the target instance. Translation files are working files and are not committed.
 
 ## Changing the schema
 
@@ -42,6 +56,8 @@ for reference only. The snapshot is the source of truth.
 | `npm run cms:snapshot` | Export the schema to `cms/schema/snapshot.yaml` |
 | `npm run cms:apply` | Apply the snapshot, then restart Directus so it reloads its schema cache |
 | `npm run cms:bootstrap` | Seed languages, Public + Web Reader read permissions, web-reader token |
+| `npm run import` | Import the Obsidian vault (`--dry-run` to only parse) |
+| `npm run import:translations` | Apply a translations JSON (default `id-ID`) |
 
 ## Access model
 
