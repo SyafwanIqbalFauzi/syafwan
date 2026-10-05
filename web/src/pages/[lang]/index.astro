@@ -1,30 +1,355 @@
 ---
-// Placeholder (M1): proves the Astro server can reach Directus with the read-only token.
-// Replaced by the real home page in M3.
-import { DIRECTUS_INTERNAL_URL, DIRECTUS_TOKEN } from 'astro:env/server';
+import Layout from '../../layouts/Layout.astro';
+import Icon from '../../components/Icon.astro';
+import ProjectGrid from '../../components/ProjectGrid.astro';
+import PmIllustration from '../../components/PmIllustration.astro';
+import { getExperiences, getPosts, getProfile, getProjects } from '../../lib/content';
+import { formatDate, formatPeriod, isLocale, pick, t } from '../../lib/i18n';
+import { assetSrcset, assetUrl } from '../../lib/assets';
 
 const { lang } = Astro.params;
-if (lang !== 'en' && lang !== 'id') return new Response(null, { status: 404 });
+if (!isLocale(lang)) return Astro.rewrite('/404');
+const locale = lang;
 
-let status = 'not connected';
-try {
-  const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/languages`, {
-    headers: { Authorization: `Bearer ${DIRECTUS_TOKEN}` },
-  });
-  const { data } = await res.json();
-  status = `connected · ${data.length} languages`;
-} catch (error) {
-  status = `error: ${(error as Error).message}`;
-}
+const [profile, featured, experiences, posts] = await Promise.all([
+  getProfile(),
+  getProjects({ featured: true, limit: 4 }),
+  getExperiences(3),
+  getPosts({ limit: 3 }),
+]);
+
+const { value: bio } = pick(profile.translations, locale);
+const current = experiences.find((e) => !e.end_date) ?? experiences[0];
+const currentRole = current ? pick(current.translations, locale).value?.role : null;
+const shareImage = profile.photo ?? featured[0]?.cover ?? null;
+// TE rhythm: the first featured project gets a full-bleed dark band, the rest a grid.
+const [spotlight, ...restFeatured] = featured;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: profile.full_name,
+  jobTitle: currentRole,
+  worksFor: current ? { '@type': 'Organization', name: current.company } : undefined,
+  email: profile.email ? `mailto:${profile.email}` : undefined,
+  address: profile.location ? { '@type': 'PostalAddress', addressLocality: profile.location } : undefined,
+  sameAs: [profile.linkedin_url].filter(Boolean),
+  url: new URL(`/${locale}`, Astro.site).href,
+};
 ---
-<html lang={lang}>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Syafwan Iqbal Fauzi</title>
-  </head>
-  <body>
-    <p>syafwan iqbal fauzi — {lang}</p>
-    <p>directus: {status}</p>
-  </body>
-</html>
+
+<Layout
+  locale={locale}
+  description={bio?.short_bio}
+  image={shareImage ? assetUrl(shareImage, 1200, 'jpg') : null}
+  type="profile"
+  jsonLd={jsonLd}
+>
+  <!-- 1. Hero -->
+  <section class="hero">
+    <div class="container hero-inner">
+      <div class="hero-top">
+      <div class="hero-text">
+        <h1 class="h1">{bio?.headline}</h1>
+        {bio?.short_bio && <p class="bio">{bio.short_bio}</p>}
+        {
+          current && (
+            <p class="label status">
+              <span class="muted">{t(locale, 'home.status')}</span>
+              <span>
+                {currentRole} · {current.company}
+              </span>
+              <span class="tag tag-amber">{t(locale, 'common.present')}</span>
+            </p>
+          )
+        }
+        <div class="ctas">
+          <a href={`/${locale}/work`} class="btn btn-solid">
+            {t(locale, 'home.cta.work')}
+            <Icon name="arrow" size={16} />
+          </a>
+          {profile.email && <a href="#contact" class="btn">{t(locale, 'home.cta.contact')}</a>}
+        </div>
+      </div>
+      {
+        bio?.highlights?.length ? (
+          <aside class="numbers" aria-label={t(locale, 'home.highlights')}>
+            <p class="numbers-head">{t(locale, 'home.highlights')}</p>
+            <ul>
+              {bio.highlights.map((h) => (
+                <li>
+                  <span class="n-label">{h.label}</span>
+                  <span class="n-value">{h.value}</span>
+                </li>
+              ))}
+            </ul>
+          </aside>
+        ) : null
+      }
+      </div>
+      <div class="hero-art">
+        <PmIllustration />
+      </div>
+    </div>
+  </section>
+
+  <!-- 2. Selected work: one dark spotlight band, then the catalogue grid -->
+  <section class="selected" aria-labelledby="selected-title">
+    <div class="container section-head selected-head">
+      <h2 id="selected-title">{t(locale, 'home.selected')}</h2>
+      <a href={`/${locale}/work`} class="arrow-link">{t(locale, 'home.allWork')} <Icon name="arrow" size={14} /></a>
+    </div>
+    {
+      spotlight && (
+        <a href={`/${locale}/work/${spotlight.slug}`} class="band-dark spotlight">
+          {spotlight.cover && (
+            <img
+              src={assetUrl(spotlight.cover, 1600)}
+              srcset={assetSrcset(spotlight.cover)}
+              sizes="(min-width: 1300px) 1100px, 86vw"
+              alt={spotlight.title}
+              width={spotlight.cover.width ?? undefined}
+              height={spotlight.cover.height ?? undefined}
+              loading="lazy"
+              decoding="async"
+            />
+          )}
+          <span class="spotlight-caption label">
+            {spotlight.title}
+            <span class="spotlight-link">{t(locale, 'common.viewProject')}</span>
+          </span>
+        </a>
+      )
+    }
+    <ProjectGrid projects={restFeatured} locale={locale} />
+  </section>
+
+  <!-- 3. Experience snapshot -->
+  <section class="section container">
+    <div class="section-head">
+      <h2>{t(locale, 'home.experience')}</h2>
+      <a href={`/${locale}/about#experience`} class="arrow-link">
+        {t(locale, 'home.fullExperience')} <Icon name="arrow" size={14} />
+      </a>
+    </div>
+    <ul class="ruled rows">
+      {
+        experiences.map((e) => (
+          <li class="row">
+            <span class="label muted">{formatPeriod(e.start_date, e.end_date, locale)}</span>
+            <span>{pick(e.translations, locale).value?.role}</span>
+            <span class="muted">{e.company}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <!-- 4. Latest writing -->
+  <section class="section container">
+    <div class="section-head">
+      <h2>{t(locale, 'home.writing')}</h2>
+      <a href={`/${locale}/writing`} class="arrow-link">{t(locale, 'home.allWriting')} <Icon name="arrow" size={14} /></a>
+    </div>
+    <ul class="ruled rows">
+      {
+        posts.map((post) => {
+          const { value: tr, fallback } = pick(post.translations, locale);
+          return (
+            <li>
+              <a href={`/${locale}/writing/${post.slug}`} class="row row-link">
+                <span class="label muted">{formatDate(post.published_at, locale)}</span>
+                <span class="post-title">
+                  {tr?.title}
+                  {fallback && <span class="tag">{post.original_language.slice(0, 2).toUpperCase()}</span>}
+                </span>
+                <Icon name="arrow" size={16} />
+              </a>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </section>
+
+</Layout>
+
+<style>
+  .hero-inner {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-33);
+    padding-top: var(--s-66);
+  }
+
+  .hero-top {
+    display: grid;
+    gap: var(--s-33);
+  }
+
+  @media (min-width: 1000px) {
+    .hero-top {
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: var(--s-66);
+      align-items: start;
+    }
+  }
+
+  .hero-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-22);
+    max-width: 820px;
+  }
+
+  .bio {
+    font-size: var(--text-sub);
+    line-height: 1.45;
+    color: var(--te-grey-600);
+  }
+
+  .status {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ctas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-15);
+  }
+
+  /* "Version table" of figures, after the EP-series badge on teenage.engineering. */
+  .numbers {
+    max-width: 520px;
+    border-top: 2px solid var(--te-black);
+    padding-top: 10px;
+  }
+
+  .numbers-head {
+    font-size: var(--text-caption);
+    font-weight: var(--w-regular);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+
+  .numbers li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--s-15);
+    padding-block: 6px;
+    border-bottom: 1px solid var(--te-black);
+  }
+
+  .n-label {
+    font-size: var(--text-caption);
+    line-height: 1.3;
+  }
+
+  .n-value {
+    font-size: var(--text-h3);
+    font-weight: var(--w-thin);
+    line-height: 1.1;
+    color: var(--te-orange);
+    white-space: nowrap;
+  }
+
+  /* The drawing bleeds a little past the text column on small screens so the
+     lettering stays readable; it is decorative, so it may be cropped. */
+  .hero-art {
+    margin-inline: calc(var(--gutter) * -0.5);
+  }
+
+  @media (max-width: 719px) {
+    .hero-art {
+      overflow: hidden;
+      margin-inline: calc(var(--gutter) * -1);
+    }
+
+    .hero-art :global(svg) {
+      width: 160%;
+      max-width: none;
+      margin-left: -30%;
+    }
+  }
+
+  .selected-head {
+    padding-top: var(--s-66);
+  }
+
+  .spotlight {
+    position: relative;
+    display: flex;
+    justify-content: center;
+    padding: var(--s-66) var(--gutter) calc(var(--s-66) + var(--s-22));
+  }
+
+  .spotlight img {
+    width: 100%;
+    max-width: 1100px;
+    height: auto;
+    border: 1px solid rgb(229 229 229 / 0.15);
+  }
+
+  .spotlight-caption {
+    position: absolute;
+    left: var(--gutter);
+    bottom: var(--s-22);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    color: var(--te-grey-100);
+  }
+
+  .spotlight-link {
+    color: #6cb4ff;
+  }
+
+  .spotlight:hover .spotlight-link {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .rows .row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 2px;
+    padding-block: var(--s-15);
+  }
+
+  @media (min-width: 720px) {
+    .rows .row {
+      grid-template-columns: 200px 1fr auto;
+      align-items: baseline;
+      gap: var(--s-22);
+    }
+  }
+
+  .row-link:hover .post-title {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+  }
+
+  .row-link :global(svg) {
+    align-self: center;
+  }
+
+  .post-title {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  @media (max-width: 719px) {
+    .row-link :global(svg) {
+      display: none;
+    }
+  }
+
+</style>

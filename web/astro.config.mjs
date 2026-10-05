@@ -25,6 +25,11 @@ export default defineConfig({
     },
   },
   // Single .env at the repo root, shared with docker-compose and the cms/ scripts.
-  vite: { envDir: '..' },
+  vite: {
+    envDir: '..',
+    // The native file watcher misses some edits/new files on Windows (seen under
+    // src/pages/[lang]); polling is slower but reliable. Dev only.
+    server: { watch: { usePolling: true, interval: 300 } },
+  },
   server: { port: 4321, host: true },
 });

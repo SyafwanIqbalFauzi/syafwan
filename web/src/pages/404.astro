@@ -1,0 +1,33 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Icon from '../components/Icon.astro';
+import { isLocale, t } from '../lib/i18n';
+
+// Pages rewrite here for unknown slugs; keep the visitor's language from the original URL.
+const originalPath = Astro.originPathname ?? Astro.url.pathname;
+const first = originalPath.split('/')[1];
+const locale = isLocale(first) ? first : 'en';
+Astro.response.status = 404;
+---
+
+<Layout locale={locale} title={t(locale, 'notFound.title')} alternates={false}>
+  <section class="container notfound">
+    <p class="label muted">404</p>
+    <h1 class="h1">{t(locale, 'notFound.title')}</h1>
+    <p>{t(locale, 'notFound.body')}</p>
+    <a href={`/${locale}`} class="btn">
+      {t(locale, 'notFound.back')}
+      <Icon name="arrow" size={16} />
+    </a>
+  </section>
+</Layout>
+
+<style>
+  .notfound {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-22);
+    padding-block: var(--s-66) calc(var(--s-66) * 2);
+  }
+</style>

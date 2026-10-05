@@ -1,0 +1,90 @@
+---
+import '@fontsource-variable/inter';
+import interWoff2 from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+import '../styles/global.css';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import { getProfile } from '../lib/content';
+import { LOCALES, switchLocalePath, type Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+  title?: string;
+  description?: string | null;
+  image?: string | null;
+  type?: 'website' | 'article' | 'profile';
+  /** Set to false for pages that only exist in one language (e.g. 404). */
+  alternates?: boolean;
+  jsonLd?: Record<string, unknown> | null;
+}
+
+const { locale, title, description, image, type = 'website', alternates = true, jsonLd } = Astro.props;
+
+const profile = await getProfile().catch(() => null);
+const siteName = profile?.full_name ?? 'Syafwan Iqbal Fauzi';
+const fullTitle = title ? `${title} — ${siteName}` : siteName;
+const site = Astro.site ?? new URL(Astro.url.origin);
+const canonical = new URL(Astro.url.pathname, site).href;
+const ogLocale = locale === 'id' ? 'id_ID' : 'en_US';
+---
+
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={canonical} />
+    {
+      alternates &&
+        LOCALES.map((l) => (
+          <link rel="alternate" hreflang={l} href={new URL(switchLocalePath(Astro.url.pathname, l), site).href} />
+        ))
+    }
+    {
+      alternates && (
+        <link rel="alternate" hreflang="x-default" href={new URL(switchLocalePath(Astro.url.pathname, 'en'), site).href} />
+      )
+    }
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:title" content={fullTitle} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={ogLocale} />
+    {image && <meta property="og:image" content={image} />}
+    <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+    <meta name="theme-color" content="#ffffff" />
+    <!-- "SIF" monogram: .ico for older browsers, SVG for the rest, PNG for iOS home screens -->
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" href={interWoff2} as="font" type="font/woff2" crossorigin />
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+  </head>
+  <body>
+    <a href="#main" class="skip label">Skip to content</a>
+    <Nav locale={locale} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer locale={locale} profile={profile} />
+  </body>
+</html>
+
+<style>
+  .skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    background: var(--te-black);
+    color: var(--te-white);
+    padding: 8px 12px;
+    z-index: 10;
+  }
+
+  .skip:focus {
+    left: var(--gutter);
+  }
+</style>

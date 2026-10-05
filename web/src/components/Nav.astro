@@ -1,0 +1,276 @@
+---
+// Header after teenage.engineering: two-line wordmark, then each section as a solid
+// pictogram + large thin label + three small sub-links. Collapses to a compact row
+// of labels on small screens. The SIF monogram sits top-right, like TE's logo.
+import Pictogram from './Pictogram.astro';
+import Monogram from './Monogram.astro';
+import { otherLocale, switchLocalePath, t, type Locale } from '../lib/i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const path = Astro.url.pathname;
+const base = `/${locale}`;
+
+const items = [
+  {
+    href: `${base}/work`,
+    label: t(locale, 'nav.work'),
+    icon: 'work' as const,
+    subs: [
+      { href: `${base}/work?type=product`, label: t(locale, 'nav.sub.products') },
+      { href: `${base}/work?type=project`, label: t(locale, 'nav.sub.projects') },
+      { href: `${base}/work`, label: t(locale, 'nav.sub.allWork') },
+    ],
+  },
+  {
+    href: `${base}/about`,
+    label: t(locale, 'nav.about'),
+    icon: 'about' as const,
+    subs: [
+      { href: `${base}/about#how`, label: t(locale, 'nav.sub.how') },
+      { href: `${base}/about#experience`, label: t(locale, 'nav.sub.experience') },
+      { href: `${base}/about#skills`, label: t(locale, 'nav.sub.skills') },
+    ],
+  },
+  {
+    href: `${base}/writing`,
+    label: t(locale, 'nav.writing'),
+    icon: 'writing' as const,
+    subs: [
+      { href: `${base}/writing?tag=product-management`, label: t(locale, 'nav.sub.pm') },
+      { href: `${base}/writing?tag=agile`, label: t(locale, 'nav.sub.agile') },
+      { href: `${base}/writing`, label: t(locale, 'nav.sub.allWriting') },
+    ],
+  },
+];
+const other = otherLocale(locale);
+---
+
+<header class="nav">
+  <div class="nav-inner">
+    <a href={base} class="wordmark">
+      <span>syafwan</span>
+      <span>iqbal fauzi</span>
+    </a>
+    <nav aria-label="Main">
+      <ul class="items">
+        {
+          items.map((item) => (
+            <li class="item">
+              <a href={item.href} class="icon-link" tabindex="-1" aria-hidden="true">
+                <Pictogram name={item.icon} />
+              </a>
+              <div class="item-text">
+                <a href={item.href} class="item-label" aria-current={path.startsWith(item.href) ? 'page' : undefined}>
+                  {item.label}
+                </a>
+                <ul class="subs">
+                  {item.subs.map((sub) => (
+                    <li>
+                      <a href={sub.href}>{sub.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+    <div class="end">
+      <p class="lang">
+        <span class="current" aria-current="true">{locale}</span>
+        <span class="slash" aria-hidden="true">/</span>
+        <a href={switchLocalePath(path, other)} hreflang={other} lang={other} title={t(locale, 'lang.switch')}>{other}</a>
+      </p>
+      <a href={base} class="logo" aria-label={t(locale, 'nav.home')}>
+        <Monogram height={72} />
+      </a>
+    </div>
+  </div>
+</header>
+
+<style>
+  .nav {
+    background: var(--te-page);
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+
+  .nav-inner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: var(--s-33);
+    padding: 12px var(--gutter) 16px;
+  }
+
+  .wordmark {
+    display: flex;
+    flex-direction: column;
+    font-size: var(--text-h3);
+    font-weight: var(--w-thin);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .items {
+    display: flex;
+    gap: var(--s-66);
+  }
+
+  .item {
+    display: flex;
+    gap: 12px;
+  }
+
+  .icon-link {
+    display: block;
+    padding-top: 2px;
+  }
+
+  .item-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .item-label {
+    font-size: var(--text-h3);
+    font-weight: var(--w-thin);
+    line-height: 1.15;
+    width: fit-content;
+    border-bottom: 1px solid transparent;
+  }
+
+  .item-label:hover,
+  .item-label[aria-current='page'] {
+    border-bottom-color: var(--te-black);
+  }
+
+  .subs {
+    margin-top: 8px;
+    font-size: var(--text-caption);
+    font-weight: var(--w-light);
+    line-height: 1.15;
+  }
+
+  .subs a:hover,
+  .lang a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .end {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--s-33);
+  }
+
+  .logo {
+    display: block;
+    color: var(--te-black);
+    transition: opacity 0.15s;
+  }
+
+  .logo:hover {
+    opacity: 0.75;
+  }
+
+  .lang {
+    display: flex;
+    gap: 4px;
+    font-size: var(--text-sub);
+    font-weight: var(--w-thin);
+    line-height: 1.15;
+    padding-top: 2px;
+  }
+
+  .lang .current {
+    font-weight: var(--w-regular);
+  }
+
+  .slash {
+    color: var(--te-grey-300);
+  }
+
+  /* Tablet: smaller pictograms, no sub-links */
+  @media (max-width: 1099px) {
+    .items {
+      gap: var(--s-33);
+    }
+
+    .item :global(.pictogram) {
+      width: 36px;
+      height: 36px;
+    }
+
+    .item-label {
+      font-size: var(--text-sub);
+    }
+
+    .subs {
+      display: none;
+    }
+
+    .end {
+      gap: var(--s-22);
+    }
+
+    .logo :global(.monogram) {
+      width: auto;
+      height: 40px;
+    }
+  }
+
+  /* Phone: wordmark on one line, labels in a row, no pictograms */
+  @media (max-width: 719px) {
+    .nav-inner {
+      grid-template-columns: 1fr auto;
+      gap: var(--s-8) var(--s-15);
+      padding-top: var(--s-15);
+      padding-bottom: 4px;
+    }
+
+    .wordmark {
+      flex-direction: row;
+      gap: 0.3em;
+      font-size: var(--text-sub);
+    }
+
+    nav {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+
+    .items {
+      justify-content: space-between;
+      gap: var(--s-8);
+    }
+
+    .icon-link {
+      display: none;
+    }
+
+    .item-label {
+      font-size: var(--text-body);
+      padding-block: 8px;
+    }
+
+    .end {
+      grid-column: 2;
+      grid-row: 1;
+      align-items: center;
+      gap: var(--s-15);
+    }
+
+    .lang {
+      font-size: var(--text-body);
+    }
+
+    .logo :global(.monogram) {
+      height: 22px;
+    }
+  }
+</style>

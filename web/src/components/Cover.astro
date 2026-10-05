@@ -1,0 +1,58 @@
+---
+// Project image, edge-to-edge with no frame. Without an image we draw a carbon
+// plate with the title engraved bottom-left, like the dark bands elsewhere.
+import { assetSrcset, assetUrl } from '../lib/assets';
+import type { DirectusFile } from '../lib/schema';
+
+interface Props {
+  file: DirectusFile | null;
+  alt: string;
+  sizes?: string;
+  eager?: boolean;
+  ratio?: string;
+  fit?: 'cover' | 'contain';
+}
+const { file, alt, sizes = '(min-width: 1200px) 400px, (min-width: 720px) 33vw, 100vw', eager = false, ratio = '16 / 10', fit = 'cover' } =
+  Astro.props;
+---
+
+{
+  file ? (
+    <img
+      class="cover"
+      src={assetUrl(file, 1200)}
+      srcset={assetSrcset(file)}
+      sizes={sizes}
+      alt={alt}
+      width={file.width ?? undefined}
+      height={file.height ?? undefined}
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      fetchpriority={eager ? 'high' : undefined}
+      style={`${ratio === 'auto' ? '' : `aspect-ratio: ${ratio}; `}object-fit: ${fit};`}
+    />
+  ) : (
+    <div class="cover placeholder band-dark" style={`aspect-ratio: ${ratio};`} role="img" aria-label={alt}>
+      <span class="label muted">{alt}</span>
+    </div>
+  )
+}
+
+<style>
+  .cover {
+    width: 100%;
+    height: auto;
+    background: var(--te-paper);
+  }
+
+  .placeholder {
+    background: var(--te-carbon);
+    display: flex;
+    align-items: flex-end;
+    padding: var(--s-15);
+  }
+
+  .placeholder .label {
+    color: var(--te-grey-300);
+  }
+</style>

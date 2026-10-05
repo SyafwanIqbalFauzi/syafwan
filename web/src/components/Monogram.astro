@@ -1,0 +1,40 @@
+---
+// "SIF" monogram — same paths as public/favicon.svg, without the carbon plate.
+// S and F follow the text colour; the I keeps the orange accent.
+interface Props {
+  height?: number;
+  class?: string;
+}
+const { height = 64, class: className } = Astro.props;
+// Cropped to the letterforms (strokes included): 27.6 × 15 units.
+const width = Math.round((height * 27.6) / 15);
+---
+
+<svg
+  class:list={['monogram', className]}
+  width={width}
+  height={height}
+  viewBox="1.8 8.5 27.6 15"
+  aria-hidden="true"
+>
+  <g fill="none" stroke-width="3.4" stroke-linecap="butt" stroke-linejoin="miter">
+    <path class="ink" d="M11.6 10.2H6.4a2.9 2.9 0 0 0 0 5.8h1.6a2.9 2.9 0 0 1 0 5.8H2.8" />
+    <path class="accent" d="M15.9 8.5V23.5" />
+    <path class="ink" d="M21.4 23.5V10.2H29.4M21.4 16H27.6" />
+  </g>
+</svg>
+
+<style>
+  .monogram {
+    display: block;
+    flex: none;
+  }
+
+  .ink {
+    stroke: currentColor;
+  }
+
+  .accent {
+    stroke: var(--te-orange);
+  }
+</style>

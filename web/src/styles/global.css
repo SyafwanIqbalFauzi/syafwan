@@ -1,0 +1,369 @@
+/*
+ * Design tokens after teenage.engineering (checked against the live site): white
+ * page, #f6f8f7 cells, hairline rules, thin type only at large sizes, zero radius,
+ * zero shadow, blue for actions, orange/amber rationed for status and artwork.
+ */
+:root {
+  --te-page: #ffffff;
+  --te-white: #f6f8f7;
+  --te-paper: #ffffff;
+  --te-black: #000000;
+  --te-carbon: #0f0e12;
+  --te-grey-100: #e5e5e5;
+  --te-grey-200: #cccccc;
+  --te-grey-300: #b2b2b2;
+  /* #b2b2b2 is only legible on carbon; on the light canvas muted text uses this AA-safe grey. */
+  --te-grey-600: #6b6b6b;
+  --te-blue: #0071bb;
+  --te-amber: #f0a800;
+  --te-orange: #f05a24;
+
+  --s-8: 8px;
+  --s-15: 15px;
+  --s-22: 22px;
+  --s-33: 33px;
+  --s-66: 66px;
+
+  --max: 1200px;
+  --gutter: 16px;
+  --nav-h: 66px;
+
+  --font: 'Inter Variable', 'Inter Fallback', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Thin weights only for large text (nav, footer, figures); 13px captions stay at 300. */
+  --w-thin: 200;
+  --w-light: 300;
+  --w-regular: 400;
+
+  --text-caption: 13px;
+  --text-body: 16px;
+  --text-prose: 17px;
+  --text-sub: 19px;
+  --text-h3: 26px;
+  --text-h2: 26px;
+  --text-h1: 40px;
+  --text-display: 53px;
+
+  color-scheme: light;
+}
+
+@media (min-width: 720px) {
+  :root {
+    --gutter: 33px;
+  }
+}
+
+/* Arial scaled to Inter's metrics, so text doesn't reflow when the web font loads. */
+@font-face {
+  font-family: 'Inter Fallback';
+  src: local('Arial');
+  ascent-override: 90.49%;
+  descent-override: 22.56%;
+  line-gap-override: 0%;
+  size-adjust: 107.06%;
+}
+
+/* ---------- reset ---------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  background: var(--te-page);
+  color: var(--te-black);
+  font-family: var(--font);
+  font-size: var(--text-body);
+  font-weight: var(--w-light);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+}
+
+img,
+svg,
+picture {
+  display: block;
+  max-width: 100%;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-weight: var(--w-light);
+  overflow-wrap: break-word;
+}
+
+:focus-visible {
+  outline: 1px solid currentColor;
+  outline-offset: 3px;
+}
+
+/* ---------- layout primitives ---------- */
+.container {
+  width: 100%;
+  max-width: calc(var(--max) + var(--gutter) * 2);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.band-dark {
+  background: var(--te-carbon);
+  color: var(--te-white);
+}
+
+.section {
+  padding-block: var(--s-66);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-15);
+  margin-bottom: var(--s-33);
+}
+
+.section-head h2 {
+  font-size: var(--text-h3);
+  line-height: 1.15;
+}
+
+/* ---------- type ---------- */
+.h1 {
+  font-size: clamp(30px, 6vw, var(--text-h1));
+  line-height: 1.11;
+  letter-spacing: -0.01em;
+}
+
+.label {
+  font-size: var(--text-caption);
+  font-weight: var(--w-light);
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+}
+
+.muted {
+  color: var(--te-grey-600);
+}
+
+.band-dark .muted {
+  color: var(--te-grey-300);
+}
+
+.link {
+  color: var(--te-blue);
+}
+
+.link:hover,
+.arrow-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+/* Actions read like TE's "buy now": small, blue, no ornament. */
+.arrow-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-caption);
+  font-weight: var(--w-light);
+  color: var(--te-blue);
+  white-space: nowrap;
+}
+
+/* ---------- small parts ---------- */
+.tag {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: var(--w-regular);
+  line-height: 1;
+  padding: 4px 6px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+
+.tag-amber {
+  background: var(--te-amber);
+  border-color: var(--te-amber);
+  color: var(--te-black);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-caption);
+  font-weight: var(--w-regular);
+  padding: 9px 16px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.btn-solid {
+  background: var(--te-black);
+  border-color: var(--te-black);
+  color: var(--te-white);
+}
+
+.band-dark .btn-solid {
+  background: var(--te-white);
+  border-color: var(--te-white);
+  color: var(--te-black);
+}
+
+.btn:hover {
+  background: var(--te-black);
+  color: var(--te-white);
+}
+
+.band-dark .btn:hover {
+  background: var(--te-white);
+  color: var(--te-black);
+}
+
+/* Ruled list: rows separated by hairlines, like a technical document. */
+.ruled > * {
+  border-top: 1px solid var(--te-grey-100);
+}
+
+.ruled > *:last-child {
+  border-bottom: 1px solid var(--te-grey-100);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- long-form content ---------- */
+.prose {
+  font-size: var(--text-prose);
+  line-height: 1.6;
+  max-width: 680px;
+}
+
+.prose > * + * {
+  margin-top: 1em;
+}
+
+.prose h2,
+.prose h3 {
+  line-height: 1.2;
+  margin-top: 1.8em;
+}
+
+.prose h2 {
+  font-size: var(--text-h3);
+}
+
+.prose h3 {
+  font-size: var(--text-sub);
+  font-weight: var(--w-regular);
+}
+
+.prose strong {
+  font-weight: 500;
+}
+
+.prose a {
+  color: var(--te-blue);
+  overflow-wrap: anywhere;
+}
+
+.prose a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.prose ul,
+.prose ol {
+  padding-left: 1.2em;
+}
+
+.prose ul {
+  list-style: none;
+}
+
+.prose ul > li {
+  position: relative;
+}
+
+.prose ul > li::before {
+  content: '';
+  position: absolute;
+  left: -1.2em;
+  top: 0.8em;
+  width: 8px;
+  border-top: 1px solid currentColor;
+}
+
+.prose ol {
+  list-style: decimal;
+}
+
+.prose li + li {
+  margin-top: 0.4em;
+}
+
+.prose hr {
+  border: 0;
+  border-top: 1px solid var(--te-grey-100);
+  margin-block: 2em;
+}
+
+.prose blockquote {
+  border-left: 1px solid var(--te-black);
+  padding-left: var(--s-15);
+}
+
+.prose-compact {
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+
+.prose-compact > * + * {
+  margin-top: 0.6em;
+}

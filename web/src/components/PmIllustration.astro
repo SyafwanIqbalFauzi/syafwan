@@ -1,0 +1,300 @@
+---
+// Hero illustration in the spirit of teenage.engineering's ink drawings: a product
+// manager buried in feature requests, a "NOT YET" sign (see "How I work"), and
+// stakeholder asks floating in. Pure SVG: colours come from CSS variables
+// (--ink, --paper, --accent) and an SVG displacement filter gives the hand-drawn wobble.
+import '@fontsource/architects-daughter';
+
+interface Props {
+  title?: string;
+}
+const { title = 'Illustration: a product manager in a hoodie at a desk buried in feature requests, under a sign that says "not yet"' } =
+  Astro.props;
+
+// Deterministic randomness so the drawing is identical on every render.
+function mulberry32(seed: number) {
+  return () => {
+    seed |= 0;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+const rand = mulberry32(42);
+const between = (min: number, max: number) => min + rand() * (max - min);
+
+const DESK_Y = 448; // where things rest on the desk surface
+const DEPTH = 14; // 3D depth of a paper bundle
+const RISE = 8;
+
+interface Bundle {
+  front: string;
+  side: string;
+  top: string | null;
+  lines: string;
+}
+
+/** A stack of paper reams: front face, side face, sheet edges as sketchy lines. */
+function stack(x: number, width: number, bundles: number): Bundle[] {
+  const out: Bundle[] = [];
+  let y = DESK_Y;
+  for (let i = 0; i < bundles; i++) {
+    const h = Math.round(between(16, 30));
+    const bx = x + between(-6, 6);
+    const bw = width + between(-8, 8);
+    const top = y - h;
+    const right = bx + bw;
+    const isTop = i === bundles - 1;
+    const lines: string[] = [];
+    for (let ly = top + 4; ly < y - 2; ly += 4) {
+      const start = bx + between(2, bw * 0.35);
+      const end = bx + bw - between(2, bw * 0.3);
+      lines.push(`M${start.toFixed(1)} ${ly.toFixed(1)}H${end.toFixed(1)}`);
+      if (rand() > 0.35) lines.push(`M${(right + 2).toFixed(1)} ${ly.toFixed(1)}l${DEPTH - 4} ${-(RISE - 2)}`);
+    }
+    out.push({
+      front: `M${bx} ${top}H${right}V${y}H${bx}Z`,
+      side: `M${right} ${top}l${DEPTH} ${-RISE}V${y - RISE}l${-DEPTH} ${RISE}Z`,
+      top: isTop ? `M${bx} ${top}l${DEPTH} ${-RISE}H${right + DEPTH}l${-DEPTH} ${RISE}Z` : null,
+      lines: lines.join(''),
+    });
+    y = top;
+  }
+  return out;
+}
+
+// Back rows first so the front rows overlap them.
+const stacks = [
+  stack(95, 135, 11),
+  stack(1065, 130, 12),
+  stack(40, 120, 7),
+  stack(190, 120, 9),
+  stack(300, 95, 5),
+  stack(985, 110, 8),
+  stack(1140, 120, 10),
+  stack(1262, 100, 6),
+];
+
+/** Loose sheets on the desk: [cx, cy, width, height, rotation] */
+const sheets: [number, number, number, number, number][] = [
+  [565, 452, 90, 18, -8],
+  [610, 458, 80, 14, 6],
+  [848, 459, 90, 14, -4],
+  [935, 452, 70, 16, 10],
+  [395, 456, 80, 14, 5],
+];
+
+const bubbles = [
+  { x: 1000, y: 34, w: 230, text: 'CAN WE ADD AI?', tail: -1 },
+  { x: 1190, y: 104, w: 160, text: 'BY FRIDAY?', tail: -1 },
+  { x: 815, y: 64, w: 180, text: 'USERS ARE', text2: 'CONFUSED...', tail: -1 },
+];
+---
+
+<svg class="pm-illustration" viewBox="0 0 1400 520" role="img" aria-labelledby="pm-ill-title">
+  <title id="pm-ill-title">{title}</title>
+  <defs>
+    <filter id="pm-ink" x="-2%" y="-2%" width="104%" height="104%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="7" />
+      <feDisplacementMap in="SourceGraphic" scale="3" />
+    </filter>
+  </defs>
+
+  <g filter="url(#pm-ink)">
+    <!-- Steam from the coffee, drawn first so stacks and bubbles sit over it -->
+    <g class="a">
+      <path d="M866 398c-18-30 26-44 8-78s-46-30-20-62 64-12 58-46-40-24-18-48" />
+      <path d="M880 398c10-22-18-40 6-62s52-6 52-36-30-32-4-52 50 0 66-18" />
+      <path d="M854 396c-22-18-6-48 18-50s34-26 16-46" />
+    </g>
+
+    <!-- Desk -->
+    <path class="p" d="M24 440H1376L1386 466H14Z" />
+    <path class="p" d="M14 466H1386V486H14Z" />
+    <path class="k" d="M18 486H1382V500H18Z" />
+
+    <!-- Paper stacks -->
+    {
+      stacks.flat().map((b) => (
+        <g>
+          <path class="p" d={b.side} />
+          <path class="p" d={b.front} />
+          {b.top && <path class="p" d={b.top} />}
+          <path class="l thin" d={b.lines} />
+        </g>
+      ))
+    }
+
+    <!-- Hanging sign: "NOT YET" -->
+    <g transform="rotate(-3 470 150)">
+      <path class="l" d="M472 34l-74 64M472 34l74 64" />
+      <circle class="k" cx="472" cy="34" r="5" />
+      <path class="p" d="M378 96H566V166H378Z" />
+      <text class="t accent" x="472" y="146" text-anchor="middle" font-size="42">NOT YET</text>
+      <path class="l" d="M414 166l-4 20M532 166l4 20" />
+      <path class="p" d="M398 184H548V280H398Z" />
+      <text class="t" x="473" y="212" text-anchor="middle" font-size="17">IDEAS WELCOME.</text>
+      <text class="t" x="473" y="238" text-anchor="middle" font-size="17">PLEASE QUEUE</text>
+      <text class="t" x="473" y="264" text-anchor="middle" font-size="17">HERE →</text>
+    </g>
+
+    <!-- Laptop with a roadmap -->
+    <g>
+      <path class="p" d="M448 318H600L596 430H452Z" />
+      <path class="l thin" d="M460 330H588L585 420H463Z" />
+      <text class="t" x="470" y="350" font-size="13">ROADMAP</text>
+      <path class="l thin" d="M470 362H540M470 380H520M470 398H560M470 412H505" />
+      <path class="accent-stroke" d="M520 380H578" />
+      <path class="p" d="M436 430H612L622 446H426Z" />
+    </g>
+
+    <!-- Loose sheets -->
+    {
+      sheets.map(([cx, cy, w, h, r]) => (
+        <g transform={`rotate(${r} ${cx} ${cy})`}>
+          <path class="p" d={`M${cx - w / 2} ${cy - h / 2}h${w}v${h}h${-w}Z`} />
+          <path class="l thin" d={`M${cx - w / 2 + 8} ${cy - 2}h${w * 0.6}M${cx - w / 2 + 8} ${cy + 3}h${w * 0.4}`} />
+        </g>
+      ))
+    }
+
+    <!-- The product manager -->
+    <g>
+      <path class="p" d="M702 258h36v40h-36z" />
+      <path class="p" d="M652 300C672 288 768 288 788 300L808 446H632Z" />
+      <!-- Hoodie: folded hood around the neck, drawstrings, pocket seam -->
+      <path class="p" d="M680 300C684 276 756 276 760 300C752 318 688 318 680 300Z" />
+      <path class="l thin" d="M692 298c10 8 46 8 56 0" />
+      <path class="l thin" d="M708 312c-3 18 2 32-2 48M732 312c3 18-2 32 2 48" />
+      <path class="k thin" d="M703 360h7v9h-7zM731 360h7v9h-7z" />
+      <path class="l thin" d="M672 398c22-10 74-10 96 0" />
+
+      <!-- Desk sheet he's working on: an upward chart -->
+      <path class="p" d="M664 438L782 434L788 462L658 466Z" />
+      <path class="accent-stroke" d="M676 456l22-8 16 4 22-12 20-6" />
+      <path class="l thin" d="M748 434l8 0" />
+
+      <!-- Arms -->
+      <path class="p" d="M654 304C628 330 604 392 610 428C620 446 652 448 672 440L672 424C652 424 640 418 638 402C642 372 654 346 666 330Z" />
+      <path class="p" d="M786 304C812 330 836 392 830 428C820 446 788 448 768 440L768 424C788 424 800 418 802 402C798 372 786 346 774 330Z" />
+      <path class="l thin" d="M626 412c8 10 22 14 38 12M814 412c-8 10-22 14-38 12" />
+      <ellipse class="p" cx="680" cy="436" rx="17" ry="12" />
+      <ellipse class="p" cx="764" cy="436" rx="17" ry="12" />
+      <path class="l thin" d="M756 432c6 2 12 2 18 0M756 440c6 2 12 2 18 0" />
+      <path class="k thin" d="M670 428l40 20 2 4-6-1-38-18Z" />
+
+      <!-- Head -->
+      <ellipse class="p" cx="662" cy="214" rx="10" ry="15" />
+      <ellipse class="p" cx="778" cy="214" rx="10" ry="15" />
+      <ellipse class="p" cx="720" cy="206" rx="56" ry="64" />
+      <path
+        class="k"
+        d="M662 214C646 178 650 142 674 128L664 110L690 118L688 96L710 114L722 92L736 114L760 96L762 120L786 108L782 134C804 146 806 184 782 210C778 186 768 170 748 162C734 174 704 174 690 162C680 178 670 194 666 214Z"
+      />
+      <path class="l thin" d="M688 96c-6-10-16-14-28-10M722 92c2-12 10-20 22-20M786 108c8-6 20-4 26 4M664 150c-12-2-22 4-24 16M800 160c10 2 16 10 16 20" />
+
+      <!-- Tired face -->
+      <path class="l" d="M684 190l24 6M732 196l24-6" />
+      <circle class="l" cx="698" cy="214" r="15" />
+      <circle class="l" cx="742" cy="214" r="15" />
+      <path class="l" d="M713 212q7-6 14 0M683 212l-20-4M757 212l20-4" />
+      <path class="l" d="M688 210q10-6 20 0M732 210q10-6 20 0" />
+      <circle class="k" cx="699" cy="216" r="3" />
+      <circle class="k" cx="741" cy="216" r="3" />
+      <path class="l thin" d="M690 232q8 4 16 0M734 232q8 4 16 0" />
+      <path class="l" d="M720 222c-4 14-8 24 2 27c6 1 9-3 6-6" />
+      <path class="l" d="M704 262q16-8 32 0" />
+    </g>
+
+    <!-- Coffee mug -->
+    <path class="p" d="M846 402h44l-4 46h-36z" />
+    <path class="l" d="M890 412c16 0 16 22-2 22" />
+    <path class="l thin" d="M850 410h36" />
+
+    <!-- Name plate -->
+    <g transform="rotate(-12 960 438)">
+      <path class="k" d="M872 418H1050V458H872Z" />
+      <text class="t inverse" x="961" y="446" text-anchor="middle" font-size="22">MR PRODUCT</text>
+    </g>
+
+    <!-- Stakeholder asks -->
+    {
+      bubbles.map((b) => (
+        <g>
+          <path
+            class="p"
+            d={`M${b.x + 14} ${b.y}H${b.x + b.w - 14}Q${b.x + b.w} ${b.y} ${b.x + b.w} ${b.y + 14}V${b.y + (b.text2 ? 58 : 36)}Q${b.x + b.w} ${b.y + (b.text2 ? 72 : 50)} ${b.x + b.w - 14} ${b.y + (b.text2 ? 72 : 50)}H${b.x + 46}l-26 22 4-22H${b.x + 14}Q${b.x} ${b.y + (b.text2 ? 72 : 50)} ${b.x} ${b.y + (b.text2 ? 58 : 36)}V${b.y + 14}Q${b.x} ${b.y} ${b.x + 14} ${b.y}Z`}
+          />
+          <text class="t" x={b.x + b.w / 2} y={b.y + 32} text-anchor="middle" font-size="19">
+            {b.text}
+          </text>
+          {b.text2 && (
+            <text class="t" x={b.x + b.w / 2} y={b.y + 56} text-anchor="middle" font-size="19">
+              {b.text2}
+            </text>
+          )}
+        </g>
+      ))
+    }
+  </g>
+</svg>
+
+<style>
+  .pm-illustration {
+    --ink: var(--te-carbon);
+    --paper: var(--te-paper);
+    --accent: #f05a24;
+    width: 100%;
+    height: auto;
+    overflow: visible;
+  }
+
+  .p {
+    fill: var(--paper);
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linejoin: round;
+  }
+
+  .k {
+    fill: var(--ink);
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linejoin: round;
+  }
+
+  .l {
+    fill: none;
+    stroke: var(--ink);
+    stroke-width: 3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  .thin {
+    stroke-width: 1.6;
+  }
+
+  .a,
+  .accent-stroke {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 3;
+    stroke-linecap: round;
+  }
+
+  .t {
+    fill: var(--ink);
+    font-family: 'Architects Daughter', 'Comic Sans MS', cursive;
+    letter-spacing: 0.02em;
+  }
+
+  .t.accent {
+    fill: var(--accent);
+  }
+
+  .t.inverse {
+    fill: var(--paper);
+  }
+</style>

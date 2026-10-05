@@ -59,6 +59,13 @@ for reference only. The snapshot is the source of truth.
 | `npm run import` | Import the Obsidian vault (`--dry-run` to only parse) |
 | `npm run import:translations` | Apply a translations JSON (default `id-ID`) |
 
+## Frontend
+
+- Pages live in `web/src/pages/[lang]/` (`en`, `id`); `/` redirects by cookie or `Accept-Language`.
+- Data comes from Directus at request time, cached in memory for 60s (`web/src/lib/directus.ts`), so edits
+  appear within a minute without a rebuild.
+- Design tokens (teenage.engineering-inspired) are CSS variables in `web/src/styles/global.css`; components use scoped `<style>`.
+
 ## Access model
 
 - Only published rows are readable without login (`status = published`); translations follow their parent's status.

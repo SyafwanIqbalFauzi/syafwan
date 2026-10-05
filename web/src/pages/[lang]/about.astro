@@ -1,0 +1,521 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Icon from '../../components/Icon.astro';
+import { getCertifications, getEducation, getExperiences, getProfile, getSkills } from '../../lib/content';
+import { formatMonthYear, formatPeriod, isLocale, pick, t } from '../../lib/i18n';
+import { renderMarkdown } from '../../lib/markdown';
+import { fileUrl } from '../../lib/assets';
+
+const { lang } = Astro.params;
+if (!isLocale(lang)) return Astro.rewrite('/404');
+const locale = lang;
+
+const [profile, experiences, skills, education, certifications] = await Promise.all([
+  getProfile(),
+  getExperiences(),
+  getSkills(),
+  getEducation(),
+  getCertifications(),
+]);
+const { value: bio } = pick(profile.translations, locale);
+
+const sections = [
+  { id: 'how', label: t(locale, 'about.how'), show: Boolean(bio?.principles?.length) },
+  { id: 'experience', label: t(locale, 'about.experience'), show: experiences.length > 0 },
+  { id: 'skills', label: t(locale, 'about.skills'), show: skills.length > 0 },
+  { id: 'education', label: t(locale, 'about.education'), show: education.length > 0 },
+  { id: 'certifications', label: t(locale, 'about.certifications'), show: certifications.length > 0 },
+].filter((s) => s.show);
+---
+
+<Layout locale={locale} title={t(locale, 'about.title')} description={bio?.short_bio} type="profile">
+  <nav class="subnav" aria-label={t(locale, 'about.title')}>
+    <ul class="container subnav-inner">
+      {
+        sections.map((s) => (
+          <li>
+            <a href={`#${s.id}`} class="label">
+              {s.label}
+            </a>
+          </li>
+        ))
+      }
+    </ul>
+  </nav>
+
+  <!-- Intro -->
+  <section class="section container intro">
+    <div>
+      <p class="label muted">{t(locale, 'about.title')}</p>
+      <h1 class="h1">{profile.full_name}</h1>
+    </div>
+    <div class="intro-body">
+      <div class="prose" set:html={renderMarkdown(bio?.summary)} />
+      <dl class="facts ruled">
+        {
+          profile.location && (
+            <div>
+              <dt class="label muted">{t(locale, 'about.location')}</dt>
+              <dd>{profile.location}</dd>
+            </div>
+          )
+        }
+        {
+          bio?.spoken_languages?.length ? (
+            <div>
+              <dt class="label muted">{t(locale, 'about.languages')}</dt>
+              <dd>
+                {bio.spoken_languages.map((l) => (
+                  <span class="lang-item">
+                    {l.name} <span class="muted">— {l.level}</span>
+                  </span>
+                ))}
+              </dd>
+            </div>
+          ) : null
+        }
+      </dl>
+      {
+        profile.cv_file && (
+          <a href={fileUrl(profile.cv_file)} class="btn btn-solid">
+            <Icon name="download" size={16} />
+            {t(locale, 'about.downloadCv')}
+          </a>
+        )
+      }
+    </div>
+  </section>
+
+  <!-- How I work -->
+  {
+    bio?.principles?.length ? (
+      <section class="section container" id="how">
+        <div class="section-head">
+          <h2>{t(locale, 'about.how')}</h2>
+        </div>
+        <ol class="principles">
+          {bio.principles.map((p, i) => (
+            <li>
+              <span class="label muted">{String(i + 1).padStart(2, '0')}</span>
+              <h3>{p.title}</h3>
+              <p>{p.description}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+    ) : null
+  }
+
+  <!-- Experience -->
+  <section class="section container" id="experience">
+    <div class="section-head">
+      <h2>{t(locale, 'about.experience')}</h2>
+    </div>
+    <ol class="ruled">
+      {
+        experiences.map((e) => {
+          const tr = pick(e.translations, locale).value;
+          const projects = (e.projects ?? []).map((p) => p.projects_id).filter(Boolean);
+          const hasDetails = tr?.responsibilities || tr?.achievements || projects.length;
+          return (
+            <li class="exp">
+              <p class="label muted period">
+                {formatPeriod(e.start_date, e.end_date, locale)}
+                {!e.end_date && <span class="tag tag-amber">{t(locale, 'common.present')}</span>}
+              </p>
+              <div class="exp-main">
+                <h3 class="role">{tr?.role}</h3>
+                <p class="company">
+                  {e.company}
+                  {e.employment_type !== 'full_time' && (
+                    <span class="tag">{t(locale, `employment.${e.employment_type as Exclude<typeof e.employment_type, 'full_time'>}`)}</span>
+                  )}
+                </p>
+                {(tr?.context || e.location) && (
+                  <p class="label muted">{[tr?.context, e.location].filter(Boolean).join(' · ')}</p>
+                )}
+                {hasDetails && (
+                  <details class="exp-details">
+                    <summary class="label">
+                      {[
+                        tr?.responsibilities && t(locale, 'about.responsibilities'),
+                        tr?.achievements && t(locale, 'about.achievements'),
+                      ]
+                        .filter(Boolean)
+                        .join(' & ') || t(locale, 'about.relatedWork')}
+                    </summary>
+                    <div class="exp-cols">
+                      {tr?.responsibilities && (
+                        <div>
+                          <h4 class="label muted">{t(locale, 'about.responsibilities')}</h4>
+                          <div class="prose prose-compact" set:html={renderMarkdown(tr.responsibilities)} />
+                        </div>
+                      )}
+                      {tr?.achievements && (
+                        <div>
+                          <h4 class="label muted">{t(locale, 'about.achievements')}</h4>
+                          <div class="prose prose-compact" set:html={renderMarkdown(tr.achievements)} />
+                        </div>
+                      )}
+                    </div>
+                    {projects.length > 0 && (
+                      <div class="related">
+                        <h4 class="label muted">{t(locale, 'about.relatedWork')}</h4>
+                        <ul>
+                          {projects.map((p) => (
+                            <li>
+                              <a href={`/${locale}/work/${p.slug}`} class="tag chip">
+                                {p.title}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </details>
+                )}
+              </div>
+            </li>
+          );
+        })
+      }
+    </ol>
+  </section>
+
+  <!-- Skills -->
+  <section class="section container" id="skills">
+    <div class="section-head">
+      <h2>{t(locale, 'about.skills')}</h2>
+    </div>
+    <ul class="skills">
+      {
+        skills.map((s) => {
+          const tr = pick(s.translations, locale).value;
+          return (
+            <li>
+              <h3>{tr?.name}</h3>
+              <p class="label muted">{tr?.keywords?.join(' · ')}</p>
+            </li>
+          );
+        })
+      }
+    </ul>
+  </section>
+
+  <!-- Education -->
+  <section class="section container" id="education">
+    <div class="section-head">
+      <h2>{t(locale, 'about.education')}</h2>
+    </div>
+    <ol class="ruled">
+      {
+        education.map((e) => {
+          const tr = pick(e.translations, locale).value;
+          return (
+            <li class="exp">
+              <p class="label muted period">
+                {e.start_year === e.end_year ? e.start_year : `${e.start_year ?? ''} – ${e.end_year ?? ''}`}
+              </p>
+              <div class="exp-main">
+                <h3 class="role">{tr?.degree}</h3>
+                <p class="company">
+                  {e.institution}
+                  <span class="tag">{t(locale, `about.${e.category}`)}</span>
+                </p>
+                {e.grade && (
+                  <p class="label muted">
+                    {t(locale, 'about.grade')} {e.grade}
+                  </p>
+                )}
+                {tr?.description && <div class="prose prose-compact edu-desc" set:html={renderMarkdown(tr.description)} />}
+              </div>
+            </li>
+          );
+        })
+      }
+    </ol>
+  </section>
+
+  <!-- Certifications -->
+  <section class="section container" id="certifications">
+    <div class="section-head">
+      <h2>{t(locale, 'about.certifications')}</h2>
+    </div>
+    <ul class="ruled">
+      {
+        certifications.map((c) => (
+          <li class="cert">
+            <span class="label muted">{c.issued_date ? formatMonthYear(c.issued_date, locale) : '—'}</span>
+            <span>
+              {c.name} <span class="muted">· {c.issuer}</span>
+            </span>
+            {c.credential_url ? (
+              <a href={c.credential_url} class="arrow-link" target="_blank" rel="noopener noreferrer">
+                {t(locale, 'common.verify')} <Icon name="external" size={14} />
+              </a>
+            ) : (
+              <span />
+            )}
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+</Layout>
+
+<style>
+  .subnav {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--te-white);
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+
+  .subnav-inner {
+    display: flex;
+    gap: var(--s-22);
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-block: 12px;
+  }
+
+  .subnav a {
+    white-space: nowrap;
+  }
+
+  .subnav a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  section[id] {
+    scroll-margin-top: 50px;
+  }
+
+  .intro {
+    display: grid;
+    gap: var(--s-33);
+  }
+
+  .intro .label {
+    margin-bottom: var(--s-15);
+  }
+
+  .intro-body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-33);
+  }
+
+  @media (min-width: 1000px) {
+    .intro {
+      grid-template-columns: 1fr 2fr;
+    }
+  }
+
+  .facts {
+    width: 100%;
+    max-width: 680px;
+  }
+
+  .facts div {
+    display: grid;
+    grid-template-columns: 120px 1fr;
+    gap: var(--s-15);
+    padding-block: 10px;
+  }
+
+  .lang-item {
+    display: block;
+  }
+
+  .principles {
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 1px solid var(--te-grey-100);
+  }
+
+  .principles li {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: var(--s-33) 0;
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+
+  .principles h3 {
+    font-size: var(--text-sub);
+    line-height: 1.15;
+  }
+
+  @media (min-width: 720px) {
+    .principles {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .principles li {
+      padding-right: var(--s-33);
+    }
+
+    .principles li:nth-child(2n) {
+      padding-left: var(--s-33);
+      padding-right: 0;
+      border-left: 1px solid var(--te-grey-100);
+    }
+  }
+
+  .exp {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    padding-block: var(--s-22);
+  }
+
+  @media (min-width: 720px) {
+    .exp {
+      grid-template-columns: 220px 1fr;
+      gap: var(--s-22);
+    }
+  }
+
+  .period {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    align-self: start;
+  }
+
+  .exp-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .role {
+    font-size: var(--text-sub);
+    line-height: 1.25;
+  }
+
+  .company {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .exp-details {
+    margin-top: var(--s-15);
+  }
+
+  .exp-details summary {
+    cursor: pointer;
+    width: fit-content;
+    list-style: none;
+    font-weight: var(--w-regular);
+  }
+
+  .exp-details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .exp-details summary::before {
+    content: '+';
+    display: inline-block;
+    width: 1.2em;
+  }
+
+  .exp-details[open] summary::before {
+    content: '−';
+  }
+
+  .exp-details summary:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .exp-cols {
+    display: grid;
+    gap: var(--s-22);
+    margin-top: var(--s-15);
+  }
+
+  @media (min-width: 1000px) {
+    .exp-cols {
+      grid-template-columns: 1fr 1fr;
+      gap: var(--s-33);
+    }
+  }
+
+  .exp-cols h4,
+  .related h4 {
+    margin-bottom: 8px;
+  }
+
+  .related {
+    margin-top: var(--s-22);
+  }
+
+  .related ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chip:hover {
+    background: var(--te-black);
+    color: var(--te-white);
+  }
+
+  .edu-desc {
+    margin-top: 8px;
+  }
+
+  .skills {
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 1px solid var(--te-grey-100);
+  }
+
+  .skills li {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--s-22) var(--s-15) var(--s-22) 0;
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+
+  .skills h3 {
+    font-size: var(--text-body);
+    font-weight: var(--w-regular);
+  }
+
+  @media (min-width: 720px) {
+    .skills {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (min-width: 1000px) {
+    .skills {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+
+  .cert {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding-block: var(--s-15);
+  }
+
+  @media (min-width: 720px) {
+    .cert {
+      grid-template-columns: 220px 1fr auto;
+      align-items: baseline;
+      gap: var(--s-22);
+    }
+  }
+</style>

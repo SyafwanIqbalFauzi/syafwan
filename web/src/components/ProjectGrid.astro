@@ -1,0 +1,70 @@
+---
+// Full-bleed catalogue grid: cells meet edge to edge, divided by 1px rules both
+// ways (no gaps, no frames), as on teenage.engineering.
+import ProjectCard from './ProjectCard.astro';
+import type { Locale } from '../lib/i18n';
+import type { Project } from '../lib/schema';
+
+interface Props {
+  projects: Project[];
+  locale: Locale;
+  eagerCount?: number;
+  headingLevel?: 2 | 3;
+}
+const { projects, locale, eagerCount = 0, headingLevel = 3 } = Astro.props;
+const sizes = '(min-width: 1000px) 25vw, (min-width: 720px) 38vw, 76vw';
+---
+
+<ul class="grid">
+  {
+    projects.map((project, i) => (
+      <li>
+        <ProjectCard project={project} locale={locale} sizes={sizes} eager={i < eagerCount} headingLevel={headingLevel} />
+      </li>
+    ))
+  }
+</ul>
+
+<style>
+  .grid {
+    --cols: 1;
+    display: grid;
+    grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+    border-top: 1px solid var(--te-grey-200);
+  }
+
+  .grid > li {
+    border-bottom: 1px solid var(--te-grey-200);
+    border-right: 1px solid var(--te-grey-200);
+  }
+
+  @media (max-width: 719px) {
+    .grid > li {
+      border-right: 0;
+    }
+  }
+
+  @media (min-width: 720px) {
+    .grid {
+      --cols: 2;
+    }
+
+    .grid > li:nth-child(2n) {
+      border-right: 0;
+    }
+  }
+
+  @media (min-width: 1000px) {
+    .grid {
+      --cols: 3;
+    }
+
+    .grid > li:nth-child(2n) {
+      border-right: 1px solid var(--te-grey-200);
+    }
+
+    .grid > li:nth-child(3n) {
+      border-right: 0;
+    }
+  }
+</style>

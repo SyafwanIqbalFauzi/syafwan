@@ -1,0 +1,128 @@
+---
+// Catalogue cell after teenage.engineering's product grid: name + blue action in
+// the top-left corner, the screenshot floating in the middle of a pale cell.
+import { assetSrcset, assetUrl } from '../lib/assets';
+import { formatYears, t, type Locale } from '../lib/i18n';
+import type { Project } from '../lib/schema';
+
+interface Props {
+  project: Project;
+  locale: Locale;
+  sizes?: string;
+  eager?: boolean;
+  /** h2 when the grid sits directly under the page h1, h3 under a section h2. */
+  headingLevel?: 2 | 3;
+}
+const { project, locale, sizes, eager, headingLevel = 3 } = Astro.props;
+const Heading = headingLevel === 2 ? 'h2' : 'h3';
+const meta = [project.client, formatYears(project, locale)].filter(Boolean).join(' · ');
+---
+
+<a href={`/${locale}/work/${project.slug}`} class="cell">
+  <div class="caption">
+    <Heading class="title">{project.title}</Heading>
+    <p class="label muted meta">
+      {meta}
+      {project.is_ongoing && <span class="tag tag-amber">{t(locale, 'common.ongoing')}</span>}
+    </p>
+    <span class="arrow-link">{t(locale, 'common.viewProject')}</span>
+  </div>
+  <div class="stage">
+    <div class="stage-inner">
+    {
+      project.cover ? (
+        <img
+          src={assetUrl(project.cover, 800)}
+          srcset={assetSrcset(project.cover)}
+          sizes={sizes}
+          alt={project.title}
+          width={project.cover.width ?? undefined}
+          height={project.cover.height ?? undefined}
+          loading={eager ? 'eager' : 'lazy'}
+          decoding="async"
+        />
+      ) : (
+        <span class="placeholder band-dark" role="img" aria-label={project.title}>
+          <span class="label">{project.title}</span>
+        </span>
+      )
+    }
+    </div>
+  </div>
+</a>
+
+<style>
+  .cell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: var(--te-white);
+    transition: background-color 0.2s;
+  }
+
+  .cell:hover {
+    background: #eef0ef;
+  }
+
+  .caption {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: var(--s-22) var(--gutter) 0;
+    min-height: 92px;
+  }
+
+  .title {
+    font-size: var(--text-caption);
+    font-weight: var(--w-regular);
+    line-height: 1.35;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cell:hover .arrow-link {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Fixed stage so every cell in a row lines up, whatever the screenshot ratio;
+     the image is fitted inside a definite box, then framed by a hairline. */
+  .stage {
+    position: relative;
+    aspect-ratio: 4 / 3;
+  }
+
+  .stage-inner {
+    position: absolute;
+    inset: var(--s-22) 12% var(--s-33);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .stage img {
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    border: 1px solid var(--te-grey-100);
+    background: var(--te-paper);
+  }
+
+  .placeholder {
+    display: flex;
+    align-items: flex-end;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    padding: var(--s-15);
+  }
+
+  .placeholder .label {
+    color: var(--te-grey-300);
+  }
+</style>

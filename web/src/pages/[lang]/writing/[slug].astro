@@ -1,0 +1,163 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import Icon from '../../../components/Icon.astro';
+import { getPost, getPosts, getProfile } from '../../../lib/content';
+import { LANGUAGE_CODE, formatDate, isLocale, pick, t } from '../../../lib/i18n';
+import { renderMarkdown } from '../../../lib/markdown';
+import { assetUrl } from '../../../lib/assets';
+
+const { lang, slug } = Astro.params;
+if (!isLocale(lang) || !slug) return Astro.rewrite('/404');
+const locale = lang;
+
+const [post, all, profile] = await Promise.all([getPost(slug), getPosts(), getProfile()]);
+if (!post) return Astro.rewrite('/404');
+
+const { value: tr, fallback } = pick(post.translations, locale);
+const contentLang = tr?.languages_code ?? LANGUAGE_CODE[locale];
+// `all` is newest first: "previous" is the older post.
+const index = all.findIndex((p) => p.slug === post.slug);
+const newer = index > 0 ? all[index - 1] : null;
+const older = index >= 0 && index < all.length - 1 ? all[index + 1] : null;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'BlogPosting',
+  headline: tr?.title,
+  datePublished: post.published_at,
+  inLanguage: contentLang,
+  author: { '@type': 'Person', name: profile.full_name },
+  mainEntityOfPage: new URL(Astro.url.pathname, Astro.site).href,
+  sameAs: post.medium_url ?? undefined,
+};
+---
+
+<Layout
+  locale={locale}
+  title={tr?.title}
+  description={tr?.excerpt}
+  image={post.cover ? assetUrl(post.cover, 1200, 'jpg') : null}
+  type="article"
+  jsonLd={jsonLd}
+>
+  <article class="container article" lang={contentLang.slice(0, 2)}>
+    <header class="article-head">
+      <p class="label crumbs">
+        <a href={`/${locale}/writing`}>{t(locale, 'nav.writing')}</a>
+        <span class="muted">/</span>
+        <span class="muted">{formatDate(post.published_at, locale)}</span>
+      </p>
+      <h1 class="h1">{tr?.title}</h1>
+      <p class="label muted meta">
+        {post.tags?.map((tag) => <a href={`/${locale}/writing?tag=${encodeURIComponent(tag)}`} class="tag">{tag}</a>)}
+        {fallback && <span>{t(locale, `common.writtenIn.${post.original_language}`)}</span>}
+      </p>
+    </header>
+
+    <div class="prose" set:html={renderMarkdown(tr?.body)} />
+
+    {
+      post.medium_url && (
+        <p class="origin">
+          <a href={post.medium_url} class="arrow-link" target="_blank" rel="noopener noreferrer">
+            {t(locale, 'writing.originally')} <Icon name="external" size={14} />
+          </a>
+        </p>
+      )
+    }
+  </article>
+
+  <nav class="container pager" aria-label="Posts">
+    <div class="pager-inner">
+      {
+        older ? (
+          <a href={`/${locale}/writing/${older.slug}`} class="pager-link">
+            <span class="label muted">← {t(locale, 'common.previous')}</span>
+            <span>{pick(older.translations, locale).value?.title}</span>
+          </a>
+        ) : (
+          <span />
+        )
+      }
+      {
+        newer && (
+          <a href={`/${locale}/writing/${newer.slug}`} class="pager-link next">
+            <span class="label muted">{t(locale, 'common.next')} →</span>
+            <span>{pick(newer.translations, locale).value?.title}</span>
+          </a>
+        )
+      }
+    </div>
+  </nav>
+</Layout>
+
+<style>
+  .article {
+    padding-block: var(--s-33) var(--s-66);
+  }
+
+  .article-head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-22);
+    max-width: 820px;
+    margin-bottom: var(--s-66);
+  }
+
+  .crumbs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: var(--s-15);
+  }
+
+  .crumbs a:hover,
+  .meta a:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .origin {
+    max-width: 680px;
+    margin-top: var(--s-33);
+    padding-top: var(--s-22);
+    border-top: 1px solid var(--te-grey-100);
+  }
+
+  .origin a {
+    color: var(--te-blue);
+  }
+
+  .pager-inner {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--s-22);
+    padding-block: var(--s-22);
+    margin-bottom: var(--s-66);
+    border-top: 1px solid var(--te-grey-100);
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+
+  .pager-link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 45%;
+  }
+
+  .pager-link.next {
+    text-align: right;
+    align-items: flex-end;
+  }
+
+  .pager-link:hover span:last-child {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+</style>
