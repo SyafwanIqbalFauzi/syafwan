@@ -23,5 +23,5 @@ COPY --from=build /app/web/package.json web/package.json
 USER node
 EXPOSE 4321
 HEALTHCHECK --interval=15s --timeout=5s --retries=5 --start-period=20s \
-  CMD wget -qO- http://127.0.0.1:4321/en >/dev/null || exit 1
+  CMD node -e "fetch('http://127.0.0.1:4321/en').then(r=>process.exit(r.ok?0:1),()=>process.exit(1))"
 CMD ["node", "web/dist/server/entry.mjs"]
