@@ -52,6 +52,15 @@ jobs:
             set -e
             cd ~/syafwan
             git pull --ff-only
-            docker compose -f docker-compose.prod.yml pull web
+            # Migrasi sekali jalan: service dulu bernama `web`/`directus` (alias DNS bentrok dengan
+            # sejarah-persib). Compose tidak bisa mengganti nama service dengan container_name tetap
+            # ("name already in use"), jadi hapus container lama HANYA bila labelnya masih nama lama.
+            # Idempoten: setelah migrasi, langkah ini tidak melakukan apa-apa.
+            for pair in "syafwan-web:web" "syafwan-directus:directus"; do
+              c=${pair%%:*}; old=${pair##*:}
+              cur=$(docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}}' "$c" 2>/dev/null || true)
+              if [ "$cur" = "$old" ]; then echo "migrasi: hapus $c (service lama $old)"; docker rm -f "$c"; fi
+            done
+            docker compose -f docker-compose.prod.yml pull syafwan-web
             docker compose -f docker-compose.prod.yml up -d --wait
             docker image prune -f --filter "until=168h"

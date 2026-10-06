@@ -1,10 +1,18 @@
 # Production stack on the VPS (sejarah-persib). Joins the existing internal network so
 # the shared Caddy can reach `syafwan-web` and `syafwan-directus`. No published ports.
+#
+# PENTING: nama service di bawah SENGAJA `syafwan-web` / `syafwan-directus`, bukan `web` /
+# `directus`. Docker Compose memberi tiap service alias DNS sesuai nama service-nya di SEMUA
+# network yang diikutinya. Network `sejarah-persib_internal` dipakai bersama stack
+# sejarah-persib yang juga punya service `web` dan `directus`; dengan nama yang sama, DNS
+# Docker menjawab bergantian antar-proyek (Caddy `web:3000` dan Nuxt `http://directus:8055`
+# kadang nyasar ke container proyek ini -> 500 /api/search-index, halaman salah). Jangan
+# dikembalikan ke nama generik selama network ini dibagi.
 # Secrets live in ~/syafwan/.env on the server (never committed).
 name: syafwan
 
 services:
-  directus:
+  syafwan-directus:
     image: directus/directus:11.17.4
     container_name: syafwan-directus
     restart: unless-stopped
@@ -35,13 +43,13 @@ services:
     networks:
       - internal
 
-  web:
+  syafwan-web:
     image: ghcr.io/syafwaniqbalfauzi/syafwan-web:latest
     container_name: syafwan-web
     restart: unless-stopped
     mem_limit: 160m
     depends_on:
-      - directus
+      - syafwan-directus
     environment:
       NODE_ENV: production
       PUBLIC_SITE_URL: ${PUBLIC_SITE_URL}
