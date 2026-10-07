@@ -1,0 +1,43 @@
+name: Uptime probe
+
+# Memeriksa situs produksi DARI LUAR server (runner GitHub), tanpa akun layanan pihak ketiga.
+# Gagal => GitHub mengirim notifikasi, dan job pemantau di server meneruskannya ke Discord.
+# Repo ini publik: hanya URL publik di sini, tidak ada secret.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Periksa situs
+        shell: bash
+        run: |
+          fail=0
+          # check <nama> <url> <pola yang harus ada di body>
+          check() {
+            local name="$1" url="$2" pat="$3" ok=0
+            for attempt in 1 2 3; do
+              code=$(curl -s -L -m 25 -o body.txt -w '%{http_code}' -A 'uptime-probe/1.0 (github-actions)' "$url" || echo 000)
+              if [ "$code" = "200" ] && grep -qE "$pat" body.txt; then ok=1; break; fi
+              sleep 20
+            done
+            if [ "$ok" = "1" ]; then echo "OK    $name ($url)"; else echo "::error::GAGAL $name ($url) http=$code"; fail=1; fi
+          }
+          check "Beranda Sejarah Persib" "https://sejarahpersib.com/"                 "Sejarah"
+          check "Jadwal"                  "https://sejarahpersib.com/jadwal"           "Jadwal"
+          check "Kalender ICS"            "https://sejarahpersib.com/jadwal-persib.ics" "BEGIN:VCALENDAR"
+          check "Search index (API)"      "https://sejarahpersib.com/api/search-index" "\\["
+          check "Situs pribadi"           "https://syafwan.sejarahpersib.com/"        "<html"
+          exit $fail
