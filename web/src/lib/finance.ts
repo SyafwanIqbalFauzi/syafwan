@@ -198,17 +198,28 @@ export interface CashflowPoint {
   cumulative: number;
   /** The bucket is not over yet (today falls inside it) */
   partial: boolean;
+  /** Who recorded it: member id as text, or 'none'. Only buckets with activity have entries. */
+  people: Record<string, { income: number; expense: number }>;
 }
+
+export const NO_PERSON = 'none';
 
 export function cashflow(trx: Trx[], win: Pick<Window, 'start' | 'end' | 'bucket'>): CashflowPoint[] {
   const keys = bucketKeys(win.start, win.end, win.bucket);
-  const points = new Map(keys.map((key) => [key, { key, label: bucketLabel(key, win.bucket), income: 0, expense: 0, net: 0, cumulative: 0, partial: false }]));
+  const points = new Map(keys.map((key) => [key, { key, label: bucketLabel(key, win.bucket), income: 0, expense: 0, net: 0, cumulative: 0, partial: false, people: {} as CashflowPoint['people'] }]));
   for (const t of trx) {
     if (t.tanggal < win.start || t.tanggal > win.end) continue;
     const point = points.get(bucketStart(t.tanggal, win.bucket));
     if (!point) continue;
-    if (t.jenis === INCOME) point.income += amount(t);
-    else if (t.jenis === EXPENSE) point.expense += amount(t);
+    if (t.jenis !== INCOME && t.jenis !== EXPENSE) continue;
+    const who = (point.people[t.member == null ? NO_PERSON : String(t.member)] ??= { income: 0, expense: 0 });
+    if (t.jenis === INCOME) {
+      point.income += amount(t);
+      who.income += amount(t);
+    } else {
+      point.expense += amount(t);
+      who.expense += amount(t);
+    }
   }
   let running = 0;
   const list = [...points.values()];
@@ -227,6 +238,15 @@ export function cashflow(trx: Trx[], win: Pick<Window, 'start' | 'end' | 'bucket
   return list;
 }
 
+/** The people that appear in the period's transactions, members first (in the given order), "not set" last. */
+export function peopleIn(trx: Trx[], from: string, to: string, members: { id: number; name: string }[]): { key: string; name: string }[] {
+  const seen = new Set<string>();
+  for (const t of trx) if (t.tanggal >= from && t.tanggal <= to) seen.add(t.member == null ? NO_PERSON : String(t.member));
+  const known = members.filter((m) => seen.has(String(m.id))).map((m) => ({ key: String(m.id), name: m.name }));
+  const unknown = [...seen].filter((k) => k !== NO_PERSON && !members.some((m) => String(m.id) === k)).map((k) => ({ key: k, name: `Person ${k}` }));
+  return [...known, ...unknown, ...(seen.has(NO_PERSON) ? [{ key: NO_PERSON, name: 'Not set' }] : [])];
+}
+
 // ---- categories ---------------------------------------------------------------------------------
 
 export interface CategoryShare {
@@ -235,27 +255,32 @@ export interface CategoryShare {
   total: number;
   share: number;
   count: number;
+  /** Who recorded it: member id as text (or 'none') -> amount. Adds up to `total`. */
+  people: Record<string, number>;
 }
 
 /** Where the money went (jenis = 'pengeluaran') or came from ('pemasukan'), biggest first. */
 export function byCategory(trx: Trx[], categories: Category[], jenis: string, from: string, to: string, top = 8): CategoryShare[] {
   const names = new Map(categories.map((c) => [c.id, c.nama]));
-  const sums = new Map<number | null, { total: number; count: number }>();
+  const sums = new Map<number | null, { total: number; count: number; people: Record<string, number> }>();
   let all = 0;
   for (const t of trx) {
     if (t.jenis !== jenis || t.tanggal < from || t.tanggal > to) continue;
-    const row = sums.get(t.kategori) ?? { total: 0, count: 0 };
+    const row = sums.get(t.kategori) ?? { total: 0, count: 0, people: {} };
     row.total += amount(t);
     row.count++;
+    const who = t.member == null ? NO_PERSON : String(t.member);
+    row.people[who] = (row.people[who] ?? 0) + amount(t);
     sums.set(t.kategori, row);
     all += amount(t);
   }
   const rows = [...sums]
-    .map(([id, v]): CategoryShare => ({ id, name: id === null ? 'Uncategorised' : (names.get(id) ?? `Category ${id}`), total: v.total, share: all ? v.total / all : 0, count: v.count }))
+    .map(([id, v]): CategoryShare => ({ id, name: id === null ? 'Uncategorised' : (names.get(id) ?? `Category ${id}`), total: v.total, share: all ? v.total / all : 0, count: v.count, people: v.people }))
     .sort((a, b) => b.total - a.total);
   if (rows.length <= top) return rows;
   const rest = rows.slice(top - 1);
-  const other: CategoryShare = { id: null, name: `Other (${rest.length})`, total: rest.reduce((a, r) => a + r.total, 0), share: 0, count: rest.reduce((a, r) => a + r.count, 0) };
+  const other: CategoryShare = { id: null, name: `Other (${rest.length})`, total: rest.reduce((a, r) => a + r.total, 0), share: 0, count: rest.reduce((a, r) => a + r.count, 0), people: {} };
+  for (const r of rest) for (const [who, value] of Object.entries(r.people)) other.people[who] = (other.people[who] ?? 0) + value;
   other.share = all ? other.total / all : 0;
   return [...rows.slice(0, top - 1), other];
 }
@@ -388,4 +413,57 @@ export function periodBounds(key: PeriodKey, today: string): { from: string | nu
     default:
       return { from: null, to: null };
   }
+}
+
+// ---- hiding people from the numbers ---------------------------------------------------------------
+
+/** The `hide` URL parameter: member ids (or "none"), comma separated. Anything else is dropped. */
+export function parseHidden(value: string | null): string[] {
+  if (!value) return [];
+  return [...new Set(value.split(',').map((v) => v.trim()).filter((v) => v === NO_PERSON || /^\d{1,9}$/.test(v)))];
+}
+
+/**
+ * Hide a person, or show them again. The last person still counted cannot be hidden: the result is
+ * then unchanged, which callers treat as "not clickable".
+ */
+export function toggleHidden(hidden: string[], key: string, allKeys: string[]): string[] {
+  if (hidden.includes(key)) return hidden.filter((k) => k !== key);
+  const next = [...hidden, key];
+  return allKeys.every((k) => next.includes(k)) ? hidden : next;
+}
+
+export function withoutPeople<T extends { member?: number | null }>(trx: T[], hidden: string[]): T[] {
+  if (!hidden.length) return trx;
+  return trx.filter((t) => !hidden.includes(t.member == null ? NO_PERSON : String(t.member)));
+}
+
+// ---- key figures ----------------------------------------------------------------------------------
+
+export interface Figures {
+  income: { value: string; delta: string; good: boolean };
+  expense: { value: string; delta: string; good: boolean };
+  net: { value: string; label: string; sub: string };
+  average: { value: string; sub: string };
+}
+
+export function dashboardFigures(now: Totals, before: Totals, days: number): Figures {
+  const delta = (current: number, previous: number, goodWhenUp: boolean) => {
+    const change = pctChange(current, previous);
+    return { delta: change === null ? 'no earlier period to compare' : `${signedPercent(change)} vs the period before`, good: change !== null && (goodWhenUp ? change >= 0 : change <= 0) };
+  };
+  return {
+    income: { value: rupiahShort(now.income), ...delta(now.income, before.income, true) },
+    expense: { value: rupiahShort(now.expense), ...delta(now.expense, before.expense, false) },
+    net: {
+      value: rupiahShort(now.net),
+      label: `net · ${now.savingsRate === null ? 'no income' : `${percent(now.savingsRate)} of income kept`}`,
+      sub: `previous: ${rupiahShort(before.net)}`,
+    },
+    average: { value: rupiahShort(now.expense / Math.max(1, days)), sub: `${now.count} transactions` },
+  };
+}
+
+export function daysIn(win: Pick<Window, 'start' | 'end'>): number {
+  return daysBetween(win.start, win.end) + 1;
 }

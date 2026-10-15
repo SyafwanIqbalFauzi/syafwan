@@ -45,3 +45,24 @@ export function labelStep(count: number, maxLabels = 8): number {
 export function linePath(points: { x: number; y: number }[]): string {
   return points.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
 }
+
+/** One shade per person, the same everywhere: blues for income, greys for spending. The first person is the strongest. */
+const SHADES = { income: ['var(--te-blue)', '#5ba6d4', '#a8cfe8'], expense: ['var(--te-black)', '#757575', '#bdbdbd'] };
+export function personShade(kind: 'income' | 'expense', index: number): string {
+  const list = SHADES[kind];
+  return list[Math.min(Math.max(0, index), list.length - 1)];
+}
+
+const HEX = { income: ['#0071bb', '#5ba6d4', '#a8cfe8'], expense: ['#000000', '#757575', '#bdbdbd'] };
+
+/** The same shades as personShade, as plain colours for the canvas charts. */
+export function personHex(kind: 'income' | 'expense', index: number): string {
+  const list = HEX[kind];
+  return list[Math.min(Math.max(0, index), list.length - 1)];
+}
+
+/** `#rrggbb` + alpha 0..1 -> `rgba(...)` */
+export function withAlpha(hex: string, alpha: number): string {
+  const n = Number.parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+}

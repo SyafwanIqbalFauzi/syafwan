@@ -2,6 +2,7 @@
 // records a request, then waits while the VPS applies it (usually within a minute) and reports
 // what happened. See pages/api/agent/skills/[name]/{enabled,content}.ts and apply_skill_changes.py.
 import { askConfirm } from './dialog';
+import { flash, toast } from './toast';
 
 export {};
 
@@ -48,19 +49,22 @@ async function waitForApply(id: number): Promise<string> {
   throw new Error('Hermes has not applied the change yet. It stays queued for up to 15 minutes; check "Recent changes" below.');
 }
 
-async function run(button: HTMLElement | null, work: () => Promise<number | null>): Promise<void> {
+async function run(button: HTMLElement | null, work: () => Promise<number | null>, done: string): Promise<void> {
   const controls = [...document.querySelectorAll<HTMLButtonElement>('[data-toggle], [data-editor] button')];
   controls.forEach((c) => (c.disabled = true));
   try {
     const id = await work();
     if (id === null) {
+      flash('Nothing to change: it was already like that', 'info');
       location.reload();
       return;
     }
     const result = await waitForApply(id);
     say(result);
-    setTimeout(() => location.reload(), 1200);
+    flash(done);
+    setTimeout(() => location.reload(), 600);
   } catch (error) {
+    toast((error as Error).message, 'error');
     say((error as Error).message, true);
     controls.forEach((c) => (c.disabled = false));
   }
@@ -81,7 +85,7 @@ toggle?.addEventListener('click', async () => {
   void run(toggle, async () => {
     const res = await post(`/api/agent/skills/${encodeURIComponent(skill)}/enabled`, { enabled: enable });
     return res.unchanged ? null : (res.id ?? null);
-  });
+  }, enable ? `Skill “${skill}” enabled` : `Skill “${skill}” disabled`);
 });
 
 editor?.addEventListener('submit', async (event) => {
@@ -96,7 +100,7 @@ editor?.addEventListener('submit', async (event) => {
   void run(null, async () => {
     const res = await post(`/api/agent/skills/${encodeURIComponent(editor.dataset.skill!)}/content`, { content: area.value, base_hash: editor.dataset.baseHash });
     return res.id ?? null;
-  });
+  }, `Instructions of “${editor.dataset.skill}” saved`);
 });
 
 editor?.querySelector('[data-undo]')?.addEventListener('click', () => {

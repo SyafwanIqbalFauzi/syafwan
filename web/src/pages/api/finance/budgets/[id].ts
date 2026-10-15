@@ -1,8 +1,8 @@
 // Changes or removes one budget line. The year of a line is fixed: copy it to another year instead.
 import type { APIRoute } from 'astro';
-import { audit } from '../../../../../lib/auth';
-import { parseBudgetFields, parseId, sameName } from '../../../../../lib/budget-input';
-import { deleteItem, readItem, readItems, updateItem, type FinanceBudget, type FinanceCategory } from '../../../../../lib/directus-user';
+import { audit } from '../../../../lib/auth';
+import { parseBudgetFields, parseId, sameName } from '../../../../lib/budget-input';
+import { deleteItem, readItem, readItems, updateItem, type FinanceBudget, type FinanceCategory } from '../../../../lib/directus-user';
 
 export const prerender = false;
 

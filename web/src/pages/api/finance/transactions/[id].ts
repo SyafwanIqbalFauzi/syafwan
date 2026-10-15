@@ -1,11 +1,11 @@
 // Changes or removes one transaction. "Remove" is a soft delete (dihapus_pada), exactly as the
 // finance data model asks: the row stays in the database, it just stops counting.
 import type { APIRoute } from 'astro';
-import { audit } from '../../../../../lib/auth';
-import { parseId } from '../../../../../lib/budget-input';
-import { readItem, updateItem, type FinanceCategory, type FinanceMember, type FinanceTransaction } from '../../../../../lib/directus-user';
-import { todayWib } from '../../../../../lib/finance';
-import { parseTransactionFields, waktuFor } from '../../../../../lib/transaction-input';
+import { audit } from '../../../../lib/auth';
+import { parseId } from '../../../../lib/budget-input';
+import { readItem, updateItem, type FinanceCategory, type FinanceMember, type FinanceTransaction } from '../../../../lib/directus-user';
+import { todayWib } from '../../../../lib/finance';
+import { parseTransactionFields, waktuFor } from '../../../../lib/transaction-input';
 
 export const prerender = false;
 

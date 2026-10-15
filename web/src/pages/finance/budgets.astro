@@ -1,9 +1,9 @@
 ---
-import HermesShell from '../../../layouts/HermesShell.astro';
-import FilterBar from '../../../components/FilterBar.astro';
-import { readItems, type FinanceBudget, type FinanceCategory, type FinanceTransaction } from '../../../lib/directus-user';
-import { budgetReport, monthEnd, monthStart, percent, rupiah, todayWib } from '../../../lib/finance';
-import { parseYear } from '../../../lib/budget-input';
+import HermesShell from '../../layouts/HermesShell.astro';
+import FilterBar from '../../components/FilterBar.astro';
+import { readItems, type FinanceBudget, type FinanceCategory } from '../../lib/directus-user';
+import { percent, rupiah, todayWib } from '../../lib/finance';
+import { parseYear } from '../../lib/budget-input';
 
 export const prerender = false;
 
@@ -11,20 +11,10 @@ const token = Astro.locals.hermesToken!;
 const today = todayWib();
 const thisYear = Number(today.slice(0, 4));
 const year = parseYear(Astro.url.searchParams.get('year')) ?? thisYear;
-const month = { from: monthStart(today), to: monthEnd(today) };
 
-const [budgetResult, catResult, trxResult] = await Promise.all([
+const [budgetResult, catResult] = await Promise.all([
   readItems<FinanceBudget>(token, 'finance_budgets', { limit: -1, sort: 'id' }).catch(() => null),
   readItems<FinanceCategory>(token, 'finance_categories', { limit: -1, sort: 'sort' }).catch(() => null),
-  year === thisYear
-    ? readItems<FinanceTransaction>(token, 'finance_transactions', {
-        'filter[dihapus_pada][_null]': 'true',
-        'filter[tanggal][_gte]': month.from,
-        'filter[tanggal][_lte]': month.to,
-        limit: -1,
-        fields: 'id,tanggal,jenis,kategori,nominal',
-      }).catch(() => null)
-    : Promise.resolve({ data: [] as FinanceTransaction[], total: 0 }),
 ]);
 
 const allBudgets = budgetResult?.data ?? [];
@@ -32,29 +22,35 @@ const categories = catResult?.data ?? [];
 const budgets = allBudgets.filter((b) => b.tahun === year);
 const years = [...new Set([...allBudgets.map((b) => b.tahun), thisYear, thisYear + 1])].sort();
 const previousYearLines = allBudgets.filter((b) => b.tahun === year - 1).length;
-const report = budgetReport(budgets, categories, trxResult?.data ?? [], year, month.from, month.to);
-const showMonth = year === thisYear && trxResult !== null;
 
 const jenisOf = new Map(categories.map((c) => [c.id, c.jenis]));
 const amountOf = (b: FinanceBudget) => Number(b.jumlah) || 0;
 const spendingPlan = budgets.filter((b) => jenisOf.get(b.kategori) !== 'pemasukan').reduce((a, b) => a + amountOf(b), 0);
 const incomePlan = budgets.filter((b) => jenisOf.get(b.kategori) === 'pemasukan').reduce((a, b) => a + amountOf(b), 0);
+// How much of the expected income the spending plan takes. Null when no income is planned.
+const shareOfIncome = (amount: number) => (incomePlan > 0 ? amount / incomePlan : null);
+const spendShare = shareOfIncome(spendingPlan);
+const leftShare = shareOfIncome(incomePlan - spendingPlan);
 const budgeted = new Set(budgets.map((b) => b.kategori));
 const unbudgeted = categories.filter((c) => c.aktif && c.jenis === 'pengeluaran' && !budgeted.has(c.id));
 
-// Groups: spending categories first, then income ones, each in the order of the category list.
-const groups = categories
-  .filter((c) => budgeted.has(c.id))
-  .sort((a, b) => Number(a.jenis === 'pemasukan') - Number(b.jenis === 'pemasukan'))
-  .map((c) => {
-    const lines = budgets.filter((b) => b.kategori === c.id);
-    const line = [...report.expenses, ...report.income].find((l) => l.kategori === c.id);
-    return { category: c, lines, total: lines.reduce((a, b) => a + amountOf(b), 0), month: line };
-  });
+// Groups: income always on top, then the spending categories, each in the order of the category list.
+const categoryName = new Map(categories.map((c) => [c.id, c.nama]));
+const incomeLines = budgets.filter((b) => jenisOf.get(b.kategori) === 'pemasukan');
+// One fixed "Income" group on top (whatever income category a line belongs to), then one group per spending category.
+const groups = [
+  ...(incomeLines.length ? [{ title: 'Income', income: true, lines: incomeLines, total: incomePlan }] : []),
+  ...categories
+    .filter((c) => c.jenis !== 'pemasukan' && budgeted.has(c.id))
+    .map((c) => {
+      const lines = budgets.filter((b) => b.kategori === c.id);
+      return { title: c.nama, income: false, lines, total: lines.reduce((sum, b) => sum + amountOf(b), 0) };
+    }),
+];
 const loaded = budgetResult !== null && catResult !== null;
 ---
 
-<HermesShell title="Budgets" current="budgets">
+<HermesShell title="Budgets" current="budgets" area="finance">
   <div class="container page" data-budgets data-year={year} data-previous-lines={previousYearLines}>
     <div class="page-head">
       <h1 class="h1">Budgets</h1>
@@ -71,12 +67,29 @@ const loaded = budgetResult !== null && catResult !== null;
 
     <section class="block">
       <div class="figures figures-money">
-        <div class="figure"><p class="value">{rupiah(spendingPlan)}</p><p class="label">planned spending per month</p></div>
+        <div class="figure"><p class="value">{rupiah(spendingPlan)}</p><p class="label">planned spending per month</p><p class="delta">{spendShare === null ? 'no expected income set' : `${percent(spendShare, 1)} of expected income`}</p></div>
         <div class="figure"><p class="value">{rupiah(incomePlan)}</p><p class="label">expected income per month</p></div>
-        <div class="figure"><p class="value">{rupiah(incomePlan - spendingPlan)}</p><p class="label">left over per month, if all goes to plan</p></div>
+        <div class="figure"><p class="value">{rupiah(incomePlan - spendingPlan)}</p><p class="label">left over per month, if all goes to plan</p><p class="delta">{leftShare === null ? '' : `${percent(leftShare, 1)} of expected income`}</p></div>
         <div class="figure"><p class="value">{budgets.length}</p><p class="label">budget lines</p></div>
       </div>
     </section>
+
+    {
+      spendShare !== null && (
+        <section class="block">
+          <div class="budget" data-level={spendShare >= 1 ? 'critical' : spendShare >= 0.9 ? 'warning' : 'normal'}>
+            <div class="budget-head">
+              <span class="name" style="font-size: var(--text-body)">Planned spending of expected income</span>
+              <span class="num">{percent(spendShare, 1)}</span>
+            </div>
+            <div class="bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100, Math.round(spendShare * 100))} aria-label="Planned spending as a share of expected income">
+              <span style={`width: ${Math.min(100, Math.max(1, spendShare * 100))}%`}></span>
+            </div>
+            <p class="sub">{rupiah(spendingPlan)} planned out of {rupiah(incomePlan)} expected each month{spendShare > 1 ? ` · ${rupiah(spendingPlan - incomePlan)} more than the income` : ''}</p>
+          </div>
+        </section>
+      )
+    }
 
     <section class="block">
       <div class="block-head">
@@ -92,20 +105,16 @@ const loaded = budgetResult !== null && catResult !== null;
             {groups.map((g) => (
               <div class="budget-group">
                 <div class="budget-group-head">
-                  <span class="name" style="font-size: var(--text-body)">{g.category.nama}</span>
-                  <span class="tag">{g.category.jenis === 'pemasukan' ? 'income' : 'spending'}</span>
-                  <span class="num">{rupiah(g.total)} / month</span>
+                  <span class="name" style="font-size: var(--text-body)">{g.title}</span>
+                  <span class="tag">{g.income ? 'income' : 'spending'}</span>
+                  <span class="num">{rupiah(g.total)} / month{!g.income && spendShare !== null ? ` · ${percent(shareOfIncome(g.total)!, 1)} of income` : ''}</span>
                 </div>
-                {showMonth && g.month && (
-                  <p class="sub">
-                    This month: {rupiah(g.month.actual)} {g.category.jenis === 'pemasukan' ? 'received' : 'spent'} · {percent(g.month.ratio)} of the plan
-                  </p>
-                )}
                 <div class="ruled">
                   {g.lines.map((b) => (
                     <div class="row row-budget">
-                      <span>{b.nama_pos}</span>
+                      <span>{b.nama_pos}{g.income && categoryName.get(b.kategori) !== b.nama_pos ? <span class="sub"> · {categoryName.get(b.kategori)}</span> : ''}</span>
                       <span class="num">{rupiah(amountOf(b))}</span>
+                      <span class="num sub">{!g.income && incomePlan > 0 ? `${percent(amountOf(b) / incomePlan, 1)} of income` : ''}</span>
                       <span class="row-actions">
                         <button type="button" class="arrow-link" data-edit data-id={b.id} data-kategori={b.kategori} data-name={b.nama_pos} data-amount={amountOf(b)}>edit</button>
                         <button type="button" class="arrow-link danger" data-delete data-id={b.id} data-name={b.nama_pos}>delete</button>
@@ -170,7 +179,7 @@ const loaded = budgetResult !== null && catResult !== null;
 </HermesShell>
 
 <script>
-  import '../../../scripts/hermes-budgets';
+  import '../../scripts/hermes-budgets';
 </script>
 
 <style is:global>
@@ -197,7 +206,7 @@ const loaded = budgetResult !== null && catResult !== null;
   }
 
   .row-budget {
-    grid-template-columns: minmax(160px, 3fr) minmax(120px, 1.2fr) 130px;
+    grid-template-columns: minmax(160px, 3fr) minmax(120px, 1.2fr) minmax(90px, 1fr) 130px;
     padding-block: 10px;
     align-items: baseline;
   }

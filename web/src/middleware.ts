@@ -1,8 +1,11 @@
 import { defineMiddleware } from 'astro:middleware';
 import { authenticate } from './lib/auth';
 
-const isPrivate = (path: string) => path === '/agent' || path.startsWith('/agent/') || path.startsWith('/api/agent/');
+const isPrivate = (path: string) => path === '/agent' || path.startsWith('/agent/') || path.startsWith('/api/agent/') || path === '/finance' || path.startsWith('/finance/') || path.startsWith('/api/finance/');
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** Sign-in page that sends the person back to where they were going afterwards. */
+const loginUrl = (path: string) => (path === '/agent' ? '/agent/login' : `/agent/login?next=${encodeURIComponent(path)}`);
 
 const json = (status: number, error: string) =>
   new Response(JSON.stringify({ error }), {
@@ -25,6 +28,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(`/agent${pathname.slice('/hermes'.length)}${context.url.search}`, 308);
   }
 
+  // Finance used to be a part of the agent area; it is its own area now.
+  if (pathname === '/agent/finance' || pathname.startsWith('/agent/finance/')) {
+    return context.redirect(`/finance${pathname.slice('/agent/finance'.length)}${context.url.search}`, 308);
+  }
+  if (pathname.startsWith('/api/agent/finance/')) {
+    return context.redirect(`/api/finance${pathname.slice('/api/agent/finance'.length)}${context.url.search}`, 308);
+  }
+
   // Applies site-wide. Astro's own check is off (see astro.config.mjs).
   if (!SAFE_METHODS.has(context.request.method) && !sameOrigin(context.request.headers.get('origin'), siteOrigin)) {
     return json(403, 'Cross-origin request blocked');
@@ -36,7 +47,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
     if (!isLogin) {
       const session = await authenticate(context.cookies, secure);
-      if (!session) return isApi ? json(401, 'Not signed in') : context.redirect('/agent/login', 302);
+      if (!session) return isApi ? json(401, 'Not signed in') : context.redirect(loginUrl(pathname), 302);
       context.locals.hermesUser = session.user;
       context.locals.hermesToken = session.access;
     }

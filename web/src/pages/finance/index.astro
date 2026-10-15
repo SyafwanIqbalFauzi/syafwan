@@ -1,32 +1,30 @@
 ---
-import HermesShell from '../../../layouts/HermesShell.astro';
-import FilterBar from '../../../components/FilterBar.astro';
-import CashflowChart from '../../../components/CashflowChart.astro';
-import BalanceChart from '../../../components/BalanceChart.astro';
+import HermesShell from '../../layouts/HermesShell.astro';
+import FilterBar from '../../components/FilterBar.astro';
 import {
   readItems,
   type FinanceBudget,
   type FinanceCategory,
   type FinanceMember,
   type FinanceTransaction,
-} from '../../../lib/directus-user';
+} from '../../lib/directus-user';
 import {
   budgetReport,
-  byCategory,
-  cashflow,
   customWindow,
+  daysIn,
+  dashboardFigures,
   monthEnd,
   monthStart,
-  pctChange,
   parseDate,
+  parseHidden,
+  peopleIn,
   percent,
   rupiah,
-  rupiahShort,
-  signedPercent,
   summarize,
   todayWib,
   windowFor,
-} from '../../../lib/finance';
+  withoutPeople,
+} from '../../lib/finance';
 
 export const prerender = false;
 
@@ -41,7 +39,8 @@ const thisMonth = { from: monthStart(today), to: monthEnd(today) };
 const year = Number(today.slice(0, 4));
 
 // One read covers the chosen period, the period before it (for the comparison) and the
-// current month (for the budgets). Everything else is worked out here.
+// current month (for the budgets). The charts are drawn in the browser from these rows, so
+// switching a person off in a legend needs no new request.
 const since = [win.prevStart, thisMonth.from].sort()[0];
 const [trxResult, catResult, budgetResult, memberResult] = await Promise.all([
   readItems<FinanceTransaction>(token, 'finance_transactions', {
@@ -59,41 +58,43 @@ const [trxResult, catResult, budgetResult, memberResult] = await Promise.all([
 const members = memberResult?.data ?? [];
 const memberAsked = Astro.url.searchParams.get('member');
 const member = members.find((m) => String(m.id) === memberAsked) ?? null;
-
-const everyone = trxResult?.data ?? [];
-const trx = member ? everyone.filter((t) => t.member === member.id) : everyone;
 const categories = catResult?.data ?? [];
 
+const everyone = trxResult?.data ?? [];
+const forPerson = member ? everyone.filter((t) => t.member === member.id) : everyone;
+const people = member ? [] : peopleIn(forPerson, win.start, win.end, members.map((m) => ({ id: m.id, name: m.nama_panggilan })));
+const asked = parseHidden(Astro.url.searchParams.get('hide')).filter((k) => people.some((w) => w.key === k));
+const hidden = asked.length < people.length ? asked : [];
+
+// First paint of the figures; the page script keeps them in step with the legends afterwards.
+const trx = withoutPeople(forPerson, hidden);
 const now = summarize(trx, win.start, win.end);
 const before = summarize(trx, win.prevStart, win.prevEnd);
-const points = cashflow(trx, win);
-const spending = byCategory(trx, categories, 'pengeluaran', win.start, win.end);
-const sources = byCategory(trx, categories, 'pemasukan', win.start, win.end, 5);
-const biggest = trx
-  .filter((t) => t.jenis === 'pengeluaran' && t.tanggal >= win.start && t.tanggal <= win.end)
-  .sort((a, b) => Number(b.nominal) - Number(a.nominal))
-  .slice(0, 5);
+const figures = dashboardFigures(now, before, daysIn(win));
+
 const budgets = budgetReport(budgetResult?.data ?? [], categories, everyone, year, thisMonth.from, thisMonth.to);
-const categoryName = new Map(categories.map((c) => [c.id, c.nama]));
-const memberName = new Map(members.map((m) => [m.id, m.nama_panggilan]));
 const perPerson = members
   .map((m) => ({ name: m.nama_panggilan, ...summarize(everyone.filter((t) => t.member === m.id), win.start, win.end) }))
   .filter((p) => p.count > 0);
 const bucketName = { day: 'day', week: 'week', month: 'month' }[win.bucket];
 const loaded = trxResult !== null;
-const maxSpend = Math.max(1, ...spending.map((c) => c.total));
-const days = Math.max(1, Math.round((Date.parse(win.end) - Date.parse(win.start)) / 86_400_000) + 1);
 
-const delta = (current: number, previous: number, goodWhenUp: boolean) => {
-  const change = pctChange(current, previous);
-  return { text: change === null ? 'no earlier period to compare' : `${signedPercent(change)} vs the period before`, good: change !== null && (goodWhenUp ? change >= 0 : change <= 0) };
+// Only what the charts need: the period and the one before it.
+const payload = {
+  rows: forPerson
+    .filter((t) => t.tanggal >= win.prevStart && t.tanggal <= win.end)
+    .map((t) => ({ tanggal: t.tanggal, jenis: t.jenis, kategori: t.kategori, nominal: Number(t.nominal), member: t.member, deskripsi: t.deskripsi })),
+  categories: categories.map((c) => ({ id: c.id, nama: c.nama, jenis: c.jenis })),
+  members: members.map((m) => ({ id: m.id, name: m.nama_panggilan })),
+  win: { start: win.start, end: win.end, prevStart: win.prevStart, prevEnd: win.prevEnd, bucket: win.bucket },
+  hidden,
+  single: Boolean(member),
 };
-const dIncome = delta(now.income, before.income, true);
-const dExpense = delta(now.expense, before.expense, false);
+const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
 ---
 
-<HermesShell title="Finance" current="finance">
-  <div class="container page">
+<HermesShell title="Finance" current="finance" area="finance">
+  <div class="container page" data-finance>
     <div class="page-head">
       <h1 class="h1">Finance</h1>
       <p class="label muted">{win.start} to {win.end}{member ? ` · ${member.nama_panggilan}` : ''}</p>
@@ -103,83 +104,67 @@ const dExpense = delta(now.expense, before.expense, false);
 
     <FilterBar
       resetHref={Astro.url.pathname}
+      keep={{ hide: hidden.join(',') }}
       dateRange={{ from: win.start, to: win.end, custom: Boolean(custom) }}
       selects={[
         { name: 'member', label: 'Person', value: member ? String(member.id) : null, all: 'Everyone', options: members.map((m) => ({ value: String(m.id), label: m.nama_panggilan })) },
       ]}
     />
 
+    <p class="label muted" data-hidden-note hidden style="margin: -4px 0 var(--s-15)"></p>
+
     <section class="block">
       <div class="figures">
         <div class="figure">
-          <p class="value">{rupiahShort(now.income)}</p>
+          <p class="value" data-fig="income-value">{figures.income.value}</p>
           <p class="label">income</p>
-          <p class="delta" data-good={dIncome.good}>{dIncome.text}</p>
+          <p class="delta" data-fig="income-delta" data-good={figures.income.good}>{figures.income.delta}</p>
         </div>
         <div class="figure">
-          <p class="value">{rupiahShort(now.expense)}</p>
+          <p class="value" data-fig="expense-value">{figures.expense.value}</p>
           <p class="label">expense</p>
-          <p class="delta" data-good={dExpense.good}>{dExpense.text}</p>
+          <p class="delta" data-fig="expense-delta" data-good={figures.expense.good}>{figures.expense.delta}</p>
         </div>
         <div class="figure">
-          <p class="value">{rupiahShort(now.net)}</p>
-          <p class="label">net · {now.savingsRate === null ? 'no income' : `${percent(now.savingsRate)} of income kept`}</p>
-          <p class="delta">previous: {rupiahShort(before.net)}</p>
+          <p class="value" data-fig="net-value">{figures.net.value}</p>
+          <p class="label" data-fig="net-label">{figures.net.label}</p>
+          <p class="delta" data-fig="net-sub">{figures.net.sub}</p>
         </div>
         <div class="figure">
-          <p class="value">{rupiahShort(now.expense / days)}</p>
+          <p class="value" data-fig="average-value">{figures.average.value}</p>
           <p class="label">average spend per day</p>
-          <p class="delta">{now.count} transactions</p>
+          <p class="delta" data-fig="average-sub">{figures.average.sub}</p>
         </div>
       </div>
     </section>
 
     <section class="block">
       <div class="block-head"><h2>Income and expense</h2><p class="label muted">per {bucketName}</p></div>
-      <CashflowChart points={points} bucketName={bucketName} />
+      <p class="legend" data-legend="both" hidden></p>
+      <div class="chart-box" style="height: 300px"><canvas data-chart="cashflow" role="img" aria-label={`Income and expense per ${bucketName}`}></canvas></div>
+      <details class="chart-table">
+        <summary>Show as table</summary>
+        <div data-cashflow-table></div>
+      </details>
     </section>
 
     <section class="block">
       <div class="block-head"><h2>Running net</h2><p class="label muted">income minus expense since {win.start}</p></div>
-      <BalanceChart points={points} bucketName={bucketName} />
+      <div class="chart-box" style="height: 220px"><canvas data-chart="net" role="img" aria-label="Running net over the period"></canvas></div>
     </section>
 
     <section class="block two-col">
       <div>
-        <div class="block-head"><h2>Where the money went</h2><p class="label muted">{rupiah(now.expense)}</p></div>
-        {
-          spending.length ? (
-            <div class="ruled">
-              {spending.map((c) => (
-                <div class="share-row">
-                  <span>{c.name}<br /><span class="sub">{c.count} transactions</span></span>
-                  <span class="bar"><span style={`width: ${Math.max(1, (c.total / maxSpend) * 100)}%`}></span></span>
-                  <span class="num">{rupiah(c.total)} · {percent(c.share)}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p class="empty">No expenses in this period.</p>
-          )
-        }
+        <div class="block-head"><h2>Where the money went</h2><p class="label muted" data-total="expense"></p></div>
+        <p class="legend" data-legend="expense" hidden></p>
+        <div class="chart-box" data-share-box="expense"><canvas data-chart="spend" role="img" aria-label="Spending per category"></canvas></div>
+        <p class="empty" data-empty="expense" hidden>No expenses in this period.</p>
       </div>
       <div>
-        <div class="block-head"><h2>Where it came from</h2><p class="label muted">{rupiah(now.income)}</p></div>
-        {
-          sources.length ? (
-            <div class="ruled">
-              {sources.map((c) => (
-                <div class="share-row">
-                  <span>{c.name}<br /><span class="sub">{c.count} transactions</span></span>
-                  <span class="bar"><span style={`width: ${Math.max(1, c.share * 100)}%`}></span></span>
-                  <span class="num">{rupiah(c.total)} · {percent(c.share)}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p class="empty">No income in this period.</p>
-          )
-        }
+        <div class="block-head"><h2>Where it came from</h2><p class="label muted" data-total="income"></p></div>
+        <p class="legend" data-legend="income" hidden></p>
+        <div class="chart-box" data-share-box="income"><canvas data-chart="source" role="img" aria-label="Income per category"></canvas></div>
+        <p class="empty" data-empty="income" hidden>No income in this period.</p>
       </div>
     </section>
 
@@ -237,22 +222,9 @@ const dExpense = delta(now.expense, before.expense, false);
 
     <section class="block two-col">
       <div>
-        <div class="block-head"><h2>Biggest expenses</h2><a class="arrow-link" href="/agent/finance/transactions?type=pengeluaran&sort=-nominal">all transactions</a></div>
-        {
-          biggest.length ? (
-            <div class="ruled">
-              {biggest.map((t) => (
-                <div class="share-row" style="grid-template-columns: 90px 1fr auto">
-                  <span>{t.tanggal.slice(5)}</span>
-                  <span>{t.deskripsi || '—'}<br /><span class="sub">{t.kategori ? categoryName.get(t.kategori) : 'Uncategorised'} · {t.member ? memberName.get(t.member) : '—'}</span></span>
-                  <span class="num">{rupiah(Number(t.nominal))}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p class="empty">No expenses in this period.</p>
-          )
-        }
+        <div class="block-head"><h2>Biggest expenses</h2><a class="arrow-link" href="/finance/transactions?type=pengeluaran&sort=-nominal">all transactions</a></div>
+        <div class="ruled" data-biggest></div>
+        <p class="empty" data-empty="biggest" hidden>No expenses in this period.</p>
       </div>
       {
         !member && perPerson.length > 1 && (
@@ -272,7 +244,12 @@ const dExpense = delta(now.expense, before.expense, false);
       }
     </section>
 
-    <p class="label muted"> Amounts are in rupiah, grouped by the calendar day (WIB) of each transaction.
-    </p>
+    <p class="label muted">Amounts are in rupiah, grouped by the calendar day (WIB) of each transaction.</p>
+
+    <script type="application/json" id="finance-data" set:html={payloadJson} />
   </div>
 </HermesShell>
+
+<script>
+  import '../../scripts/finance-dashboard';
+</script>

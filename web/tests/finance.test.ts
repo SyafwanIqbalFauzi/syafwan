@@ -207,3 +207,77 @@ test('cashflow: a period that starts or ends mid-week marks those weeks as parti
   const full = cashflow([], { start: '2026-08-03', end: '2026-08-16', bucket: 'week' });
   assert.deepEqual(full.map((p) => p.partial), [false, false]); // ends on a Sunday: nothing is cut off
 });
+
+test('cashflow: each bucket remembers who recorded what', async () => {
+  const { cashflow, NO_PERSON } = await import('../src/lib/finance.ts');
+  const rows = [
+    { tanggal: '2026-10-13', jenis: 'pengeluaran', kategori: 4, nominal: 100, member: 1 },
+    { tanggal: '2026-10-13', jenis: 'pengeluaran', kategori: 4, nominal: 50, member: 2 },
+    { tanggal: '2026-10-13', jenis: 'pemasukan', kategori: 1, nominal: 900, member: 1 },
+    { tanggal: '2026-10-14', jenis: 'pengeluaran', kategori: 4, nominal: 7, member: null },
+  ];
+  const [a, b] = cashflow(rows, { start: '2026-10-13', end: '2026-10-14', bucket: 'day' });
+  assert.deepEqual(a.people, { '1': { income: 900, expense: 100 }, '2': { income: 0, expense: 50 } });
+  assert.deepEqual(b.people, { [NO_PERSON]: { income: 0, expense: 7 } });
+  assert.equal(a.expense, 150); // the people always add up to the bucket
+});
+
+test('peopleIn: only people with activity in the period, "not set" last', async () => {
+  const { peopleIn } = await import('../src/lib/finance.ts');
+  const members = [{ id: 1, name: 'Syafwan' }, { id: 2, name: 'Asti' }];
+  const rows = [
+    { tanggal: '2026-10-10', jenis: 'pengeluaran', kategori: 4, nominal: 1, member: 2 },
+    { tanggal: '2026-10-11', jenis: 'pengeluaran', kategori: 4, nominal: 1, member: null },
+    { tanggal: '2026-09-01', jenis: 'pengeluaran', kategori: 4, nominal: 1, member: 1 }, // outside the period
+  ];
+  assert.deepEqual(peopleIn(rows, '2026-10-01', '2026-10-31', members), [{ key: '2', name: 'Asti' }, { key: 'none', name: 'Not set' }]);
+  assert.deepEqual(peopleIn([], '2026-10-01', '2026-10-31', members), []);
+});
+
+test('byCategory: remembers who recorded each category, and "Other" keeps adding up', async () => {
+  const { byCategory } = await import('../src/lib/finance.ts');
+  const rows = [
+    { tanggal: '2026-10-01', jenis: 'pengeluaran', kategori: 4, nominal: 600, member: 1 },
+    { tanggal: '2026-10-02', jenis: 'pengeluaran', kategori: 4, nominal: 100, member: 2 },
+    { tanggal: '2026-10-03', jenis: 'pengeluaran', kategori: 6, nominal: 50, member: null },
+  ];
+  const list = byCategory(rows, [{ id: 4, nama: 'Makan', jenis: 'pengeluaran' }, { id: 6, nama: 'Tagihan', jenis: 'pengeluaran' }], 'pengeluaran', '2026-10-01', '2026-10-31');
+  assert.deepEqual(list[0].people, { '1': 600, '2': 100 });
+  assert.deepEqual(list[1].people, { none: 50 });
+  for (const c of list) assert.equal(Object.values(c.people).reduce((a, b) => a + b, 0), c.total);
+  const many = Array.from({ length: 12 }, (_, i) => ({ tanggal: '2026-10-01', jenis: 'pengeluaran', kategori: 100 + i, nominal: 100 + i, member: i % 2 ? 1 : 2 }));
+  const folded = byCategory(many, [], 'pengeluaran', '2026-10-01', '2026-10-31', 5);
+  const other = folded.at(-1)!;
+  assert.equal(Object.values(other.people).reduce((a, b) => a + b, 0), other.total);
+});
+
+test('hiding people: parse, toggle (never the last one) and filter', async () => {
+  const { parseHidden, toggleHidden, withoutPeople } = await import('../src/lib/finance.ts');
+  assert.deepEqual(parseHidden(null), []);
+  assert.deepEqual(parseHidden('2, none,2,x,<b>,12345678901'), ['2', 'none']);
+  const all = ['1', '2', 'none'];
+  assert.deepEqual(toggleHidden([], '2', all), ['2']);
+  assert.deepEqual(toggleHidden(['2'], '2', all), []); // click again to count them again
+  assert.deepEqual(toggleHidden(['2'], 'none', all), ['2', 'none']);
+  assert.deepEqual(toggleHidden(['2', 'none'], '1', all), ['2', 'none']); // the last visible person stays
+  const rows = [{ member: 1, n: 'a' }, { member: 2, n: 'b' }, { member: null, n: 'c' }];
+  assert.deepEqual(withoutPeople(rows, ['2', 'none']).map((r) => r.n), ['a']);
+  assert.equal(withoutPeople(rows, []), rows);
+});
+
+test('dashboardFigures: the texts shown on the four figures', async () => {
+  const { dashboardFigures, daysIn } = await import('../src/lib/finance.ts');
+  const now = { income: 16_233_000, expense: 13_173_981, net: 3_059_019, count: 126, savingsRate: 3_059_019 / 16_233_000 };
+  const before = { income: 12_385_000, expense: 11_199_000, net: 1_186_000, count: 100, savingsRate: 0.09 };
+  const f = dashboardFigures(now, before, 30);
+  assert.equal(f.income.value, 'Rp 16,2 jt');
+  assert.deepEqual([f.income.delta, f.income.good], ['+31% vs the period before', true]);
+  assert.deepEqual([f.expense.delta, f.expense.good], ['+18% vs the period before', false]); // spending more is not "good"
+  assert.equal(f.net.label, 'net · 19% of income kept');
+  assert.equal(f.net.sub, 'previous: Rp 1,2 jt');
+  assert.deepEqual(f.average, { value: 'Rp 439,1 rb', sub: '126 transactions' });
+  const none = dashboardFigures({ income: 0, expense: 0, net: 0, count: 0, savingsRate: null }, { income: 0, expense: 0, net: 0, count: 0, savingsRate: null }, 7);
+  assert.equal(none.income.delta, 'no earlier period to compare');
+  assert.equal(none.net.label, 'net · no income');
+  assert.equal(daysIn({ start: '2026-10-01', end: '2026-10-10' }), 10);
+});

@@ -4,6 +4,7 @@ import { describeActivity, isWaitingForPerson, nextActivity, type Activity } fro
 import { normalizeTitle, titleFromMessage } from '../lib/chat-title';
 import { askConfirm, askText } from './dialog';
 import { alertFor, alertUser, firstTime } from '../lib/notify';
+import { toast } from './toast';
 import { clearActiveRun, loadActiveRun, saveActiveRun, watchRun, type ActiveRun, type RunEvent } from '../lib/chat-run';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -155,7 +156,12 @@ async function loadSessions() {
             danger: true,
           });
           if (!yes) return;
-          await api(`sessions/${id}`, { method: 'DELETE' }).catch((e) => setStatus(e.message));
+          const deleted = await api(`sessions/${id}`, { method: 'DELETE' }).then(() => true, (e) => {
+            setStatus(e.message);
+            toast(e.message, 'error');
+            return false;
+          });
+          if (deleted) toast(`Chat “${label}” deleted`);
           if (id === sessionId) newChat();
           loadSessions();
         });
@@ -189,9 +195,11 @@ async function saveTitle(id: string, raw: string): Promise<string | null> {
   try {
     await api(`sessions/${id}`, { method: 'PATCH', body: JSON.stringify({ title }) });
     loadSessions();
+    toast(`Chat renamed to “${title}”`);
     return title;
   } catch (e) {
     setStatus((e as Error).message);
+    toast((e as Error).message, 'error');
     return null;
   }
 }

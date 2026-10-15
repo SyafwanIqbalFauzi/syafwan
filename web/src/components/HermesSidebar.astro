@@ -1,31 +1,27 @@
 ---
-// Left sidebar for the private /agent area. A conventional CMS menu: brand, grouped
-// entries with small icons, and the signed-in account at the bottom. On phones it folds
-// into a top bar with a menu button.
+// Left sidebar for the private areas: /agent (Hermes) and /finance (money). A conventional CMS menu:
+// brand, grouped entries with small icons, a switch to the other area, and the signed-in account at
+// the bottom. On phones it folds into a top bar with a menu button.
 import Pictogram from './Pictogram.astro';
 
 export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets';
+export type Area = 'agent' | 'finance';
 
 interface Props {
   current?: Section;
   email?: string;
+  area?: Area;
 }
-const { current, email } = Astro.props;
+const { current, email, area = 'agent' } = Astro.props;
 
-const groups: { label: string; items: { section: Section; href: string; label: string }[] }[] = [
+type Group = { label: string; items: { section: Section; href: string; label: string }[] };
+
+const agentGroups: Group[] = [
   {
     label: 'Workspace',
     items: [
       { section: 'overview', href: '/agent', label: 'Overview' },
       { section: 'chat', href: '/agent/chat', label: 'Chat' },
-    ],
-  },
-  {
-    label: 'Finance',
-    items: [
-      { section: 'finance', href: '/agent/finance', label: 'Dashboard' },
-      { section: 'transactions', href: '/agent/finance/transactions', label: 'Transactions' },
-      { section: 'budgets', href: '/agent/finance/budgets', label: 'Budgets' },
     ],
   },
   {
@@ -43,15 +39,34 @@ const groups: { label: string; items: { section: Section; href: string; label: s
     ],
   },
 ];
+
+const financeGroups: Group[] = [
+  {
+    label: 'Money',
+    items: [
+      { section: 'finance', href: '/finance', label: 'Dashboard' },
+      { section: 'transactions', href: '/finance/transactions', label: 'Transactions' },
+      { section: 'budgets', href: '/finance/budgets', label: 'Budgets' },
+    ],
+  },
+];
+
+const groups = area === 'finance' ? financeGroups : agentGroups;
+const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { href: '/agent', name: 'agents' };
 ---
 
 <aside class="sidebar" data-sidebar>
   <div class="side-top">
-    <a href="/agent" class="brand">syafwan <span>/ agents</span></a>
+    <a href={brand.href} class="brand">syafwan <span>/ {brand.name}</span></a>
     <button type="button" class="menu-btn" aria-expanded="false" aria-controls="side-nav" data-menu-toggle>menu</button>
   </div>
 
-  <nav id="side-nav" class="side-nav" aria-label="Hermes">
+  <nav class="area-switch" aria-label="Area">
+    <a href="/agent" aria-current={area === 'agent' ? 'true' : undefined}>Agents</a>
+    <a href="/finance" aria-current={area === 'finance' ? 'true' : undefined}>Finance</a>
+  </nav>
+
+  <nav id="side-nav" class="side-nav" aria-label={area === 'finance' ? 'Finance' : 'Hermes'}>
     {
       groups.map((group) => (
         <div class="group">
@@ -74,7 +89,7 @@ const groups: { label: string; items: { section: Section; href: string; label: s
 
   <div class="side-foot">
     {email && <p class="who" title={email}>{email}</p>}
-    <button type="button" class="alerts" data-alerts aria-pressed="true">alerts: on</button>
+    {area === 'agent' && <button type="button" class="alerts" data-alerts aria-pressed="true">alerts: on</button>}
     <form method="post" action="/agent/logout">
       <button type="submit" class="signout">sign out</button>
     </form>
@@ -188,6 +203,35 @@ const groups: { label: string; items: { section: Section; href: string; label: s
     font-size: var(--text-caption);
     border: 1px solid currentColor;
     padding: 6px 12px;
+  }
+
+  /* Switch between the two private areas: always visible, also on a phone */
+  .area-switch {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    margin: 0 8px var(--s-22);
+    border: 1px solid var(--te-black);
+    font-size: var(--text-caption);
+  }
+
+  .area-switch a {
+    padding: 7px 10px;
+    text-align: center;
+  }
+
+  .area-switch a:hover {
+    background: var(--te-white);
+  }
+
+  .area-switch a[aria-current='true'] {
+    background: var(--te-black);
+    color: var(--te-white);
+  }
+
+  @media (max-width: 899px) {
+    .area-switch {
+      margin: var(--s-15) 0 0;
+    }
   }
 
   .side-nav {

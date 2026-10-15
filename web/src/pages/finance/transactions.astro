@@ -1,8 +1,8 @@
 ---
-import HermesShell from '../../../layouts/HermesShell.astro';
-import FilterBar from '../../../components/FilterBar.astro';
-import { readItems, type FinanceCategory, type FinanceMember, type FinanceTransaction } from '../../../lib/directus-user';
-import { DEFAULT_PERIOD, parseDate, resolvePeriod, rupiah, todayWib } from '../../../lib/finance';
+import HermesShell from '../../layouts/HermesShell.astro';
+import FilterBar from '../../components/FilterBar.astro';
+import { readItems, type FinanceCategory, type FinanceMember, type FinanceTransaction } from '../../lib/directus-user';
+import { DEFAULT_PERIOD, parseDate, resolvePeriod, rupiah, todayWib } from '../../lib/finance';
 
 export const prerender = false;
 
@@ -66,7 +66,7 @@ const linkTo = (target: number) => {
 const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 ---
 
-<HermesShell title="Transactions" current="transactions">
+<HermesShell title="Transactions" current="transactions" area="finance">
   <div class="container page">
     <div class="page-head" data-transactions data-today={todayWib()}>
       <h1 class="h1">Transactions</h1>
@@ -185,5 +185,5 @@ const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-
 </HermesShell>
 
 <script>
-  import '../../../scripts/hermes-transactions';
+  import '../../scripts/hermes-transactions';
 </script>

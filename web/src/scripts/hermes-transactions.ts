@@ -1,6 +1,7 @@
 // The transaction list: add / edit in a dialog, delete with a confirmation. Every change goes to
-// /api/agent/finance/transactions*, which checks everything again; the page then reloads.
+// /api/finance/transactions*, which checks everything again; the page then reloads.
 import { askConfirm } from './dialog';
+import { flash, toast } from './toast';
 import { parseTransactionFields } from '../lib/transaction-input';
 
 const root = document.querySelector<HTMLElement>('[data-transactions]');
@@ -78,12 +79,15 @@ form?.addEventListener('submit', async (event) => {
   save.disabled = true;
   errorEl.textContent = '';
   try {
-    if (editingId === null) await call('POST', '/api/agent/finance/transactions', parsed.value);
-    else await call('PATCH', `/api/agent/finance/transactions/${editingId}`, parsed.value);
+    if (editingId === null) await call('POST', '/api/finance/transactions', parsed.value);
+    else await call('PATCH', `/api/finance/transactions/${editingId}`, parsed.value);
+    const what = parsed.value.deskripsi ? `“${parsed.value.deskripsi}” (${money(parsed.value.nominal)})` : money(parsed.value.nominal);
+    flash(`Transaction ${editingId === null ? 'added' : 'updated'}: ${what}`);
     dialog?.close();
     location.reload();
   } catch (e) {
     errorEl.textContent = (e as Error).message;
+    toast((e as Error).message, 'error');
     save.disabled = false;
   }
 });
@@ -106,9 +110,11 @@ document.querySelectorAll<HTMLButtonElement>('[data-trx-delete]').forEach((butto
     if (!sure) return;
     button.disabled = true;
     try {
-      await call('DELETE', `/api/agent/finance/transactions/${button.dataset.id}`);
+      await call('DELETE', `/api/finance/transactions/${button.dataset.id}`);
+      flash(`Transaction deleted: ${button.dataset.label ?? ''}`.trim());
       location.reload();
     } catch (e) {
+      toast((e as Error).message, 'error');
       say((e as Error).message, true);
       button.disabled = false;
     }

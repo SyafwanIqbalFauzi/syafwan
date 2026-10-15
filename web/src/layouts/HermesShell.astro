@@ -1,12 +1,12 @@
 ---
-// Page shell for every /agent page: a plain CMS layout (sidebar on the left, content on the
+// Page shell for every /agent and /finance page: a plain CMS layout (sidebar on the left, content on the
 // right). Colours, type and spacing come from the public site's design tokens (global.css);
 // only the structure differs from the public pages. Never loads Directus content, never indexed.
 import '@fontsource-variable/inter';
 import interWoff2 from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
 import '../styles/global.css';
 import '../styles/hermes.css';
-import HermesSidebar, { type Section } from '../components/HermesSidebar.astro';
+import HermesSidebar, { type Area, type Section } from '../components/HermesSidebar.astro';
 
 interface Props {
   title: string;
@@ -16,8 +16,10 @@ interface Props {
   bare?: boolean;
   /** Fill the viewport (chat): the page itself does not scroll. */
   fill?: boolean;
+  /** Which private area this page belongs to: its own sidebar, brand and title. */
+  area?: Area;
 }
-const { title, current, bare = false, fill = false } = Astro.props;
+const { title, current, bare = false, fill = false, area = 'agent' } = Astro.props;
 const email = Astro.locals.hermesUser?.email;
 ---
 
@@ -28,7 +30,7 @@ const email = Astro.locals.hermesUser?.email;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#ffffff" />
-    <title>{title} — agents</title>
+    <title>{title} — {area === 'finance' ? 'finance' : 'agents'}</title>
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href={interWoff2} as="font" type="font/woff2" crossorigin />
@@ -43,13 +45,17 @@ const email = Astro.locals.hermesUser?.email;
         </main>
       ) : (
         <div class="cms">
-          <HermesSidebar current={current} email={email} />
+          <HermesSidebar current={current} email={email} area={area} />
           <main id="main" class="cms-main">
             <slot />
           </main>
         </div>
       )
     }
+    <script>
+      import { showFlash } from '../scripts/toast';
+      showFlash();
+    </script>
   </body>
 </html>
 

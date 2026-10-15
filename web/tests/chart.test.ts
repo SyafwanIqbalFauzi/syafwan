@@ -32,3 +32,11 @@ test('labelStep and linePath', () => {
   assert.equal(linePath([{ x: 0, y: 10 }, { x: 5.55, y: 2 }]), 'M0.0 10.0 L5.5 2.0');
   assert.equal(linePath([]), '');
 });
+
+test('personHex and withAlpha', async () => {
+  const { personHex, withAlpha } = await import('../src/lib/chart.ts');
+  assert.equal(personHex('income', 0), '#0071bb');
+  assert.equal(personHex('expense', 1), '#757575');
+  assert.equal(personHex('expense', 9), '#bdbdbd'); // more people than shades: the last shade repeats
+  assert.equal(withAlpha('#0071bb', 0.5), 'rgba(0, 113, 187, 0.5)');
+});

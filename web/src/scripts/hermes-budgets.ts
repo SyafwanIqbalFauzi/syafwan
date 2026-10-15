@@ -1,6 +1,7 @@
 // The budget page: add / edit a line in a dialog, delete with a confirmation, copy last year's lines.
-// Every change goes to /api/agent/finance/budgets*, which checks everything again; the page then reloads.
+// Every change goes to /api/finance/budgets*, which checks everything again; the page then reloads.
 import { askConfirm } from './dialog';
+import { flash, toast } from './toast';
 import { parseBudgetFields } from '../lib/budget-input';
 
 const root = document.querySelector<HTMLElement>('[data-budgets]');
@@ -63,12 +64,14 @@ form?.addEventListener('submit', async (event) => {
   save.disabled = true;
   errorEl.textContent = '';
   try {
-    if (editingId === null) await call('POST', '/api/agent/finance/budgets', { tahun: year, ...parsed.value });
-    else await call('PATCH', `/api/agent/finance/budgets/${editingId}`, parsed.value);
+    if (editingId === null) await call('POST', '/api/finance/budgets', { tahun: year, ...parsed.value });
+    else await call('PATCH', `/api/finance/budgets/${editingId}`, parsed.value);
+    flash(`Budget line “${parsed.value.nama_pos}” ${editingId === null ? 'added' : 'updated'}`);
     dialog?.close();
     location.reload();
   } catch (e) {
     errorEl.textContent = (e as Error).message;
+    toast((e as Error).message, 'error');
     save.disabled = false;
   }
 });
@@ -84,9 +87,11 @@ document.querySelectorAll<HTMLButtonElement>('[data-delete]').forEach((button) =
     if (!sure) return;
     button.disabled = true;
     try {
-      await call('DELETE', `/api/agent/finance/budgets/${button.dataset.id}`);
+      await call('DELETE', `/api/finance/budgets/${button.dataset.id}`);
+      flash(`Budget line “${name}” deleted`);
       location.reload();
     } catch (e) {
+      toast((e as Error).message, 'error');
       say((e as Error).message, true);
       button.disabled = false;
     }
@@ -99,10 +104,16 @@ document.querySelector<HTMLButtonElement>('[data-copy]')?.addEventListener('clic
   if (!sure) return;
   button.disabled = true;
   try {
-    const result = await call('POST', '/api/agent/finance/budgets/copy', { from: year - 1, to: year });
-    say(result.created ? `Copied ${result.created} line${result.created === 1 ? '' : 's'}.` : 'Nothing to copy: every line already exists.');
-    setTimeout(() => location.reload(), 900);
+    const result = await call('POST', '/api/finance/budgets/copy', { from: year - 1, to: year });
+    if (result.created) {
+      flash(`Copied ${result.created} budget line${result.created === 1 ? '' : 's'} from ${year - 1}`);
+      location.reload();
+    } else {
+      toast('Nothing to copy: every line already exists.', 'info');
+      button.disabled = false;
+    }
   } catch (e) {
+    toast((e as Error).message, 'error');
     say((e as Error).message, true);
     button.disabled = false;
   }

@@ -1,6 +1,7 @@
 // Edit name and schedule on an agent's detail page. The form speaks WIB and friendly modes;
 // schedule-edit.ts turns it into what Hermes stores, and the preview shows the result before saving.
 import { askConfirm } from './dialog';
+import { flash, toast } from './toast';
 import { humanizeSchedule } from '../lib/schedule';
 import { buildSchedule, type ScheduleForm, type ScheduleMode } from '../lib/schedule-edit';
 
@@ -96,9 +97,11 @@ if (form) {
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
       statusEl.textContent = 'saved';
+      flash(body.name && body.schedule ? 'Agent name and schedule updated' : body.name ? 'Agent name updated' : 'Agent schedule updated');
       location.reload();
     } catch (error) {
       statusEl.textContent = (error as Error).message;
+      toast((error as Error).message, 'error');
       buttons.forEach((b) => (b.disabled = false));
     }
   });

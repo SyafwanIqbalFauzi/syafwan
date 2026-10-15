@@ -1,8 +1,8 @@
 // Copies the budget lines of one year into another (only the lines the target year does not have yet).
 import type { APIRoute } from 'astro';
-import { audit } from '../../../../../lib/auth';
-import { parseYear, sameName } from '../../../../../lib/budget-input';
-import { createItem, readItems, type FinanceBudget } from '../../../../../lib/directus-user';
+import { audit } from '../../../../lib/auth';
+import { parseYear, sameName } from '../../../../lib/budget-input';
+import { createItem, readItems, type FinanceBudget } from '../../../../lib/directus-user';
 
 export const prerender = false;
 

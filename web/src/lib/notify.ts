@@ -95,7 +95,7 @@ function beep(kind: AlertKind) {
 
 function toast(text: AlertText) {
   const box = document.createElement('a');
-  box.className = 'toast';
+  box.className = 'toast toast-info';
   box.href = '/agent/chat';
   box.setAttribute('role', 'status');
   const strong = document.createElement('strong');
@@ -103,7 +103,13 @@ function toast(text: AlertText) {
   const span = document.createElement('span');
   span.textContent = text.body;
   box.append(strong, span);
-  document.body.append(box);
+  let corner = document.querySelector<HTMLElement>('.toasts');
+  if (!corner) {
+    corner = document.createElement('div');
+    corner.className = 'toasts';
+    document.body.append(corner);
+  }
+  corner.append(box);
   setTimeout(() => box.remove(), 9000);
 }
 

@@ -1,9 +1,9 @@
 // Adds one budget line (a monthly amount for a category, in a year). Written with the signed-in
 // user's own Directus token; the browser only sends category, name and amount.
 import type { APIRoute } from 'astro';
-import { audit } from '../../../../../lib/auth';
-import { parseBudgetFields, parseYear, sameName } from '../../../../../lib/budget-input';
-import { createItem, readItem, readItems, type FinanceBudget, type FinanceCategory } from '../../../../../lib/directus-user';
+import { audit } from '../../../../lib/auth';
+import { parseBudgetFields, parseYear, sameName } from '../../../../lib/budget-input';
+import { createItem, readItem, readItems, type FinanceBudget, type FinanceCategory } from '../../../../lib/directus-user';
 
 export const prerender = false;
 

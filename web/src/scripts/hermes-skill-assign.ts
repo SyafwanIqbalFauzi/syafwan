@@ -2,6 +2,7 @@
 // /api/agent/skills/<name>/assign, which changes only the agent's skills list in Hermes.
 
 import { askConfirm, askNotice } from './dialog';
+import { flash, toast } from './toast';
 
 export {}; // makes this file a module so its top-level names stay local
 const list = document.querySelector<HTMLElement>('[data-skill]');
@@ -9,7 +10,7 @@ const attach = document.querySelector<HTMLFormElement>('[data-attach]');
 const skill = (list ?? attach)?.dataset.skill;
 const statusEl = attach?.querySelector<HTMLElement>('[data-assign-status]') ?? null;
 
-async function assign(jobId: string, action: 'add' | 'remove'): Promise<void> {
+async function assign(jobId: string, action: 'add' | 'remove', done: string): Promise<void> {
   const res = await fetch(`/api/agent/skills/${encodeURIComponent(skill!)}/assign`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -22,6 +23,7 @@ async function assign(jobId: string, action: 'add' | 'remove'): Promise<void> {
   }
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
+  flash(done);
   location.reload();
 }
 
@@ -33,9 +35,10 @@ list?.addEventListener('click', async (event) => {
   if (!sure) return;
   button.disabled = true;
   try {
-    await assign(button.dataset.job!, 'remove');
+    await assign(button.dataset.job!, 'remove', `Skill “${skill}” removed from “${agent}”`);
   } catch (error) {
     button.disabled = false;
+    toast((error as Error).message, 'error');
     await askNotice({ title: 'Could not remove the skill', message: (error as Error).message });
   }
 });
@@ -54,9 +57,10 @@ attach?.addEventListener('submit', async (event) => {
   buttons.forEach((b) => (b.disabled = true));
   if (statusEl) statusEl.textContent = 'saving…';
   try {
-    await assign(select.value, 'add');
+    await assign(select.value, 'add', `Skill “${skill}” added to “${agent}”`);
   } catch (error) {
     if (statusEl) statusEl.textContent = (error as Error).message;
+    toast((error as Error).message, 'error');
     buttons.forEach((b) => (b.disabled = false));
   }
 });

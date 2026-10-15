@@ -25,15 +25,18 @@ export interface FilterDateRange {
 interface Props {
   selects: FilterSelect[];
   dateRange?: FilterDateRange;
+  /** Extra values the page wants to keep across filter changes (sent as hidden inputs) */
+  keep?: Record<string, string>;
   search?: { name: string; value: string; placeholder: string };
   /** Where "reset" goes (the page without any query). Omit to hide the link. */
   resetHref?: string;
 }
-const { selects, dateRange, search, resetHref } = Astro.props;
+const { selects, dateRange, keep = {}, search, resetHref } = Astro.props;
 const active = selects.some((s) => s.value) || Boolean(dateRange?.custom) || Boolean(search?.value);
 ---
 
 <form class="filterbar" method="get" data-filterbar>
+  {Object.entries(keep).map(([name, value]) => value && <input type="hidden" name={name} value={value} />)}
   {
     dateRange && (
       <div class="fb-field fb-range">

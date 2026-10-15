@@ -498,21 +498,47 @@ a.row:hover {
   border-color: var(--te-black);
 }
 
-/* Alert pop-up shown inside the page (alongside the sound) */
-.toast {
+/* Pop-up messages in the corner: "Budget line added", alerts from Hermes (scripts/toast.ts) */
+.toasts {
   position: fixed;
   right: var(--gutter);
   bottom: var(--gutter);
-  z-index: 60;
+  z-index: 80;
+  display: grid;
+  gap: 8px;
+  width: min(380px, calc(100vw - 2 * var(--gutter)));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
   display: grid;
   gap: 4px;
-  max-width: min(360px, calc(100vw - 2 * var(--gutter)));
   padding: var(--s-15);
   background: var(--te-black);
   color: var(--te-white);
-  border-left: 4px solid var(--te-amber);
+  border-left: 4px solid var(--te-blue);
   font-size: var(--text-caption);
+  cursor: default;
   animation: toast-in 0.2s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-success {
+  border-left-color: var(--te-blue);
+}
+
+.toast-error {
+  border-left-color: var(--te-orange);
+}
+
+.toast-info {
+  border-left-color: var(--te-amber);
+}
+
+.toast.leaving {
+  opacity: 0;
+  transform: translateY(6px);
 }
 
 .toast strong {
@@ -796,4 +822,71 @@ a.row:hover {
 
 .dlg form > .dlg-field + .dlg-field {
   margin-top: var(--s-15);
+}
+
+/* A bar made of several coloured pieces (one per person) */
+.bar > .stack-fill {
+  display: flex;
+  background: none;
+}
+
+.bar > .stack-fill > span {
+  display: block;
+  height: 100%;
+  min-width: 1px;
+}
+
+.legend + .ruled,
+.block-head + .legend {
+  margin-bottom: 4px;
+}
+
+/* Chart.js canvases and their clickable legends */
+.chart-box {
+  position: relative;
+  width: 100%;
+}
+
+.chart-box[hidden] {
+  display: none;
+}
+
+.legend .legend-item {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.legend .legend-item:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legend .legend-item[aria-pressed='false'] {
+  color: var(--te-grey-600);
+  text-decoration: line-through;
+}
+
+.legend .legend-item[aria-disabled='true'] {
+  cursor: default;
+  text-decoration: none;
+}
+
+.legend .legend-label {
+  font-weight: var(--w-regular);
+}
+
+.legend .swatch {
+  transition: background 0.2s ease;
+}
+
+[data-hidden-note] .arrow-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
 }

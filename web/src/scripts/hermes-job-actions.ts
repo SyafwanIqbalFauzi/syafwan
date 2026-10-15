@@ -2,6 +2,7 @@
 // allowlisted /api/agent/jobs/* proxy; the page reloads afterwards to show the new state.
 
 import { askConfirm } from './dialog';
+import { flash, toast } from './toast';
 
 export {}; // makes this file a module so its top-level names stay local
 const box = document.querySelector<HTMLElement>('[data-job]');
@@ -43,13 +44,20 @@ if (box) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error?.message ?? data?.error ?? `Request failed (${res.status})`);
       }
-      if (action === 'delete') location.href = '/agent/agents';
-      else if (action === 'run' && statusEl) {
-        statusEl.textContent = 'started: the result appears here within a few minutes';
+      if (action === 'delete') {
+        flash(`Agent “${button.dataset.jobName ?? id}” deleted`);
+        location.href = '/agent/agents';
+      } else if (action === 'run') {
+        if (statusEl) statusEl.textContent = 'started: the result appears here within a few minutes';
+        toast(`“${button.dataset.jobName ?? id}” is running. The result appears here within a few minutes.`, 'info', { title: 'Started' });
         buttons.forEach((b) => (b.disabled = false));
-      } else location.reload();
+      } else {
+        flash(`Agent “${button.dataset.jobName ?? id}” ${action === 'pause' ? 'paused' : 'resumed'}`);
+        location.reload();
+      }
     } catch (error) {
       if (statusEl) statusEl.textContent = (error as Error).message;
+      toast((error as Error).message, 'error');
       buttons.forEach((b) => (b.disabled = false));
     }
   });
@@ -82,7 +90,9 @@ groupForm?.addEventListener('submit', async (event) => {
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
     if (groupStatus) groupStatus.textContent = `saved: ${data.group}`;
+    toast(`Group set to “${data.group}”`);
   } catch (error) {
     if (groupStatus) groupStatus.textContent = (error as Error).message;
+    toast((error as Error).message, 'error');
   }
 });

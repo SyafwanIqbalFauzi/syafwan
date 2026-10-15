@@ -1,10 +1,10 @@
 // Adds one transaction by hand. Written with the signed-in user's own Directus token; the browser only
 // sends the editable fields, everything else (time, source) is set here.
 import type { APIRoute } from 'astro';
-import { audit } from '../../../../../lib/auth';
-import { createItem, readItem, type FinanceCategory, type FinanceMember, type FinanceTransaction } from '../../../../../lib/directus-user';
-import { todayWib } from '../../../../../lib/finance';
-import { parseTransactionFields, waktuFor } from '../../../../../lib/transaction-input';
+import { audit } from '../../../../lib/auth';
+import { createItem, readItem, type FinanceCategory, type FinanceMember, type FinanceTransaction } from '../../../../lib/directus-user';
+import { todayWib } from '../../../../lib/finance';
+import { parseTransactionFields, waktuFor } from '../../../../lib/transaction-input';
 
 export const prerender = false;
 
