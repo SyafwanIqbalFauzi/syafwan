@@ -20,8 +20,7 @@ site within a minute.
 
 A private area of the site, only for me, behind a sign-in. It is the control room for
 [Hermes](https://github.com/NousResearch/hermes-agent), the open-source AI agent that runs my
-scheduled assistants, for example watching match schedules, researching data, keeping notes in
-sync and sending weekly summaries.
+scheduled assistants.
 
 From the dashboard I can:
 
