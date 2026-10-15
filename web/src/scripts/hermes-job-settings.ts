@@ -1,5 +1,6 @@
 // Edit name and schedule on an agent's detail page. The form speaks WIB and friendly modes;
 // schedule-edit.ts turns it into what Hermes stores, and the preview shows the result before saving.
+import { askConfirm } from './dialog';
 import { humanizeSchedule } from '../lib/schedule';
 import { buildSchedule, type ScheduleForm, type ScheduleMode } from '../lib/schedule-edit';
 
@@ -71,13 +72,12 @@ if (form) {
     if (schedule !== currentSchedule) body.schedule = schedule;
     if (!body.name && !body.schedule) return void (statusEl.textContent = 'nothing changed');
 
-    const lines = [
-      body.name ? `Name:  "${currentName}"  →  "${body.name}"` : '',
-      body.schedule ? `Runs:  ${humanizeSchedule(currentSchedule)}  →  ${humanizeSchedule(body.schedule)}` : '',
-      '',
-      'This changes the live agent. Continue?',
-    ].filter((l, i) => l || i === 2);
-    if (!confirm(lines.join('\n'))) return;
+    const changes = [
+      body.name ? `Name: "${currentName}" → "${body.name}"` : '',
+      body.schedule ? `Runs: ${humanizeSchedule(currentSchedule)} → ${humanizeSchedule(body.schedule)}` : '',
+    ].filter(Boolean);
+    const sure = await askConfirm({ title: 'Save these changes?', message: `${changes.join('\n')}\n\nThis changes the live agent.`, confirm: 'Save' });
+    if (!sure) return;
 
     const buttons = form.querySelectorAll<HTMLButtonElement>('button');
     buttons.forEach((b) => (b.disabled = true));

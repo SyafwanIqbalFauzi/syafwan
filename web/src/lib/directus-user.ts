@@ -76,6 +76,52 @@ export interface ClaudeUsageRow {
   checked_at: string | null;
 }
 
+export type ReadableCollection =
+  | 'agent_runs'
+  | 'agent_jobs'
+  | 'agent_skills'
+  | 'skill_changes'
+  | 'claude_usage'
+  | 'finance_transactions'
+  | 'finance_categories'
+  | 'finance_budgets'
+  | 'finance_members';
+
+export interface FinanceTransaction {
+  id: number;
+  tanggal: string;
+  jenis: 'pemasukan' | 'pengeluaran';
+  kategori: number | null;
+  deskripsi: string | null;
+  nominal: string | number;
+  member: number | null;
+  sumber: string | null;
+  waktu?: string | null;
+  dihapus_pada?: string | null;
+}
+
+export interface FinanceCategory {
+  id: number;
+  nama: string;
+  jenis: 'pemasukan' | 'pengeluaran';
+  aktif: boolean;
+  sort: number | null;
+}
+
+export interface FinanceBudget {
+  id: number;
+  tahun: number;
+  kategori: number;
+  nama_pos: string;
+  jumlah: string | number;
+}
+
+export interface FinanceMember {
+  id: number;
+  nama_lengkap: string;
+  nama_panggilan: string;
+}
+
 export class DirectusReadError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -85,7 +131,7 @@ export class DirectusReadError extends Error {
 }
 
 /** `params` are Directus query params, e.g. `{ 'filter[job_id][_eq]': 'abc', sort: '-started_at' }`. */
-export async function readItems<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills' | 'skill_changes' | 'claude_usage', params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
+export async function readItems<T>(token: string, collection: ReadableCollection, params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
   const query = new URLSearchParams({ meta: 'filter_count', ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -96,13 +142,13 @@ export async function readItems<T>(token: string, collection: 'agent_runs' | 'ag
   return { data: body.data, total: body.meta?.filter_count ?? null };
 }
 
-export async function readItem<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills' | 'skill_changes', params: Record<string, string | number>): Promise<T | null> {
+export async function readItem<T>(token: string, collection: ReadableCollection, params: Record<string, string | number>): Promise<T | null> {
   const { data } = await readItems<T>(token, collection, { ...params, limit: 1 });
   return data[0] ?? null;
 }
 
 /** PATCH one item with the signed-in user's token (e.g. the agent group). */
-export async function updateItem(token: string, collection: 'agent_jobs', id: number, data: Record<string, unknown>): Promise<void> {
+export async function updateItem(token: string, collection: 'agent_jobs' | 'finance_budgets' | 'finance_transactions', id: number, data: Record<string, unknown>): Promise<void> {
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}/${id}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -113,7 +159,7 @@ export async function updateItem(token: string, collection: 'agent_jobs', id: nu
 }
 
 /** Create one item with the signed-in user's token (skill change requests). */
-export async function createItem<T>(token: string, collection: 'skill_changes', data: Record<string, unknown>): Promise<T> {
+export async function createItem<T>(token: string, collection: 'skill_changes' | 'finance_budgets' | 'finance_transactions', data: Record<string, unknown> | Record<string, unknown>[]): Promise<T> {
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -122,4 +168,14 @@ export async function createItem<T>(token: string, collection: 'skill_changes', 
   });
   if (!res.ok) throw new DirectusReadError(`Directus ${res.status} creating ${collection}`, res.status);
   return ((await res.json()) as { data: T }).data;
+}
+
+/** Delete one item with the signed-in user's token (a budget line). */
+export async function deleteItem(token: string, collection: 'finance_budgets', id: number): Promise<void> {
+  const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new DirectusReadError(`Directus ${res.status} deleting ${collection}`, res.status);
 }

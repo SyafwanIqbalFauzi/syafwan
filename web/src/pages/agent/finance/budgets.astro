@@ -1,0 +1,223 @@
+---
+import HermesShell from '../../../layouts/HermesShell.astro';
+import FilterBar from '../../../components/FilterBar.astro';
+import { readItems, type FinanceBudget, type FinanceCategory, type FinanceTransaction } from '../../../lib/directus-user';
+import { budgetReport, monthEnd, monthStart, percent, rupiah, todayWib } from '../../../lib/finance';
+import { parseYear } from '../../../lib/budget-input';
+
+export const prerender = false;
+
+const token = Astro.locals.hermesToken!;
+const today = todayWib();
+const thisYear = Number(today.slice(0, 4));
+const year = parseYear(Astro.url.searchParams.get('year')) ?? thisYear;
+const month = { from: monthStart(today), to: monthEnd(today) };
+
+const [budgetResult, catResult, trxResult] = await Promise.all([
+  readItems<FinanceBudget>(token, 'finance_budgets', { limit: -1, sort: 'id' }).catch(() => null),
+  readItems<FinanceCategory>(token, 'finance_categories', { limit: -1, sort: 'sort' }).catch(() => null),
+  year === thisYear
+    ? readItems<FinanceTransaction>(token, 'finance_transactions', {
+        'filter[dihapus_pada][_null]': 'true',
+        'filter[tanggal][_gte]': month.from,
+        'filter[tanggal][_lte]': month.to,
+        limit: -1,
+        fields: 'id,tanggal,jenis,kategori,nominal',
+      }).catch(() => null)
+    : Promise.resolve({ data: [] as FinanceTransaction[], total: 0 }),
+]);
+
+const allBudgets = budgetResult?.data ?? [];
+const categories = catResult?.data ?? [];
+const budgets = allBudgets.filter((b) => b.tahun === year);
+const years = [...new Set([...allBudgets.map((b) => b.tahun), thisYear, thisYear + 1])].sort();
+const previousYearLines = allBudgets.filter((b) => b.tahun === year - 1).length;
+const report = budgetReport(budgets, categories, trxResult?.data ?? [], year, month.from, month.to);
+const showMonth = year === thisYear && trxResult !== null;
+
+const jenisOf = new Map(categories.map((c) => [c.id, c.jenis]));
+const amountOf = (b: FinanceBudget) => Number(b.jumlah) || 0;
+const spendingPlan = budgets.filter((b) => jenisOf.get(b.kategori) !== 'pemasukan').reduce((a, b) => a + amountOf(b), 0);
+const incomePlan = budgets.filter((b) => jenisOf.get(b.kategori) === 'pemasukan').reduce((a, b) => a + amountOf(b), 0);
+const budgeted = new Set(budgets.map((b) => b.kategori));
+const unbudgeted = categories.filter((c) => c.aktif && c.jenis === 'pengeluaran' && !budgeted.has(c.id));
+
+// Groups: spending categories first, then income ones, each in the order of the category list.
+const groups = categories
+  .filter((c) => budgeted.has(c.id))
+  .sort((a, b) => Number(a.jenis === 'pemasukan') - Number(b.jenis === 'pemasukan'))
+  .map((c) => {
+    const lines = budgets.filter((b) => b.kategori === c.id);
+    const line = [...report.expenses, ...report.income].find((l) => l.kategori === c.id);
+    return { category: c, lines, total: lines.reduce((a, b) => a + amountOf(b), 0), month: line };
+  });
+const loaded = budgetResult !== null && catResult !== null;
+---
+
+<HermesShell title="Budgets" current="budgets">
+  <div class="container page" data-budgets data-year={year} data-previous-lines={previousYearLines}>
+    <div class="page-head">
+      <h1 class="h1">Budgets</h1>
+      <p class="label muted">monthly amounts for {year}</p>
+    </div>
+
+    {!loaded && <p class="notice error" role="alert">Could not read the budgets.</p>}
+    <p class="notice" data-budget-banner hidden role="status"></p>
+
+    <FilterBar
+      resetHref={Astro.url.pathname}
+      selects={[{ name: 'year', label: 'Year', value: year === thisYear ? null : String(year), all: String(thisYear), options: years.filter((y) => y !== thisYear).map((y) => ({ value: String(y), label: String(y) })) }]}
+    />
+
+    <section class="block">
+      <div class="figures figures-money">
+        <div class="figure"><p class="value">{rupiah(spendingPlan)}</p><p class="label">planned spending per month</p></div>
+        <div class="figure"><p class="value">{rupiah(incomePlan)}</p><p class="label">expected income per month</p></div>
+        <div class="figure"><p class="value">{rupiah(incomePlan - spendingPlan)}</p><p class="label">left over per month, if all goes to plan</p></div>
+        <div class="figure"><p class="value">{budgets.length}</p><p class="label">budget lines</p></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Lines</h2>
+        <span class="budget-actions">
+          {previousYearLines > 0 && <button type="button" class="btn" data-copy>Copy from {year - 1}</button>}
+          <button type="button" class="btn btn-solid" data-add>Add a line</button>
+        </span>
+      </div>
+      {
+        groups.length ? (
+          <div class="budget-groups">
+            {groups.map((g) => (
+              <div class="budget-group">
+                <div class="budget-group-head">
+                  <span class="name" style="font-size: var(--text-body)">{g.category.nama}</span>
+                  <span class="tag">{g.category.jenis === 'pemasukan' ? 'income' : 'spending'}</span>
+                  <span class="num">{rupiah(g.total)} / month</span>
+                </div>
+                {showMonth && g.month && (
+                  <p class="sub">
+                    This month: {rupiah(g.month.actual)} {g.category.jenis === 'pemasukan' ? 'received' : 'spent'} · {percent(g.month.ratio)} of the plan
+                  </p>
+                )}
+                <div class="ruled">
+                  {g.lines.map((b) => (
+                    <div class="row row-budget">
+                      <span>{b.nama_pos}</span>
+                      <span class="num">{rupiah(amountOf(b))}</span>
+                      <span class="row-actions">
+                        <button type="button" class="arrow-link" data-edit data-id={b.id} data-kategori={b.kategori} data-name={b.nama_pos} data-amount={amountOf(b)}>edit</button>
+                        <button type="button" class="arrow-link danger" data-delete data-id={b.id} data-name={b.nama_pos}>delete</button>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="empty">
+            {loaded ? `No budget lines for ${year} yet.${previousYearLines ? ` Copy ${year - 1}'s lines or add a new one.` : ' Add the first one.'}` : 'The budgets are unavailable.'}
+          </p>
+        )
+      }
+    </section>
+
+    {
+      unbudgeted.length > 0 && budgets.length > 0 && (
+        <p class="label muted">
+          Spending categories without a budget in {year}: {unbudgeted.map((c) => c.nama).join(', ')}.
+        </p>
+      )
+    }
+    <p class="label muted">
+      A budget is an amount per month. Several lines can share a category (for example Internet and Electricity under Bills); the dashboard compares their sum with what was spent in that category.
+      A line on an income category, such as salary, is an expected income, not a limit.
+    </p>
+
+    <dialog class="dlg" id="budget-dialog" aria-labelledby="budget-dialog-title">
+      <form method="dialog" data-budget-form novalidate>
+        <h2 id="budget-dialog-title">Add a line</h2>
+        <label class="dlg-field">
+          <span class="label muted">Category</span>
+          <select name="kategori" required>
+            <option value="">Choose…</option>
+            <optgroup label="Spending">
+              {categories.filter((c) => c.jenis === 'pengeluaran').map((c) => <option value={c.id}>{c.nama}</option>)}
+            </optgroup>
+            <optgroup label="Income">
+              {categories.filter((c) => c.jenis === 'pemasukan').map((c) => <option value={c.id}>{c.nama}</option>)}
+            </optgroup>
+          </select>
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Name</span>
+          <input name="nama_pos" type="text" maxlength="80" autocomplete="off" placeholder="e.g. Internet Rumah" required />
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Amount per month (Rp)</span>
+          <input name="jumlah" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 300.000" required />
+        </label>
+        <p class="dlg-error" data-budget-error role="alert"></p>
+        <div class="dlg-actions">
+          <button type="button" class="btn" data-cancel>Cancel</button>
+          <button type="submit" class="btn btn-solid" data-save>Save</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+</HermesShell>
+
+<script>
+  import '../../../scripts/hermes-budgets';
+</script>
+
+<style is:global>
+  .budget-actions {
+    display: inline-flex;
+    gap: var(--s-15);
+    flex-wrap: wrap;
+  }
+
+  .budget-groups {
+    display: grid;
+    gap: var(--s-33);
+  }
+
+  .budget-group-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-15);
+    flex-wrap: wrap;
+  }
+
+  .budget-group-head .num {
+    margin-left: auto;
+  }
+
+  .row-budget {
+    grid-template-columns: minmax(160px, 3fr) minmax(120px, 1.2fr) 130px;
+    padding-block: 10px;
+    align-items: baseline;
+  }
+
+  .row-budget .row-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-15);
+  }
+
+  .arrow-link.danger {
+    color: var(--te-orange);
+  }
+
+  .row-actions button {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: var(--text-caption);
+    cursor: pointer;
+  }
+</style>

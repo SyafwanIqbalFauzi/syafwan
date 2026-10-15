@@ -1,6 +1,8 @@
 // Add a skill to an agent / remove it, from the skill's detail page. Goes through
 // /api/agent/skills/<name>/assign, which changes only the agent's skills list in Hermes.
 
+import { askConfirm, askNotice } from './dialog';
+
 export {}; // makes this file a module so its top-level names stay local
 const list = document.querySelector<HTMLElement>('[data-skill]');
 const attach = document.querySelector<HTMLFormElement>('[data-attach]');
@@ -27,13 +29,14 @@ list?.addEventListener('click', async (event) => {
   const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-assign="remove"]');
   if (!button || !skill) return;
   const agent = button.dataset.jobName ?? 'this agent';
-  if (!confirm(`Remove "${skill}" from "${agent}"?\n\nThe agent will no longer load this skill on its next run.`)) return;
+  const sure = await askConfirm({ title: 'Remove this skill?', message: `"${skill}" is removed from "${agent}".\n\nThe agent will no longer load it on its next run.`, confirm: 'Remove', danger: true });
+  if (!sure) return;
   button.disabled = true;
   try {
     await assign(button.dataset.job!, 'remove');
   } catch (error) {
     button.disabled = false;
-    alert((error as Error).message);
+    await askNotice({ title: 'Could not remove the skill', message: (error as Error).message });
   }
 });
 
@@ -45,7 +48,8 @@ attach?.addEventListener('submit', async (event) => {
     return;
   }
   const agent = select.selectedOptions[0]?.dataset.name ?? 'this agent';
-  if (!confirm(`Add "${skill}" to "${agent}"?\n\nThis changes the live agent: it loads the skill from its next run.`)) return;
+  const sure = await askConfirm({ title: 'Add this skill?', message: `"${skill}" is added to "${agent}".\n\nThis changes the live agent: it loads the skill from its next run.`, confirm: 'Add' });
+  if (!sure) return;
   const buttons = attach.querySelectorAll<HTMLButtonElement>('button');
   buttons.forEach((b) => (b.disabled = true));
   if (statusEl) statusEl.textContent = 'saving…';

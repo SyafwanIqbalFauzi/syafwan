@@ -10,24 +10,45 @@ export interface FilterSelect {
   /** Text of the empty ("no filter") option. */
   all?: string;
   options: { value: string; label: string }[];
+  /** Choosing a value here empties the date inputs of the bar (a preset replaces a hand-picked range). */
+  clearsDates?: boolean;
+}
+
+/** One input that picks a start and an end date. The chosen dates travel as `from` and `to`. */
+export interface FilterDateRange {
+  from: string;
+  to: string;
+  /** The dates were picked by hand (not the page's default), so "reset" is useful */
+  custom: boolean;
 }
 
 interface Props {
   selects: FilterSelect[];
+  dateRange?: FilterDateRange;
   search?: { name: string; value: string; placeholder: string };
   /** Where "reset" goes (the page without any query). Omit to hide the link. */
   resetHref?: string;
 }
-const { selects, search, resetHref } = Astro.props;
-const active = selects.some((s) => s.value) || Boolean(search?.value);
+const { selects, dateRange, search, resetHref } = Astro.props;
+const active = selects.some((s) => s.value) || Boolean(dateRange?.custom) || Boolean(search?.value);
 ---
 
 <form class="filterbar" method="get" data-filterbar>
   {
+    dateRange && (
+      <div class="fb-field fb-range">
+        <label class="fb-label" for="fb-daterange">Dates</label>
+        <input id="fb-daterange" class="fb-input" type="text" data-daterange data-from={dateRange.from} data-to={dateRange.to} data-active={dateRange.custom ? 'true' : undefined} placeholder="Start – end date" autocomplete="off" />
+        <input type="hidden" name="from" value={dateRange.from} />
+        <input type="hidden" name="to" value={dateRange.to} />
+      </div>
+    )
+  }
+  {
     selects.map((select) => (
       <label class="fb-field">
         <span class="fb-label">{select.label}</span>
-        <select name={select.name} class="fb-select" data-active={select.value ? 'true' : undefined}>
+        <select name={select.name} class="fb-select" data-active={select.value ? 'true' : undefined} data-clears-dates={select.clearsDates ? '' : undefined}>
           <option value="">{select.all ?? 'All'}</option>
           {select.options.map((option) => (
             <option value={option.value} selected={option.value === select.value}>{option.label}</option>
@@ -49,8 +70,38 @@ const active = selects.some((s) => s.value) || Boolean(search?.value);
 </form>
 
 <script>
+  import flatpickr from 'flatpickr';
+  import 'flatpickr/dist/flatpickr.min.css';
+
   document.querySelectorAll<HTMLFormElement>('[data-filterbar]').forEach((form) => {
-    form.querySelectorAll('select').forEach((select) => select.addEventListener('change', () => form.requestSubmit()));
+    form.querySelectorAll<HTMLSelectElement>('select').forEach((select) => select.addEventListener('change', () => form.requestSubmit()));
+
+    // One input for both dates. Picking the second date applies the filter.
+    const range = form.querySelector<HTMLInputElement>('[data-daterange]');
+    if (range) {
+      const from = form.querySelector<HTMLInputElement>('input[name="from"]')!;
+      const to = form.querySelector<HTMLInputElement>('input[name="to"]')!;
+      flatpickr(range, {
+        mode: 'range',
+        dateFormat: 'Y-m-d',
+        altInput: true,
+        altFormat: 'j M Y',
+        altInputClass: 'fb-input',
+        defaultDate: [range.dataset.from!, range.dataset.to!],
+        showMonths: window.matchMedia('(min-width: 720px)').matches ? 2 : 1,
+        locale: { firstDayOfWeek: 1, rangeSeparator: ' – ' },
+        disableMobile: true,
+        onClose: (dates, _text, picker) => {
+          if (dates.length !== 2) return;
+          const a = picker.formatDate(dates[0], 'Y-m-d');
+          const b = picker.formatDate(dates[1], 'Y-m-d');
+          if (a === from.value && b === to.value) return;
+          from.value = a;
+          to.value = b;
+          form.requestSubmit();
+        },
+      });
+    }
     // Keep URLs clean: empty filters are not sent at all.
     form.addEventListener('submit', () => {
       form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('select, input[type="search"]').forEach((field) => {
@@ -104,8 +155,53 @@ const active = selects.some((s) => s.value) || Boolean(search?.value);
     cursor: pointer;
   }
 
-  .fb-select[data-active='true'] {
+  .fb-select[data-active='true'],
+  .fb-input[data-active='true'] {
     border-color: var(--te-black);
+  }
+
+  .fb-range {
+    min-width: 0;
+    width: 210px;
+  }
+
+  @media (max-width: 599px) {
+    .fb-range {
+      width: auto;
+    }
+  }
+
+  /* The calendar, in the site's look */
+  .flatpickr-calendar {
+    font-family: inherit;
+    border-radius: 0;
+    box-shadow: none;
+    border: 1px solid var(--te-black);
+  }
+
+  .flatpickr-day {
+    border-radius: 0;
+  }
+
+  .flatpickr-day.selected,
+  .flatpickr-day.startRange,
+  .flatpickr-day.endRange,
+  .flatpickr-day.selected:hover,
+  .flatpickr-day.startRange:hover,
+  .flatpickr-day.endRange:hover {
+    background: var(--te-black);
+    border-color: var(--te-black);
+    color: var(--te-white);
+  }
+
+  .flatpickr-day.inRange {
+    background: var(--te-white);
+    border-color: var(--te-white);
+    box-shadow: -5px 0 0 var(--te-white), 5px 0 0 var(--te-white);
+  }
+
+  .flatpickr-day.today:not(.selected) {
+    border-color: var(--te-blue);
   }
 
   .fb-select:focus-visible,

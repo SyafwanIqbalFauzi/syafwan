@@ -1,6 +1,8 @@
 // Enable/disable a skill and edit its instructions. Neither touches Hermes directly: the page
 // records a request, then waits while the VPS applies it (usually within a minute) and reports
 // what happened. See pages/api/agent/skills/[name]/{enabled,content}.ts and apply_skill_changes.py.
+import { askConfirm } from './dialog';
+
 export {};
 
 const banner = document.querySelector<HTMLElement>('[data-change-banner]');
@@ -65,31 +67,32 @@ async function run(button: HTMLElement | null, work: () => Promise<number | null
   void button;
 }
 
-toggle?.addEventListener('click', () => {
+toggle?.addEventListener('click', async () => {
   const skill = toggle.dataset.skill!;
   const enable = toggle.dataset.enabled === 'false';
   const users = JSON.parse(toggle.dataset.users ?? '[]') as string[];
-  const lines = enable
-    ? [`Enable "${skill}"?`]
-    : [
-        `Disable "${skill}"?`,
-        users.length ? `\n${users.length} agent${users.length === 1 ? '' : 's'} use it. They will still run, but WITHOUT this skill's instructions (Hermes skips it), which can change what they produce:\n  -${users.slice(0, 8).join('\n  - ')}${users.length > 8 ? `\n  …and ${users.length - 8} more` : ''}` : '',
-      ];
-  if (!confirm(lines.filter(Boolean).join('\n'))) return;
+  const effect = users.length
+    ? `${users.length} agent${users.length === 1 ? '' : 's'} use it. They keep running, but WITHOUT this skill's instructions (Hermes skips it), which can change what they produce:\n\n${users.slice(0, 8).map((u) => `• ${u}`).join('\n')}${users.length > 8 ? `\n…and ${users.length - 8} more` : ''}`
+    : '';
+  const sure = enable
+    ? await askConfirm({ title: 'Enable this skill?', message: `"${skill}" will be available to agents again.`, confirm: 'Enable' })
+    : await askConfirm({ title: 'Disable this skill?', message: `"${skill}" will be switched off in Hermes.${effect ? `\n\n${effect}` : ''}`, confirm: 'Disable', danger: true });
+  if (!sure) return;
   void run(toggle, async () => {
     const res = await post(`/api/agent/skills/${encodeURIComponent(skill)}/enabled`, { enabled: enable });
     return res.unchanged ? null : (res.id ?? null);
   });
 });
 
-editor?.addEventListener('submit', (event) => {
+editor?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const area = editor.elements.namedItem('content') as HTMLTextAreaElement;
   if (area.value === area.defaultValue) {
     say('Nothing changed.');
     return;
   }
-  if (!confirm('Save these changes to the skill?\n\nAgents that use it follow the new instructions from their next run. The previous version is kept as a backup on the server.')) return;
+  const sure = await askConfirm({ title: 'Save these changes?', message: 'Agents that use this skill follow the new instructions from their next run. The previous version is kept as a backup on the server.', confirm: 'Save' });
+  if (!sure) return;
   void run(null, async () => {
     const res = await post(`/api/agent/skills/${encodeURIComponent(editor.dataset.skill!)}/content`, { content: area.value, base_hash: editor.dataset.baseHash });
     return res.id ?? null;

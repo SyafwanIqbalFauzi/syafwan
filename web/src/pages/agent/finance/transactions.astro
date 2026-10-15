@@ -1,0 +1,189 @@
+---
+import HermesShell from '../../../layouts/HermesShell.astro';
+import FilterBar from '../../../components/FilterBar.astro';
+import { readItems, type FinanceCategory, type FinanceMember, type FinanceTransaction } from '../../../lib/directus-user';
+import { DEFAULT_PERIOD, parseDate, resolvePeriod, rupiah, todayWib } from '../../../lib/finance';
+
+export const prerender = false;
+
+const token = Astro.locals.hermesToken!;
+const url = Astro.url;
+const PAGE_SIZE = 50;
+
+const type = ['pemasukan', 'pengeluaran'].includes(url.searchParams.get('type') ?? '') ? url.searchParams.get('type')! : null;
+const search = (url.searchParams.get('q') ?? '').trim().slice(0, 80);
+const SORTS = { '-tanggal': 'Newest first', tanggal: 'Oldest first', '-nominal': 'Largest first', nominal: 'Smallest first' } as const;
+const sortAsked = url.searchParams.get('sort');
+const sort = (sortAsked && sortAsked in SORTS ? sortAsked : '-tanggal') as keyof typeof SORTS;
+const idParam = (name: string) => {
+  const raw = url.searchParams.get(name);
+  return raw && /^\d{1,9}$/.test(raw) ? Number(raw) : null;
+};
+const categoryId = idParam('category');
+const memberId = idParam('member');
+const page = Math.min(1000, Math.max(1, idParam('page') ?? 1));
+
+const bounds = resolvePeriod(DEFAULT_PERIOD, parseDate(url.searchParams.get('from')), parseDate(url.searchParams.get('to')), todayWib());
+const filters: Record<string, string | number> = { 'filter[dihapus_pada][_null]': 'true' };
+if (bounds.from) filters['filter[tanggal][_gte]'] = bounds.from;
+if (bounds.to) filters['filter[tanggal][_lte]'] = bounds.to;
+if (type) filters['filter[jenis][_eq]'] = type;
+if (categoryId) filters['filter[kategori][_eq]'] = categoryId;
+if (memberId) filters['filter[member][_eq]'] = memberId;
+if (search) filters['filter[deskripsi][_icontains]'] = search;
+
+const [listResult, sumResult, catResult, memberResult] = await Promise.all([
+  readItems<FinanceTransaction>(token, 'finance_transactions', {
+    ...filters,
+    sort: sort === '-tanggal' ? '-tanggal,-id' : sort === 'tanggal' ? 'tanggal,id' : sort,
+    limit: PAGE_SIZE,
+    offset: (page - 1) * PAGE_SIZE,
+    fields: 'id,tanggal,jenis,kategori,deskripsi,nominal,member',
+  }).catch(() => null),
+  readItems<{ jenis: string; sum: { nominal: string | number } }>(token, 'finance_transactions', { ...filters, 'aggregate[sum]': 'nominal', 'groupBy[]': 'jenis' }).catch(() => null),
+  readItems<FinanceCategory>(token, 'finance_categories', { limit: -1, sort: 'sort' }).catch(() => null),
+  readItems<FinanceMember>(token, 'finance_members', { limit: -1 }).catch(() => null),
+]);
+
+const rows = listResult?.data ?? [];
+const total = listResult?.total ?? 0;
+const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+const categories = catResult?.data ?? [];
+const members = memberResult?.data ?? [];
+const categoryName = new Map(categories.map((c) => [c.id, c.nama]));
+const memberName = new Map(members.map((m) => [m.id, m.nama_panggilan]));
+const sumOf = (jenis: string) => Number(sumResult?.data.find((r) => r.jenis === jenis)?.sum?.nominal ?? 0);
+const income = sumOf('pemasukan');
+const expense = sumOf('pengeluaran');
+
+// Page links keep every filter.
+const linkTo = (target: number) => {
+  const next = new URL(url);
+  if (target <= 1) next.searchParams.delete('page');
+  else next.searchParams.set('page', String(target));
+  return `${next.pathname}${next.search}`;
+};
+const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
+---
+
+<HermesShell title="Transactions" current="transactions">
+  <div class="container page">
+    <div class="page-head" data-transactions data-today={todayWib()}>
+      <h1 class="h1">Transactions</h1>
+      <p class="label muted">{bounds.from || bounds.to ? `${bounds.from ?? 'the beginning'} to ${bounds.to ?? 'now'}` : 'all time'}</p>
+    </div>
+
+    {!listResult && <p class="notice error" role="alert">Could not read the finance data.</p>}
+    <p class="notice" data-trx-banner hidden role="status"></p>
+
+    <FilterBar
+      resetHref={url.pathname}
+      dateRange={{ from: bounds.from ?? bounds.to ?? todayWib(), to: bounds.to ?? todayWib(), custom: bounds.custom }}
+      search={{ name: 'q', value: search, placeholder: 'Search descriptions' }}
+      selects={[
+                { name: 'type', label: 'Type', value: type, all: 'Income and expense', options: [{ value: 'pemasukan', label: 'Income' }, { value: 'pengeluaran', label: 'Expense' }] },
+        { name: 'category', label: 'Category', value: categoryId ? String(categoryId) : null, all: 'All categories', options: categories.map((c) => ({ value: String(c.id), label: c.nama })) },
+        { name: 'member', label: 'Person', value: memberId ? String(memberId) : null, all: 'Everyone', options: members.map((m) => ({ value: String(m.id), label: m.nama_panggilan })) },
+        { name: 'sort', label: 'Sort', value: sort === '-tanggal' ? null : sort, all: SORTS['-tanggal'], options: Object.entries(SORTS).filter(([k]) => k !== '-tanggal').map(([value, label]) => ({ value, label })) },
+      ]}
+    />
+
+    <section class="block">
+      <div class="figures figures-money">
+        <div class="figure"><p class="value">{total}</p><p class="label">transactions</p></div>
+        <div class="figure"><p class="value">{rupiah(income)}</p><p class="label">income</p></div>
+        <div class="figure"><p class="value">{rupiah(expense)}</p><p class="label">expense</p></div>
+        <div class="figure"><p class="value">{rupiah(income - expense)}</p><p class="label">net</p></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>List</h2><button type="button" class="btn btn-solid" data-trx-add>Add a transaction</button></div>
+      {
+        rows.length ? (
+          <div class="ruled">
+            {rows.map((t) => (
+              <div class="row row-trx">
+                <span>{fmtDay(t.tanggal)}</span>
+                <span>{t.deskripsi || '—'}</span>
+                <span>{t.kategori ? categoryName.get(t.kategori) : 'Uncategorised'}</span>
+                <span class="sub">{t.member ? memberName.get(t.member) : '—'}</span>
+                <span class="amount" data-kind={t.jenis === 'pemasukan' ? 'in' : 'out'}>{t.jenis === 'pemasukan' ? '+' : '−'}{rupiah(Number(t.nominal))}</span>
+                <span class="row-actions">
+                  <button type="button" class="arrow-link" data-trx-edit data-id={t.id} data-tanggal={t.tanggal} data-jenis={t.jenis} data-kategori={t.kategori ?? ''} data-deskripsi={t.deskripsi ?? ''} data-nominal={Number(t.nominal)} data-member={t.member ?? ''}>edit</button>
+                  <button type="button" class="arrow-link danger" data-trx-delete data-id={t.id} data-label={`${t.deskripsi || 'This transaction'} (${rupiah(Number(t.nominal))})`}>delete</button>
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="empty">{listResult ? 'No transactions match these filters.' : 'The list is unavailable.'}</p>
+        )
+      }
+      {
+        pages > 1 && (
+          <nav class="pager" aria-label="Pages">
+            {page > 1 ? <a class="arrow-link" href={linkTo(page - 1)}>newer</a> : <span></span>}
+            <span class="muted">page {page} of {pages}</span>
+            {page < pages ? <a class="arrow-link" href={linkTo(page + 1)}>older</a> : <span></span>}
+          </nav>
+        )
+      }
+    </section>
+
+    <p class="label muted">The totals cover every match, not just this page.</p>
+
+    <dialog class="dlg" id="trx-dialog" aria-labelledby="trx-dialog-title">
+      <form method="dialog" data-trx-form novalidate>
+        <h2 id="trx-dialog-title">Add a transaction</h2>
+        <label class="dlg-field">
+          <span class="label muted">Date</span>
+          <input name="tanggal" type="date" required />
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Type</span>
+          <select name="jenis" required>
+            <option value="pengeluaran">Expense</option>
+            <option value="pemasukan">Income</option>
+          </select>
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Category</span>
+          <select name="kategori" required>
+            <option value="">Choose…</option>
+            <optgroup label="Spending">
+              {categories.filter((c) => c.jenis === 'pengeluaran').map((c) => <option value={c.id} data-jenis="pengeluaran">{c.nama}</option>)}
+            </optgroup>
+            <optgroup label="Income">
+              {categories.filter((c) => c.jenis === 'pemasukan').map((c) => <option value={c.id} data-jenis="pemasukan">{c.nama}</option>)}
+            </optgroup>
+          </select>
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Description</span>
+          <input name="deskripsi" type="text" maxlength="200" autocomplete="off" placeholder="e.g. kopi susu" />
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Amount (Rp)</span>
+          <input name="nominal" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 45.000" required />
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Person</span>
+          <select name="member">
+            <option value="">—</option>
+            {members.map((m) => <option value={m.id}>{m.nama_panggilan}</option>)}
+          </select>
+        </label>
+        <p class="dlg-error" data-trx-error role="alert"></p>
+        <div class="dlg-actions">
+          <button type="button" class="btn" data-cancel>Cancel</button>
+          <button type="submit" class="btn btn-solid" data-save>Save</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+</HermesShell>
+
+<script>
+  import '../../../scripts/hermes-transactions';
+</script>

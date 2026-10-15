@@ -1,0 +1,278 @@
+---
+import HermesShell from '../../../layouts/HermesShell.astro';
+import FilterBar from '../../../components/FilterBar.astro';
+import CashflowChart from '../../../components/CashflowChart.astro';
+import BalanceChart from '../../../components/BalanceChart.astro';
+import {
+  readItems,
+  type FinanceBudget,
+  type FinanceCategory,
+  type FinanceMember,
+  type FinanceTransaction,
+} from '../../../lib/directus-user';
+import {
+  budgetReport,
+  byCategory,
+  cashflow,
+  customWindow,
+  monthEnd,
+  monthStart,
+  pctChange,
+  parseDate,
+  percent,
+  rupiah,
+  rupiahShort,
+  signedPercent,
+  summarize,
+  todayWib,
+  windowFor,
+} from '../../../lib/finance';
+
+export const prerender = false;
+
+const token = Astro.locals.hermesToken!;
+const today = todayWib();
+const from = parseDate(Astro.url.searchParams.get('from'));
+const to = parseDate(Astro.url.searchParams.get('to'));
+const custom = customWindow(from, to, today);
+// No dates picked: the last 30 days.
+const win = custom ?? windowFor('1m', today);
+const thisMonth = { from: monthStart(today), to: monthEnd(today) };
+const year = Number(today.slice(0, 4));
+
+// One read covers the chosen period, the period before it (for the comparison) and the
+// current month (for the budgets). Everything else is worked out here.
+const since = [win.prevStart, thisMonth.from].sort()[0];
+const [trxResult, catResult, budgetResult, memberResult] = await Promise.all([
+  readItems<FinanceTransaction>(token, 'finance_transactions', {
+    'filter[dihapus_pada][_null]': 'true',
+    'filter[tanggal][_gte]': since,
+    sort: '-tanggal',
+    limit: -1,
+    fields: 'id,tanggal,jenis,kategori,nominal,member,deskripsi',
+  }).catch(() => null),
+  readItems<FinanceCategory>(token, 'finance_categories', { limit: -1, sort: 'sort' }).catch(() => null),
+  readItems<FinanceBudget>(token, 'finance_budgets', { 'filter[tahun][_eq]': year, limit: -1 }).catch(() => null),
+  readItems<FinanceMember>(token, 'finance_members', { limit: -1 }).catch(() => null),
+]);
+
+const members = memberResult?.data ?? [];
+const memberAsked = Astro.url.searchParams.get('member');
+const member = members.find((m) => String(m.id) === memberAsked) ?? null;
+
+const everyone = trxResult?.data ?? [];
+const trx = member ? everyone.filter((t) => t.member === member.id) : everyone;
+const categories = catResult?.data ?? [];
+
+const now = summarize(trx, win.start, win.end);
+const before = summarize(trx, win.prevStart, win.prevEnd);
+const points = cashflow(trx, win);
+const spending = byCategory(trx, categories, 'pengeluaran', win.start, win.end);
+const sources = byCategory(trx, categories, 'pemasukan', win.start, win.end, 5);
+const biggest = trx
+  .filter((t) => t.jenis === 'pengeluaran' && t.tanggal >= win.start && t.tanggal <= win.end)
+  .sort((a, b) => Number(b.nominal) - Number(a.nominal))
+  .slice(0, 5);
+const budgets = budgetReport(budgetResult?.data ?? [], categories, everyone, year, thisMonth.from, thisMonth.to);
+const categoryName = new Map(categories.map((c) => [c.id, c.nama]));
+const memberName = new Map(members.map((m) => [m.id, m.nama_panggilan]));
+const perPerson = members
+  .map((m) => ({ name: m.nama_panggilan, ...summarize(everyone.filter((t) => t.member === m.id), win.start, win.end) }))
+  .filter((p) => p.count > 0);
+const bucketName = { day: 'day', week: 'week', month: 'month' }[win.bucket];
+const loaded = trxResult !== null;
+const maxSpend = Math.max(1, ...spending.map((c) => c.total));
+const days = Math.max(1, Math.round((Date.parse(win.end) - Date.parse(win.start)) / 86_400_000) + 1);
+
+const delta = (current: number, previous: number, goodWhenUp: boolean) => {
+  const change = pctChange(current, previous);
+  return { text: change === null ? 'no earlier period to compare' : `${signedPercent(change)} vs the period before`, good: change !== null && (goodWhenUp ? change >= 0 : change <= 0) };
+};
+const dIncome = delta(now.income, before.income, true);
+const dExpense = delta(now.expense, before.expense, false);
+---
+
+<HermesShell title="Finance" current="finance">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Finance</h1>
+      <p class="label muted">{win.start} to {win.end}{member ? ` · ${member.nama_panggilan}` : ''}</p>
+    </div>
+
+    {!loaded && <p class="notice error" role="alert">Could not read the finance data.</p>}
+
+    <FilterBar
+      resetHref={Astro.url.pathname}
+      dateRange={{ from: win.start, to: win.end, custom: Boolean(custom) }}
+      selects={[
+        { name: 'member', label: 'Person', value: member ? String(member.id) : null, all: 'Everyone', options: members.map((m) => ({ value: String(m.id), label: m.nama_panggilan })) },
+      ]}
+    />
+
+    <section class="block">
+      <div class="figures">
+        <div class="figure">
+          <p class="value">{rupiahShort(now.income)}</p>
+          <p class="label">income</p>
+          <p class="delta" data-good={dIncome.good}>{dIncome.text}</p>
+        </div>
+        <div class="figure">
+          <p class="value">{rupiahShort(now.expense)}</p>
+          <p class="label">expense</p>
+          <p class="delta" data-good={dExpense.good}>{dExpense.text}</p>
+        </div>
+        <div class="figure">
+          <p class="value">{rupiahShort(now.net)}</p>
+          <p class="label">net · {now.savingsRate === null ? 'no income' : `${percent(now.savingsRate)} of income kept`}</p>
+          <p class="delta">previous: {rupiahShort(before.net)}</p>
+        </div>
+        <div class="figure">
+          <p class="value">{rupiahShort(now.expense / days)}</p>
+          <p class="label">average spend per day</p>
+          <p class="delta">{now.count} transactions</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Income and expense</h2><p class="label muted">per {bucketName}</p></div>
+      <CashflowChart points={points} bucketName={bucketName} />
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Running net</h2><p class="label muted">income minus expense since {win.start}</p></div>
+      <BalanceChart points={points} bucketName={bucketName} />
+    </section>
+
+    <section class="block two-col">
+      <div>
+        <div class="block-head"><h2>Where the money went</h2><p class="label muted">{rupiah(now.expense)}</p></div>
+        {
+          spending.length ? (
+            <div class="ruled">
+              {spending.map((c) => (
+                <div class="share-row">
+                  <span>{c.name}<br /><span class="sub">{c.count} transactions</span></span>
+                  <span class="bar"><span style={`width: ${Math.max(1, (c.total / maxSpend) * 100)}%`}></span></span>
+                  <span class="num">{rupiah(c.total)} · {percent(c.share)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p class="empty">No expenses in this period.</p>
+          )
+        }
+      </div>
+      <div>
+        <div class="block-head"><h2>Where it came from</h2><p class="label muted">{rupiah(now.income)}</p></div>
+        {
+          sources.length ? (
+            <div class="ruled">
+              {sources.map((c) => (
+                <div class="share-row">
+                  <span>{c.name}<br /><span class="sub">{c.count} transactions</span></span>
+                  <span class="bar"><span style={`width: ${Math.max(1, c.share * 100)}%`}></span></span>
+                  <span class="num">{rupiah(c.total)} · {percent(c.share)}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p class="empty">No income in this period.</p>
+          )
+        }
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Budgets this month</h2>
+        <p class="label muted">{thisMonth.from.slice(0, 7)} · everyone together</p>
+      </div>
+      {
+        budgets.expenses.length || budgets.income.length ? (
+          <>
+            <div class="budget-grid">
+              {budgets.expenses.map((b) => (
+                <div class="budget" data-level={b.level}>
+                  <div class="budget-head">
+                    <span class="name" style="font-size: var(--text-body)">{b.name}</span>
+                    <span class="num">{percent(b.ratio)}</span>
+                  </div>
+                  <div class="bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100, Math.round(b.ratio * 100))} aria-label={`${b.name} budget used`}>
+                    <span style={`width: ${Math.min(100, Math.max(1, b.ratio * 100))}%`}></span>
+                  </div>
+                  <p class="sub">{rupiah(b.actual)} of {rupiah(b.planned)}{b.ratio > 1 ? ` · over by ${rupiah(b.actual - b.planned)}` : ''}</p>
+                  <p class="sub">{b.items.join(', ')}</p>
+                </div>
+              ))}
+            </div>
+            {budgets.income.length > 0 && (
+              <>
+                <div class="block-head" style="margin-top: var(--s-33)"><h2>Expected income</h2><p class="label muted">a target, not a limit</p></div>
+                <div class="budget-grid">
+                  {budgets.income.map((b) => (
+                    <div class="budget" data-level="normal">
+                      <div class="budget-head">
+                        <span class="name" style="font-size: var(--text-body)">{b.name}</span>
+                        <span class="num">{percent(b.ratio)}</span>
+                      </div>
+                      <div class="bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100, Math.round(b.ratio * 100))} aria-label={`${b.name} received`}>
+                        <span style={`width: ${Math.min(100, Math.max(1, b.ratio * 100))}%`}></span>
+                      </div>
+                      <p class="sub">{rupiah(b.actual)} received of {rupiah(b.planned)} expected</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <p class="label muted" style="margin-top: var(--s-15)">
+              Budgeted categories: {rupiah(budgets.actualOnBudgeted)} spent of {rupiah(budgets.plannedExpense)} planned. Categories without a budget are not counted here.
+            </p>
+          </>
+        ) : (
+          <p class="empty">No budgets set for {year}.</p>
+        )
+      }
+    </section>
+
+    <section class="block two-col">
+      <div>
+        <div class="block-head"><h2>Biggest expenses</h2><a class="arrow-link" href="/agent/finance/transactions?type=pengeluaran&sort=-nominal">all transactions</a></div>
+        {
+          biggest.length ? (
+            <div class="ruled">
+              {biggest.map((t) => (
+                <div class="share-row" style="grid-template-columns: 90px 1fr auto">
+                  <span>{t.tanggal.slice(5)}</span>
+                  <span>{t.deskripsi || '—'}<br /><span class="sub">{t.kategori ? categoryName.get(t.kategori) : 'Uncategorised'} · {t.member ? memberName.get(t.member) : '—'}</span></span>
+                  <span class="num">{rupiah(Number(t.nominal))}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p class="empty">No expenses in this period.</p>
+          )
+        }
+      </div>
+      {
+        !member && perPerson.length > 1 && (
+          <div>
+            <div class="block-head"><h2>By person</h2><p class="label muted">who recorded it</p></div>
+            <div class="ruled">
+              {perPerson.map((p) => (
+                <div class="share-row" style="grid-template-columns: 1fr 1fr 1fr">
+                  <span>{p.name}<br /><span class="sub">{p.count} transactions</span></span>
+                  <span class="num">in {rupiah(p.income)}</span>
+                  <span class="num">out {rupiah(p.expense)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+    </section>
+
+    <p class="label muted"> Amounts are in rupiah, grouped by the calendar day (WIB) of each transaction.
+    </p>
+  </div>
+</HermesShell>

@@ -1,6 +1,8 @@
 // Run now / pause / resume / delete on an agent's detail page. All calls go through the
 // allowlisted /api/agent/jobs/* proxy; the page reloads afterwards to show the new state.
 
+import { askConfirm } from './dialog';
+
 export {}; // makes this file a module so its top-level names stay local
 const box = document.querySelector<HTMLElement>('[data-job]');
 const statusEl = document.querySelector<HTMLElement>('[data-job-status]');
@@ -12,7 +14,15 @@ if (box) {
     if (!button) return;
     const action = button.dataset.jobAction!;
 
-    if (action === 'delete' && !confirm(`Delete "${button.dataset.jobName ?? id}"? Saved history stays on the website.`)) return;
+    if (action === 'delete') {
+      const sure = await askConfirm({
+        title: 'Delete this agent?',
+        message: `"${button.dataset.jobName ?? id}" stops running and is removed from Hermes. Its saved history stays on the website.`,
+        confirm: 'Delete',
+        danger: true,
+      });
+      if (!sure) return;
+    }
 
     const buttons = box.querySelectorAll<HTMLButtonElement>('button');
     buttons.forEach((b) => (b.disabled = true));

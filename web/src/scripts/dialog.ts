@@ -122,6 +122,11 @@ export function askConfirm(options: Base): Promise<boolean> {
   return run(options, undefined, () => true, false);
 }
 
+/** A message with one OK button (replaces alert). */
+export async function askNotice(options: Omit<Base, 'cancel' | 'danger'>): Promise<void> {
+  await run({ ...options, confirm: options.confirm ?? 'OK' }, undefined, () => true, false);
+}
+
 /** Resolves to the entered text, or null on cancel. */
 export function askText(options: TextOptions): Promise<string | null> {
   return run(options, options, (value) => value ?? '', null);
