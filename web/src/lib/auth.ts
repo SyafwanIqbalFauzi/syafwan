@@ -110,11 +110,17 @@ export async function clearSession(cookies: Cookies): Promise<void> {
 }
 
 /** Resolves the signed-in user from cookies, refreshing the access token when it has expired. */
-export async function authenticate(cookies: Cookies, secure: boolean): Promise<HermesUser | null> {
+export interface Session {
+  user: HermesUser;
+  /** The user's own Directus access token, used to read agent_runs / agent_jobs. */
+  access: string;
+}
+
+export async function authenticate(cookies: Cookies, secure: boolean): Promise<Session | null> {
   const access = cookies.get(ACCESS_COOKIE)?.value;
   if (access) {
     const user = await whoami(access);
-    if (user) return user;
+    if (user) return { user, access };
   }
   const refresh = cookies.get(REFRESH_COOKIE)?.value;
   if (!refresh) return null;
@@ -128,7 +134,7 @@ export async function authenticate(cookies: Cookies, secure: boolean): Promise<H
     const user = await whoami(tokens.access);
     if (!user) return null;
     setSession(cookies, tokens, secure);
-    return user;
+    return { user, access: tokens.access };
   } catch {
     return null;
   }

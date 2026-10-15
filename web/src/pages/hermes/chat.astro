@@ -1,0 +1,290 @@
+---
+import HermesShell from '../../layouts/HermesShell.astro';
+
+export const prerender = false;
+---
+
+<HermesShell title="Chat" current="chat" fill>
+  <div class="chat">
+    <aside class="side" aria-label="Sessions">
+      <button id="new-chat" type="button" class="btn btn-solid">new chat</button>
+      <ul id="sessions" class="ruled"></ul>
+      <p class="label muted">web chats and your Telegram / Discord conversations. <a class="link" href="/hermes/sessions">all sessions</a></p>
+    </aside>
+
+    <section class="pane">
+      <header class="pane-head">
+        <h1 id="title" class="chat-title">New chat</h1>
+        <span id="status" class="label muted" role="status"></span>
+      </header>
+      <div id="log" aria-live="polite"></div>
+      <form id="composer">
+        <label class="visually-hidden" for="input">Message Hermes</label>
+        <textarea id="input" rows="2" placeholder="Message Hermes (Enter to send, Shift+Enter for a new line)" autofocus></textarea>
+        <button id="send" type="submit" class="btn btn-solid">send</button>
+        <button id="stop" type="button" class="btn btn-stop" hidden>stop</button>
+      </form>
+    </section>
+  </div>
+</HermesShell>
+
+<script>
+  import '../../scripts/hermes-chat';
+</script>
+
+<style is:global>
+  .chat {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr);
+  }
+
+  .chat .side {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-15);
+    padding: var(--s-15) var(--gutter);
+    border-right: 1px solid var(--te-grey-100);
+    min-height: 0;
+  }
+
+  .chat #sessions {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  .chat #sessions li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .chat #sessions li.active {
+    background: var(--te-white);
+    box-shadow: inset 2px 0 0 var(--te-black);
+  }
+
+  .chat #sessions .open {
+    flex: 1;
+    min-width: 0;
+    text-align: left;
+    padding: 10px 8px;
+    font-size: var(--text-caption);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat #sessions .open:hover,
+  .chat #sessions .mini:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .chat #sessions .mini {
+    font-size: 11px;
+    color: var(--te-grey-600);
+    padding: 4px;
+  }
+
+  .chat .pane {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .pane-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-15);
+    padding: var(--s-15) var(--gutter);
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+
+  .chat-title {
+    font-size: var(--text-sub);
+    font-weight: var(--w-light);
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  #log {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: var(--s-22) var(--gutter);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-15);
+  }
+
+  .msg {
+    max-width: 780px;
+  }
+
+  .msg.user {
+    align-self: flex-end;
+  }
+
+  .msg .body {
+    padding: 12px 14px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+
+  .msg.user .body {
+    background: var(--te-white);
+    white-space: pre-wrap;
+  }
+
+  .msg.assistant .body {
+    border-left: 1px solid var(--te-grey-200);
+  }
+
+  .msg.assistant .body.streaming {
+    white-space: pre-wrap;
+    border-left-color: var(--te-black);
+  }
+
+  .msg .body.error {
+    border-left: 3px solid var(--te-orange);
+  }
+
+  .msg .body p + p,
+  .msg .body ul,
+  .msg .body ol,
+  .msg .body pre {
+    margin-top: 0.7em;
+  }
+
+  .msg .body ul,
+  .msg .body ol {
+    padding-left: 1.2em;
+    list-style: revert;
+  }
+
+  .msg .body a {
+    color: var(--te-blue);
+    overflow-wrap: anywhere;
+  }
+
+  .msg .body pre,
+  .tool,
+  .approval pre {
+    background: var(--te-carbon);
+    color: var(--te-white);
+    padding: 12px;
+    font-size: 13px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .tool {
+    max-width: 780px;
+    padding: 6px 10px;
+    border-left: 3px solid var(--te-grey-600);
+  }
+
+  .tool strong {
+    font-weight: var(--w-regular);
+  }
+
+  .tool.running {
+    border-left-color: var(--te-amber);
+  }
+
+  .tool.failed {
+    border-left-color: var(--te-orange);
+  }
+
+  .approval {
+    max-width: 780px;
+    border: 1px solid var(--te-amber);
+    padding: 12px 14px;
+  }
+
+  .approval pre {
+    margin: 8px 0;
+  }
+
+  .approval .choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .approval .choices button {
+    font-size: var(--text-caption);
+    font-weight: var(--w-regular);
+    padding: 8px 14px;
+    border: 1px solid var(--te-black);
+  }
+
+  .approval .choices button:hover:not(:disabled) {
+    background: var(--te-black);
+    color: var(--te-white);
+  }
+
+  .approval .choices button.deny {
+    border-color: var(--te-orange);
+    color: var(--te-orange);
+  }
+
+  .hint {
+    color: var(--te-grey-600);
+    font-size: var(--text-caption);
+  }
+
+  #composer {
+    display: flex;
+    gap: 8px;
+    padding: var(--s-15) var(--gutter);
+    border-top: 1px solid var(--te-grey-100);
+  }
+
+  #composer textarea {
+    flex: 1;
+    font: inherit;
+    font-size: var(--text-body);
+    resize: none;
+    background: var(--te-white);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 10px 12px;
+  }
+
+  #composer textarea:focus-visible {
+    outline: 1px solid var(--te-black);
+    outline-offset: 0;
+  }
+
+  .btn-stop {
+    background: var(--te-orange);
+    border-color: var(--te-orange);
+    color: var(--te-white);
+  }
+
+  .btn-stop:hover {
+    background: var(--te-black);
+    border-color: var(--te-black);
+  }
+
+  @media (max-width: 800px) {
+    .chat {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .chat .side {
+      max-height: 30dvh;
+      border-right: 0;
+      border-bottom: 1px solid var(--te-grey-100);
+    }
+  }
+</style>

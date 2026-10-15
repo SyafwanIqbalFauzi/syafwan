@@ -1,0 +1,14 @@
+---
+// Status word as a .tag: black outline = fine, amber = waiting/paused, orange = failed.
+import { statusTone } from '../lib/format';
+
+interface Props {
+  status: string | null | undefined;
+  label?: string;
+}
+const { status, label } = Astro.props;
+const tone = statusTone(status);
+const cls = tone === 'fail' ? 'tag tag-fail' : tone === 'wait' ? 'tag tag-amber' : tone === 'idle' ? 'tag tag-idle' : 'tag';
+---
+
+<span class={cls}>{label ?? status ?? '—'}</span>

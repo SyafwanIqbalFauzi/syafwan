@@ -1,0 +1,107 @@
+---
+import HermesShell from '../../layouts/HermesShell.astro';
+import { hermesGet } from '../../lib/hermes';
+import { compact, formatWhen, modelLabel, relative, usd } from '../../lib/format';
+
+export const prerender = false;
+
+interface Session {
+  id: string;
+  source: string;
+  title: string | null;
+  preview: string | null;
+  model: string | null;
+  message_count: number;
+  tool_call_count: number;
+  input_tokens: number;
+  output_tokens: number;
+  estimated_cost_usd: number | null;
+  actual_cost_usd: number | null;
+  last_active: number | null;
+  started_at: number | null;
+  archived?: boolean;
+}
+
+const LABELS: Record<string, string> = { api_server: 'web', telegram: 'telegram', discord: 'discord', cron: 'cron', cli: 'cli', oneshot: 'one-shot' };
+// "Conversations" = where a person talked to Hermes. Cron has one session per scheduled run.
+const CONVERSATION_SOURCES = ['api_server', 'telegram', 'discord', 'cli'];
+
+const source = Astro.url.searchParams.get('source');
+const q = (Astro.url.searchParams.get('q') ?? '').trim().toLowerCase();
+const sources = source && source !== 'all' && /^[a-z_]{2,20}$/.test(source) ? [source] : source === 'all' ? Object.keys(LABELS) : CONVERSATION_SOURCES;
+
+const pages = await Promise.all(sources.map((s) => hermesGet<{ data: Session[] }>(`/api/sessions?limit=100&source=${s}`)));
+const reachable = pages.some((p) => p !== null);
+const all = pages
+  .flatMap((p) => p?.data ?? [])
+  .filter((s) => !s.archived && s.message_count > 0)
+  .filter((s) => !q || `${s.title ?? ''} ${s.preview ?? ''} ${s.model ?? ''}`.toLowerCase().includes(q))
+  .sort((a, b) => (b.last_active ?? b.started_at ?? 0) - (a.last_active ?? a.started_at ?? 0))
+  .slice(0, 150);
+
+const link = (params: Record<string, string | null>) => {
+  const next = new URLSearchParams();
+  for (const [k, v] of Object.entries({ source, q: q || null, ...params })) if (v) next.set(k, v);
+  const s = next.toString();
+  return s ? `?${s}` : Astro.url.pathname;
+};
+const current = source ?? 'conversations';
+---
+
+<HermesShell title="Sessions" current="sessions">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Sessions</h1>
+      <p class="label muted">{all.length} shown · newest first</p>
+    </div>
+
+    {!reachable && <p class="notice error" role="alert">Could not reach the Hermes API.</p>}
+
+    <form class="filters" method="get">
+      <div class="group">
+        <span class="muted">source</span>
+        <a href={link({ source: null })} aria-current={current === 'conversations' ? 'true' : undefined}>conversations</a>
+        {['api_server', 'telegram', 'discord', 'cron', 'all'].map((s) => (
+          <a href={link({ source: s })} aria-current={current === s ? 'true' : undefined}>{s === 'all' ? 'everything' : LABELS[s]}</a>
+        ))}
+      </div>
+      {source && <input type="hidden" name="source" value={source} />}
+      <label class="visually-hidden" for="q">Search sessions</label>
+      <input id="q" class="search" type="search" name="q" value={q} placeholder="search title or text" />
+    </form>
+
+    <div class="ruled">
+      {
+        all.map((s) => (
+          <a class="row row-session row-link" href={s.source === 'cron' ? undefined : `/hermes/chat?session=${s.id}`}>
+            <div>
+              <p class="name">{s.title || s.preview || s.id}</p>
+              <p class="sub">{s.preview && s.preview !== s.title ? s.preview.slice(0, 140) : ''}</p>
+            </div>
+            <div class="chips"><span class="tag">{LABELS[s.source] ?? s.source}</span><span class="tag tag-idle">{modelLabel(s.model)}</span></div>
+            <div><p>{formatWhen(s.last_active ?? s.started_at)}</p><p class="sub">{relative(s.last_active ?? s.started_at)}</p></div>
+            <div class="num"><p>{s.message_count} msgs{s.tool_call_count ? ` · ${s.tool_call_count} tools` : ''}</p><p class="sub">{compact(s.input_tokens + s.output_tokens)} tok · {usd(s.actual_cost_usd ?? s.estimated_cost_usd)}</p></div>
+          </a>
+        ))
+      }
+    </div>
+    {!all.length && reachable && <p class="empty">No sessions match.</p>}
+    <p class="label muted" style="margin-top: 22px">Cron sessions are the individual runs of scheduled agents; their results are on the Agents pages.</p>
+  </div>
+</HermesShell>
+
+<style is:global>
+  .row-session {
+    grid-template-columns: minmax(220px, 2fr) minmax(160px, 1fr) 130px minmax(150px, 0.8fr);
+  }
+
+  @media (max-width: 900px) {
+    .row-session {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .row-session > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

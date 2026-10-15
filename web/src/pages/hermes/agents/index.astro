@@ -1,0 +1,118 @@
+---
+import HermesShell from '../../../layouts/HermesShell.astro';
+import StatusTag from '../../../components/StatusTag.astro';
+import { readItems, type AgentJob, type AgentRun } from '../../../lib/directus-user';
+import { formatWhen, modelLabel, relative } from '../../../lib/format';
+import { humanizeSchedule } from '../../../lib/schedule';
+
+export const prerender = false;
+
+const token = Astro.locals.hermesToken!;
+const kind = Astro.url.searchParams.get('kind');
+const state = Astro.url.searchParams.get('state');
+const q = (Astro.url.searchParams.get('q') ?? '').trim().toLowerCase();
+
+let jobs: AgentJob[] = [];
+const lastRun = new Map<string, Pick<AgentRun, 'job_id' | 'status' | 'started_at' | 'duration_s' | 'summary' | 'execution_id'>>();
+let problem = '';
+try {
+  jobs = (await readItems<AgentJob>(token, 'agent_jobs', { limit: -1, sort: 'name' })).data.filter((j) => j.state !== 'removed');
+  const runs = await readItems<AgentRun>(token, 'agent_runs', {
+    limit: 600,
+    sort: '-started_at',
+    fields: 'job_id,status,started_at,duration_s,summary,execution_id',
+  });
+  for (const run of runs.data) if (!lastRun.has(run.job_id)) lastRun.set(run.job_id, run);
+} catch {
+  problem = 'Could not read the agent list from Directus.';
+}
+
+const group = (j: AgentJob) => (j.state === 'completed' ? 'done' : j.state === 'paused' || j.enabled === false ? 'paused' : 'active');
+const matches = (j: AgentJob) =>
+  (!kind || j.kind === kind) &&
+  (!state || group(j) === state) &&
+  (!q || `${j.name} ${(j.skills ?? []).join(' ')} ${j.model}`.toLowerCase().includes(q));
+
+const order = { active: 0, paused: 1, done: 2 } as const;
+const shown = jobs
+  .filter(matches)
+  .sort((a, b) => order[group(a)] - order[group(b)] || (a.next_run_at ?? '9').localeCompare(b.next_run_at ?? '9') || (a.name ?? '').localeCompare(b.name ?? ''));
+
+const counts = { all: jobs.length, agent: jobs.filter((j) => j.kind === 'agent').length, script: jobs.filter((j) => j.kind === 'script').length };
+const link = (params: Record<string, string | null>) => {
+  const next = new URLSearchParams();
+  for (const [k, v] of Object.entries({ kind, state, q: q || null, ...params })) if (v) next.set(k, v);
+  const s = next.toString();
+  return s ? `?${s}` : Astro.url.pathname;
+};
+const syncedAt = jobs.map((j) => j.synced_at).filter(Boolean).sort().at(-1);
+---
+
+<HermesShell title="Agents" current="agents">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Agents</h1>
+      <p class="label muted">
+        {counts.agent} ai agents · {counts.script} scripts{syncedAt ? ` · synced ${relative(syncedAt)}` : ''}
+      </p>
+    </div>
+
+    {problem && <p class="notice error" role="alert">{problem}</p>}
+
+    <form class="filters" method="get">
+      <div class="group">
+        <span class="muted">type</span>
+        <a href={link({ kind: null })} aria-current={!kind ? 'true' : undefined}>all</a>
+        <a href={link({ kind: 'agent' })} aria-current={kind === 'agent' ? 'true' : undefined}>ai agents</a>
+        <a href={link({ kind: 'script' })} aria-current={kind === 'script' ? 'true' : undefined}>scripts</a>
+      </div>
+      <div class="group">
+        <span class="muted">state</span>
+        <a href={link({ state: null })} aria-current={!state ? 'true' : undefined}>all</a>
+        <a href={link({ state: 'active' })} aria-current={state === 'active' ? 'true' : undefined}>active</a>
+        <a href={link({ state: 'paused' })} aria-current={state === 'paused' ? 'true' : undefined}>paused</a>
+        <a href={link({ state: 'done' })} aria-current={state === 'done' ? 'true' : undefined}>done</a>
+      </div>
+      {kind && <input type="hidden" name="kind" value={kind} />}
+      {state && <input type="hidden" name="state" value={state} />}
+      <label class="visually-hidden" for="q">Search agents</label>
+      <input id="q" class="search" type="search" name="q" value={q} placeholder="search name, skill, model" />
+    </form>
+
+    <div class="ruled">
+      <div class="row row-agent row-head" aria-hidden="true">
+        <span>agent</span><span>schedule</span><span>last run</span><span>last result</span>
+      </div>
+      {
+        shown.map((job) => {
+          const last = lastRun.get(job.job_id);
+          const g = group(job);
+          return (
+            <a class="row row-agent row-link" href={`/hermes/agents/${job.job_id}`}>
+              <div>
+                <p class="name">{job.name}</p>
+                <div class="chips" style="margin-top: 6px">
+                  <span class="tag">{job.kind === 'script' ? 'script' : 'ai'}</span>
+                  {g !== 'active' && <StatusTag status={g === 'done' ? 'completed' : 'paused'} label={g === 'done' ? 'done' : 'paused'} />}
+                  {job.kind === 'agent' && <span class="tag tag-idle">{modelLabel(job.model)}</span>}
+                </div>
+                {(job.skills ?? []).length > 0 && <p class="sub" style="margin-top: 6px">{(job.skills ?? []).join(', ')}</p>}
+              </div>
+              <div>
+                <p>{humanizeSchedule(job.schedule_display)}</p>
+                <p class="sub">{g === 'active' && job.next_run_at ? `next ${formatWhen(job.next_run_at)} (${relative(job.next_run_at)})` : '—'}</p>
+                <p class="sub">{(job.deliver_labels ?? ['local']).join(', ')}</p>
+              </div>
+              <div>
+                {last ? <StatusTag status={last.status} /> : <span class="tag tag-idle">no history</span>}
+                {last && <p class="sub" style="margin-top: 6px">{formatWhen(last.started_at)} · {relative(last.started_at)}</p>}
+              </div>
+              <p class="snippet">{last?.summary ?? ''}</p>
+            </a>
+          );
+        })
+      }
+    </div>
+    {!shown.length && !problem && <p class="empty">No agents match.</p>}
+  </div>
+</HermesShell>

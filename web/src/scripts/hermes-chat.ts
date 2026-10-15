@@ -64,12 +64,21 @@ function setBusy(busy: boolean) {
 
 async function loadSessions() {
   try {
-    const data = asList(await api('sessions?limit=50'), 'sessions');
+    // The sidebar lists real conversations only: cron runs would otherwise bury them
+    // (Hermes keeps one session per scheduled run).
+    const SOURCES: Record<string, string> = { api_server: 'web', telegram: 'telegram', discord: 'discord' };
+    const lists = await Promise.all(Object.keys(SOURCES).map((source) => api(`sessions?limit=25&source=${source}`).catch(() => null)));
+    const data = lists
+      .flatMap((d) => (d ? asList(d, 'sessions') : []))
+      .filter((s) => (s.message_count ?? 1) > 0 || idOf(s) === sessionId)
+      .sort((a, b) => (b.last_active ?? b.started_at ?? 0) - (a.last_active ?? a.started_at ?? 0))
+      .slice(0, 50);
     sessionsEl.replaceChildren(
       ...data.map((s) => {
         const id = idOf(s);
         const li = el('li', id === sessionId ? 'active' : '');
-        const open = el('button', 'open', s.title || s.preview || id || 'untitled');
+        const badge = SOURCES[s.source] && s.source !== 'api_server' ? `[${SOURCES[s.source]}] ` : '';
+        const open = el('button', 'open', badge + (s.title || s.preview || id || 'untitled'));
         open.addEventListener('click', () => id && openSession(id, open.textContent ?? ''));
         const rename = el('button', 'mini', 'rename');
         rename.addEventListener('click', async () => {
@@ -312,3 +321,7 @@ window.addEventListener('beforeunload', (e) => {
 
 newChat();
 loadSessions();
+
+// /hermes/chat?session=<id> opens that conversation (linked from the Sessions page).
+const wanted = new URLSearchParams(location.search).get('session');
+if (wanted && /^[A-Za-z0-9_.:-]{1,128}$/.test(wanted)) openSession(wanted, 'Session');

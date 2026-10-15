@@ -23,6 +23,17 @@ export function forwardedQuery(search: URLSearchParams): string {
   return text ? `?${text}` : '';
 }
 
+/** GET a Hermes JSON endpoint from a server-rendered page. Returns null when Hermes is unreachable or errors. */
+export async function hermesGet<T>(target: string): Promise<T | null> {
+  if (!isConfigured()) return null;
+  try {
+    const res = await callHermes(target, { method: 'GET', signal: AbortSignal.timeout(15_000), stream: false });
+    return res.ok ? ((await res.json()) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Calls Hermes. Streaming responses keep their body open; the caller owns the abort signal. */
 export function callHermes(target: string, init: { method: string; body?: string; signal: AbortSignal; stream: boolean }): Promise<Response> {
   const headers: Record<string, string> = { Authorization: `Bearer ${HERMES_API_KEY}`, Accept: init.stream ? 'text/event-stream' : 'application/json' };

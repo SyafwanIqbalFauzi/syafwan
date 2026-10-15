@@ -1,0 +1,65 @@
+// Reads the private agent_runs / agent_jobs collections with the signed-in user's own
+// Directus token. Neither collection is readable by the Public policy, so this only works
+// for an Administrator session that the middleware has already verified.
+import { DIRECTUS_INTERNAL_URL } from 'astro:env/server';
+
+export interface AgentJob {
+  id: number;
+  job_id: string;
+  name: string | null;
+  kind: 'agent' | 'script' | null;
+  skills: string[] | null;
+  model: string | null;
+  schedule_display: string | null;
+  state: string | null;
+  enabled: boolean | null;
+  deliver_labels: string[] | null;
+  last_status: string | null;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  synced_at: string | null;
+}
+
+export interface AgentRun {
+  id: number;
+  execution_id: string;
+  job_id: string;
+  job_name: string | null;
+  kind: 'agent' | 'script' | null;
+  skills: string[] | null;
+  model: string | null;
+  status: 'completed' | 'failed' | 'unknown' | null;
+  scheduled_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_s: number | null;
+  delivery: { targets?: string[]; outcome?: string | null } | null;
+  summary: string | null;
+  response_md: string | null;
+  error: string | null;
+}
+
+export class DirectusReadError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** `params` are Directus query params, e.g. `{ 'filter[job_id][_eq]': 'abc', sort: '-started_at' }`. */
+export async function readItems<T>(token: string, collection: 'agent_runs' | 'agent_jobs', params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
+  const query = new URLSearchParams({ meta: 'filter_count', ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
+  const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}?${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new DirectusReadError(`Directus ${res.status} reading ${collection}`, res.status);
+  const body = (await res.json()) as { data: T[]; meta?: { filter_count?: number } };
+  return { data: body.data, total: body.meta?.filter_count ?? null };
+}
+
+export async function readItem<T>(token: string, collection: 'agent_runs' | 'agent_jobs', params: Record<string, string | number>): Promise<T | null> {
+  const { data } = await readItems<T>(token, collection, { ...params, limit: 1 });
+  return data[0] ?? null;
+}

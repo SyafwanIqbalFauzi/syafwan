@@ -1,0 +1,174 @@
+---
+import HermesShell from '../../../layouts/HermesShell.astro';
+import StatusTag from '../../../components/StatusTag.astro';
+import { readItem, readItems, type AgentJob, type AgentRun } from '../../../lib/directus-user';
+import { hermesGet } from '../../../lib/hermes';
+import { duration, formatWhen, modelLabel, relative } from '../../../lib/format';
+import { renderMarkdown } from '../../../lib/markdown';
+import { humanizeSchedule } from '../../../lib/schedule';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+if (!id || !/^[A-Za-z0-9_.:-]{1,128}$/.test(id)) return Astro.rewrite('/404');
+
+const token = Astro.locals.hermesToken!;
+const PAGE_SIZE = 15;
+const page = Math.max(1, Number(Astro.url.searchParams.get('page')) || 1);
+const wantedRun = Astro.url.searchParams.get('run');
+
+let problem = '';
+let snapshot: AgentJob | null = null;
+let runs: Omit<AgentRun, 'response_md'>[] = [];
+let total = 0;
+let selected: AgentRun | null = null;
+try {
+  snapshot = await readItem<AgentJob>(token, 'agent_jobs', { 'filter[job_id][_eq]': id });
+  const list = await readItems<Omit<AgentRun, 'response_md'>>(token, 'agent_runs', {
+    'filter[job_id][_eq]': id,
+    sort: '-started_at',
+    limit: PAGE_SIZE,
+    page,
+    fields: 'id,execution_id,job_id,job_name,status,started_at,finished_at,duration_s,summary,delivery,error,model,kind',
+  });
+  runs = list.data;
+  total = list.total ?? runs.length;
+  const pick = wantedRun ?? runs[0]?.execution_id;
+  if (pick) selected = await readItem<AgentRun>(token, 'agent_runs', { 'filter[execution_id][_eq]': pick });
+} catch {
+  problem = 'Could not read this agent from Directus.';
+}
+
+const live = await hermesGet<{ job: Record<string, any> }>(`/api/jobs/${id}`);
+const job = live?.job ?? null;
+if (!snapshot && !job && !runs.length && !problem) return Astro.rewrite('/404');
+
+const name = job?.name ?? snapshot?.name ?? runs[0]?.job_name ?? id;
+const kind = job ? (job.no_agent ? 'script' : 'agent') : (snapshot?.kind ?? runs[0]?.kind ?? 'agent');
+const paused = job ? job.enabled === false || job.state === 'paused' : snapshot?.state === 'paused';
+const done = (job?.state ?? snapshot?.state) === 'completed';
+const skills: string[] = job?.skills ?? snapshot?.skills ?? [];
+const scheduleRaw = job?.schedule_display ?? snapshot?.schedule_display ?? null;
+const deliver = snapshot?.deliver_labels ?? (job?.deliver ? String(job.deliver).split(',') : []);
+const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+const runHref = (exec: string) => `?${new URLSearchParams({ ...(page > 1 ? { page: String(page) } : {}), run: exec })}#result`;
+const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p) } : {})}`;
+---
+
+<HermesShell title={name} current="agents">
+  <div class="container page">
+    <p class="label muted"><a class="link" href="/hermes/agents">← agents</a></p>
+    <div class="page-head" style="margin-top: 12px">
+      <h1 class="h1">{name}</h1>
+      <div class="actions" data-job={id}>
+        {
+          job && !done && (
+            <>
+              <button type="button" class="act" data-job-action="run">run now</button>
+              <button type="button" class="act" data-job-action={paused ? 'resume' : 'pause'}>{paused ? 'resume' : 'pause'}</button>
+            </>
+          )
+        }
+        {job && <button type="button" class="act danger" data-job-action="delete" data-job-name={name}>delete</button>}
+        <span class="label muted" data-job-status role="status"></span>
+      </div>
+    </div>
+
+    {problem && <p class="notice error" role="alert">{problem}</p>}
+    {!job && !problem && <p class="notice">Hermes is unreachable or this agent no longer exists: showing saved history only.</p>}
+
+    <section class="block">
+      <div class="ruled">
+        <div class="row row-kv"><span class="muted">type</span><span>{kind === 'script' ? 'script (no model)' : 'ai agent'}</span></div>
+        {kind === 'agent' && <div class="row row-kv"><span class="muted">model</span><span>{job?.model ? modelLabel(job.model) : 'default (follows Hermes)'}</span></div>}
+        <div class="row row-kv">
+          <span class="muted">skills</span>
+          <span class="chips">{skills.length ? skills.map((s) => <span class="tag">{s}</span>) : <span class="muted">none</span>}</span>
+        </div>
+        {job?.script && <div class="row row-kv"><span class="muted">script</span><span>{job.script}</span></div>}
+        <div class="row row-kv">
+          <span class="muted">schedule</span>
+          <span>{humanizeSchedule(scheduleRaw)} <span class="muted">({scheduleRaw ?? '—'})</span></span>
+        </div>
+        <div class="row row-kv"><span class="muted">results go to</span><span>{deliver.length ? deliver.join(', ') : 'local only'}</span></div>
+        <div class="row row-kv">
+          <span class="muted">state</span>
+          <span><StatusTag status={done ? 'completed' : paused ? 'paused' : 'scheduled'} label={done ? 'done' : paused ? 'paused' : 'scheduled'} /></span>
+        </div>
+        <div class="row row-kv">
+          <span class="muted">next run</span>
+          <span>{!done && !paused && (job?.next_run_at ?? snapshot?.next_run_at) ? `${formatWhen(job?.next_run_at ?? snapshot?.next_run_at)} (${relative(job?.next_run_at ?? snapshot?.next_run_at)})` : '—'}</span>
+        </div>
+        {
+          job && Number(job.failure_streak) > 0 && (
+            <div class="row row-kv"><span class="muted">failing since</span><span><StatusTag status="failed" label={`${job.failure_streak} runs in a row`} /></span></div>
+          )
+        }
+        {
+          job?.prompt && (
+            <div class="row row-kv">
+              <span class="muted">prompt</span>
+              <details>
+                <summary class="act">show</summary>
+                <pre class="errorbox" style="margin-top: 8px">{job.prompt}</pre>
+              </details>
+            </div>
+          )
+        }
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>Results</h2>
+        <p class="label muted">{total} saved runs</p>
+      </div>
+      <div class="ruled">
+        <div class="row row-run row-head" aria-hidden="true"><span>when</span><span>status</span><span>took</span><span>result</span></div>
+        {
+          runs.map((run) => (
+            <a class="row row-run row-link" href={runHref(run.execution_id)} aria-current={selected?.execution_id === run.execution_id ? 'true' : undefined} style={selected?.execution_id === run.execution_id ? 'background: var(--te-white)' : undefined}>
+              <span>{formatWhen(run.started_at)}<br /><span class="sub">{relative(run.started_at)}</span></span>
+              <span><StatusTag status={run.status} /></span>
+              <span>{duration(run.duration_s)}</span>
+              <span class="snippet">{run.error ? run.error.slice(0, 200) : (run.summary ?? 'no output')}</span>
+            </a>
+          ))
+        }
+      </div>
+      {!runs.length && !problem && <p class="empty">No saved runs yet. History appears within five minutes of the next run.</p>}
+      {
+        pages > 1 && (
+          <p class="label" style="margin-top: 15px; display: flex; gap: 22px">
+            {page > 1 && <a class="arrow-link" href={pageHref(page - 1)}>newer</a>}
+            <span class="muted">page {page} / {pages}</span>
+            {page < pages && <a class="arrow-link" href={pageHref(page + 1)}>older</a>}
+          </p>
+        )
+      }
+    </section>
+
+    {
+      selected && (
+        <section class="block result" id="result">
+          <div class="block-head">
+            <h2>Result</h2>
+            <StatusTag status={selected.status} />
+          </div>
+          <p class="meta">
+            <span>{formatWhen(selected.started_at)} WIB</span>
+            <span>took {duration(selected.duration_s)}</span>
+            <span>sent to {(selected.delivery?.targets ?? ['local']).join(', ')}</span>
+            {selected.delivery?.outcome && <span>delivery: {selected.delivery.outcome}</span>}
+          </p>
+          {selected.error && <pre class="errorbox" style="margin-bottom: 22px">{selected.error}</pre>}
+          {selected.response_md ? <div class="prose prose-compact" set:html={renderMarkdown(selected.response_md)} /> : !selected.error && <p class="empty">This run produced no output.</p>}
+        </section>
+      )
+    }
+  </div>
+</HermesShell>
+
+<script>
+  import '../../../scripts/hermes-job-actions';
+</script>

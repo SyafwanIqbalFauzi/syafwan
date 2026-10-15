@@ -1,0 +1,82 @@
+---
+// Page shell for every /hermes page: the site's header pattern, a slim carbon footer, and
+// noindex. Public pages use Layout.astro; this one never loads Directus content.
+import '@fontsource-variable/inter';
+import interWoff2 from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
+import '../styles/global.css';
+import '../styles/hermes.css';
+import HermesNav, { type Section } from '../components/HermesNav.astro';
+
+interface Props {
+  title: string;
+  /** Which menu entry is active. Omit together with `bare` on the sign-in page. */
+  current?: Section;
+  /** Wordmark-only header (sign-in page). */
+  bare?: boolean;
+  /** Fill the viewport (chat): the page itself does not scroll and the footer is hidden. */
+  fill?: boolean;
+}
+const { title, current, bare = false, fill = false } = Astro.props;
+const email = Astro.locals.hermesUser?.email;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>{title} — agents</title>
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={interWoff2} as="font" type="font/woff2" crossorigin />
+  </head>
+  <body class:list={{ fill }}>
+    <a href="#main" class="skip label">Skip to content</a>
+    <HermesNav current={current} email={email} bare={bare} />
+    <main id="main">
+      <slot />
+    </main>
+    {
+      !fill && (
+        <footer class="band-dark foot">
+          <p class="label">syafwan.com / agents</p>
+          <p class="label">times in WIB · history synced every 5 min</p>
+        </footer>
+      )
+    }
+  </body>
+</html>
+
+<style is:global>
+  body.fill {
+    height: 100dvh;
+    overflow: hidden;
+  }
+  body.fill main {
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .skip {
+    position: absolute;
+    left: -9999px;
+  }
+  .skip:focus {
+    left: var(--gutter);
+    top: 8px;
+    background: var(--te-black);
+    color: var(--te-white);
+    padding: 6px 10px;
+    z-index: 10;
+  }
+  .foot {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: var(--s-8);
+    padding: var(--s-22) var(--gutter);
+    color: var(--te-grey-100);
+  }
+</style>

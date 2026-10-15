@@ -1,0 +1,316 @@
+/*
+ * Extra rules for the private /hermes pages. Everything is built from the tokens and
+ * primitives in global.css (.container, .h1, .label, .muted, .tag, .btn, .arrow-link,
+ * .ruled, .prose, .band-dark); this file only adds the few layouts those do not cover.
+ */
+
+.page {
+  padding-block: var(--s-33) var(--s-66);
+}
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-8) var(--s-22);
+  margin-bottom: var(--s-33);
+}
+
+.page-head .h1 {
+  font-weight: var(--w-thin);
+}
+
+.block + .block {
+  margin-top: var(--s-66);
+}
+
+.block-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-15);
+  margin-bottom: var(--s-15);
+}
+
+.block-head h2 {
+  font-size: var(--text-h3);
+  font-weight: var(--w-thin);
+  line-height: 1.15;
+}
+
+.empty {
+  padding: var(--s-22) 0;
+  color: var(--te-grey-600);
+  font-size: var(--text-caption);
+}
+
+/* ---- status tags: black = fine, amber = waiting/paused, orange = failed (rationed) ---- */
+.tag-fail {
+  background: var(--te-orange);
+  border-color: var(--te-orange);
+  color: var(--te-white);
+}
+
+.tag-idle {
+  color: var(--te-grey-600);
+}
+
+/* ---- rows in a .ruled list ---- */
+.row {
+  display: grid;
+  gap: var(--s-8) var(--s-22);
+  padding: var(--s-15) 0;
+  align-items: start;
+}
+
+.row-agent {
+  grid-template-columns: minmax(180px, 1.2fr) minmax(160px, 1fr) minmax(140px, 0.9fr) minmax(220px, 1.6fr);
+}
+
+.row-run {
+  grid-template-columns: 150px 90px 90px 1fr;
+}
+
+.row-feed {
+  grid-template-columns: 150px 90px minmax(160px, 1fr) 2fr;
+}
+
+.row-kv {
+  grid-template-columns: 180px 1fr;
+  padding: 10px 0;
+}
+
+.row-head {
+  padding-block: 8px;
+  color: var(--te-grey-600);
+  font-size: var(--text-caption);
+}
+
+.name {
+  font-size: var(--text-sub);
+  font-weight: var(--w-light);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.name a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.sub {
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.snippet {
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.row-link {
+  color: inherit;
+}
+
+a.row:hover {
+  background: var(--te-white);
+}
+
+/* ---- filters ---- */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-8) var(--s-22);
+  margin-bottom: var(--s-22);
+  font-size: var(--text-caption);
+}
+
+.filters .group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-15);
+  align-items: baseline;
+}
+
+.filters a[aria-current='true'] {
+  border-bottom: 1px solid var(--te-black);
+}
+
+.filters a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.search {
+  font: inherit;
+  font-size: var(--text-caption);
+  border: 0;
+  border-bottom: 1px solid var(--te-grey-200);
+  background: transparent;
+  padding: 4px 0;
+  min-width: 220px;
+  border-radius: 0;
+}
+
+/* ---- key figures ---- */
+.figures {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 1px;
+  background: var(--te-grey-100);
+  border: 1px solid var(--te-grey-100);
+}
+
+.figure {
+  background: var(--te-page);
+  padding: var(--s-15);
+}
+
+.figure .value {
+  font-size: var(--text-h1);
+  font-weight: var(--w-thin);
+  line-height: 1.1;
+}
+
+.figure .label {
+  color: var(--te-grey-600);
+}
+
+/* ---- result viewer ---- */
+.result {
+  border-top: 1px solid var(--te-black);
+  padding-top: var(--s-22);
+}
+
+.result .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-8) var(--s-22);
+  margin-bottom: var(--s-22);
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+}
+
+.result .prose {
+  max-width: 760px;
+}
+
+.result .prose pre,
+.errorbox {
+  background: var(--te-carbon);
+  color: var(--te-white);
+  padding: var(--s-15);
+  overflow-x: auto;
+  font-size: 13px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- actions ---- */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-8) var(--s-15);
+  align-items: center;
+}
+
+.act {
+  font-size: var(--text-caption);
+  color: var(--te-blue);
+}
+
+.act:hover:not(:disabled) {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.act:disabled {
+  color: var(--te-grey-300);
+  cursor: wait;
+}
+
+.act.danger {
+  color: var(--te-orange);
+}
+
+.notice {
+  font-size: var(--text-caption);
+  border-left: 3px solid var(--te-amber);
+  padding: 8px 12px;
+  background: var(--te-white);
+  margin-bottom: var(--s-22);
+}
+
+.notice.error {
+  border-left-color: var(--te-orange);
+}
+
+/* ---- bars (usage) ---- */
+.bars {
+  display: grid;
+  gap: 6px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 96px 1fr 150px;
+  gap: var(--s-15);
+  align-items: center;
+  font-size: var(--text-caption);
+}
+
+.bar {
+  height: 14px;
+  background: var(--te-white);
+}
+
+.bar > span {
+  display: block;
+  height: 100%;
+  background: var(--te-black);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 900px) {
+  .row-agent,
+  .row-feed,
+  .row-run {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .row-agent > :last-child,
+  .row-feed > :last-child,
+  .row-run > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .row-head {
+    display: none;
+  }
+
+  .row-kv {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .bar-row {
+    grid-template-columns: 72px 1fr 110px;
+  }
+}

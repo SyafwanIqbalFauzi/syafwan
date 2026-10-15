@@ -1,0 +1,276 @@
+---
+// Header for the private /hermes area. Same construction as the public Nav.astro (two-line
+// wordmark, then each section as a solid pictogram + large thin label + three small
+// sub-links; collapses to a row of labels on phones), with the account on the right
+// instead of the language switch.
+import Pictogram from './Pictogram.astro';
+
+export type Section = 'overview' | 'agents' | 'chat' | 'sessions' | 'usage';
+
+interface Props {
+  current?: Section;
+  email?: string;
+  /** Wordmark only (sign-in page): no menu, no account. */
+  bare?: boolean;
+}
+const { current, email, bare = false } = Astro.props;
+
+const items: { section: Section; href: string; label: string; subs: { href: string; label: string }[] }[] = [
+  {
+    section: 'overview',
+    href: '/hermes',
+    label: 'overview',
+    subs: [
+      { href: '/hermes#health', label: 'health' },
+      { href: '/hermes#failures', label: 'failures' },
+      { href: '/hermes#upcoming', label: 'upcoming' },
+    ],
+  },
+  {
+    section: 'agents',
+    href: '/hermes/agents',
+    label: 'agents',
+    subs: [
+      { href: '/hermes/agents?kind=agent', label: 'ai agents' },
+      { href: '/hermes/agents?kind=script', label: 'scripts' },
+      { href: '/hermes/agents?state=paused', label: 'paused' },
+    ],
+  },
+  {
+    section: 'chat',
+    href: '/hermes/chat',
+    label: 'chat',
+    subs: [
+      { href: '/hermes/chat?new=1', label: 'new chat' },
+      { href: '/hermes/sessions?source=api_server', label: 'web chats' },
+      { href: '/hermes/sessions', label: 'all sessions' },
+    ],
+  },
+  {
+    section: 'sessions',
+    href: '/hermes/sessions',
+    label: 'sessions',
+    subs: [
+      { href: '/hermes/sessions?source=telegram', label: 'telegram' },
+      { href: '/hermes/sessions?source=discord', label: 'discord' },
+      { href: '/hermes/sessions?source=cron', label: 'cron runs' },
+    ],
+  },
+  {
+    section: 'usage',
+    href: '/hermes/usage',
+    label: 'usage',
+    subs: [
+      { href: '/hermes/usage?range=7', label: '7 days' },
+      { href: '/hermes/usage?range=30', label: '30 days' },
+      { href: '/hermes/usage?range=90', label: '90 days' },
+    ],
+  },
+];
+---
+
+<header class="nav">
+  <div class="nav-inner">
+    <a href="/hermes" class="wordmark">
+      <span>syafwan</span>
+      <span>agents</span>
+    </a>
+    <nav aria-label="Hermes">
+      <ul class="items">
+        {
+          !bare && items.map((item) => (
+            <li class="item">
+              <a href={item.href} class="icon-link" tabindex="-1" aria-hidden="true">
+                <Pictogram name={item.section} />
+              </a>
+              <div class="item-text">
+                <a href={item.href} class="item-label" aria-current={item.section === current ? 'page' : undefined}>
+                  {item.label}
+                </a>
+                <ul class="subs">
+                  {item.subs.map((sub) => (
+                    <li>
+                      <a href={sub.href}>{sub.label}</a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+    <div class="end">
+      {
+        !bare && (
+          <>
+            {email && <p class="who">{email}</p>}
+            <form method="post" action="/hermes/logout">
+              <button type="submit" class="signout">sign out</button>
+            </form>
+          </>
+        )
+      }
+    </div>
+  </div>
+</header>
+
+<style>
+  .nav {
+    background: var(--te-page);
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+
+  .nav-inner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: start;
+    gap: var(--s-33);
+    padding: 12px var(--gutter) 16px;
+  }
+
+  .wordmark {
+    display: flex;
+    flex-direction: column;
+    font-size: var(--text-h3);
+    font-weight: var(--w-thin);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  .items {
+    display: flex;
+    gap: var(--s-66);
+  }
+
+  .item {
+    display: flex;
+    gap: 12px;
+  }
+
+  .icon-link {
+    display: block;
+    padding-top: 2px;
+  }
+
+  .item-text {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .item-label {
+    font-size: var(--text-h3);
+    font-weight: var(--w-thin);
+    line-height: 1.15;
+    width: fit-content;
+    border-bottom: 1px solid transparent;
+  }
+
+  .item-label:hover,
+  .item-label[aria-current='page'] {
+    border-bottom-color: var(--te-black);
+  }
+
+  .subs {
+    margin-top: 8px;
+    font-size: var(--text-caption);
+    font-weight: var(--w-light);
+    line-height: 1.15;
+  }
+
+  .subs a:hover,
+  .signout:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  .end {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    font-size: var(--text-caption);
+    font-weight: var(--w-light);
+    line-height: 1.15;
+    padding-top: 4px;
+  }
+
+  .who {
+    color: var(--te-grey-600);
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+
+  .signout {
+    font-size: var(--text-caption);
+    font-weight: var(--w-regular);
+  }
+
+  /* Tablet: smaller pictograms, no sub-links */
+  @media (max-width: 1099px) {
+    .items {
+      gap: var(--s-33);
+    }
+
+    .item :global(.pictogram) {
+      width: 36px;
+      height: 36px;
+    }
+
+    .item-label {
+      font-size: var(--text-sub);
+    }
+
+    .subs {
+      display: none;
+    }
+  }
+
+  /* Phone: wordmark on one line, labels in a row, no pictograms */
+  @media (max-width: 719px) {
+    .nav-inner {
+      grid-template-columns: 1fr auto;
+      gap: var(--s-8) var(--s-15);
+      padding-top: var(--s-15);
+      padding-bottom: 4px;
+    }
+
+    .wordmark {
+      flex-direction: row;
+      gap: 0.3em;
+      font-size: var(--text-sub);
+    }
+
+    nav {
+      grid-column: 1 / -1;
+      grid-row: 2;
+    }
+
+    .items {
+      justify-content: space-between;
+      gap: var(--s-8);
+    }
+
+    .icon-link {
+      display: none;
+    }
+
+    .item-label {
+      font-size: var(--text-body);
+      padding-block: 8px;
+    }
+
+    .end {
+      grid-column: 2;
+      grid-row: 1;
+      flex-direction: row;
+      align-items: center;
+      gap: var(--s-15);
+    }
+
+    .who {
+      display: none;
+    }
+  }
+</style>

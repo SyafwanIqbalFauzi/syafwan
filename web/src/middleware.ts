@@ -30,9 +30,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const isLogin = pathname === '/hermes/login';
 
     if (!isLogin) {
-      const user = await authenticate(context.cookies, secure);
-      if (!user) return isApi ? json(401, 'Not signed in') : context.redirect('/hermes/login', 302);
-      context.locals.hermesUser = user;
+      const session = await authenticate(context.cookies, secure);
+      if (!session) return isApi ? json(401, 'Not signed in') : context.redirect('/hermes/login', 302);
+      context.locals.hermesUser = session.user;
+      context.locals.hermesToken = session.access;
     }
 
     const response = await next();

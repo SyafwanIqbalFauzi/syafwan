@@ -19,7 +19,7 @@ export const DIRECTUS_URL = env('DIRECTUS_URL', 'http://localhost:8055').replace
 export async function adminApi() {
   const token =
     process.env.DIRECTUS_ADMIN_TOKEN ||
-    (await login(env('DIRECTUS_ADMIN_EMAIL'), env('DIRECTUS_ADMIN_PASSWORD')));
+    (await login(env('DIRECTUS_ADMIN_EMAIL'), env('DIRECTUS_ADMIN_PASSWORD'), process.env.DIRECTUS_ADMIN_OTP));
 
   async function request(method, path, body) {
     const res = await fetch(`${DIRECTUS_URL}${path}`, {
@@ -49,11 +49,11 @@ export async function adminApi() {
   };
 }
 
-async function login(email, password) {
+async function login(email, password, otp) {
   const res = await fetch(`${DIRECTUS_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, ...(otp ? { otp } : {}) }),
   });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(`Login failed (${res.status}): ${json?.errors?.[0]?.message ?? res.statusText}`);

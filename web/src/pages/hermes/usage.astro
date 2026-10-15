@@ -1,0 +1,146 @@
+---
+import HermesShell from '../../layouts/HermesShell.astro';
+import { hermesGet } from '../../lib/hermes';
+import { compact, dayKey, modelLabel, usd } from '../../lib/format';
+
+export const prerender = false;
+
+interface Session {
+  source: string;
+  model: string | null;
+  started_at: number | null;
+  input_tokens: number;
+  output_tokens: number;
+  reasoning_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  estimated_cost_usd: number | null;
+  actual_cost_usd: number | null;
+}
+
+const asked = Number(Astro.url.searchParams.get('range'));
+const range = [7, 30, 90].includes(asked) ? asked : 30;
+const cutoff = Date.now() / 1000 - range * 86_400;
+
+// Sessions come newest first, 200 per page. Stop once a page is entirely older than the range.
+const sessions: Session[] = [];
+let reachable = false;
+let truncated = false;
+for (let page = 0; page < 12; page++) {
+  const res = await hermesGet<{ data: Session[]; has_more?: boolean }>(`/api/sessions?limit=200&offset=${page * 200}`);
+  if (!res) break;
+  reachable = true;
+  const inRange = res.data.filter((s) => (s.started_at ?? 0) >= cutoff);
+  sessions.push(...inRange);
+  if (!res.has_more || inRange.length < res.data.length) break;
+  if (page === 11) truncated = true;
+}
+
+const tokens = (s: Session) => (s.input_tokens ?? 0) + (s.output_tokens ?? 0) + (s.reasoning_tokens ?? 0);
+const cost = (s: Session) => s.actual_cost_usd ?? s.estimated_cost_usd ?? 0;
+
+const byDay = new Map<string, { tokens: number; cost: number; n: number }>();
+const byModel = new Map<string, { tokens: number; cost: number; n: number; cached: number }>();
+const bySource = new Map<string, { tokens: number; cost: number; n: number }>();
+const bump = <T extends { tokens: number; cost: number; n: number }>(map: Map<string, T>, key: string, s: Session, init: () => T) => {
+  const row = map.get(key) ?? init();
+  row.tokens += tokens(s);
+  row.cost += cost(s);
+  row.n += 1;
+  map.set(key, row);
+  return row;
+};
+for (const s of sessions) {
+  bump(byDay, dayKey(s.started_at) ?? 'unknown', s, () => ({ tokens: 0, cost: 0, n: 0 }));
+  bump(bySource, s.source, s, () => ({ tokens: 0, cost: 0, n: 0 }));
+  bump(byModel, modelLabel(s.model), s, () => ({ tokens: 0, cost: 0, n: 0, cached: 0 })).cached += s.cache_read_tokens ?? 0;
+}
+
+const total = { tokens: sessions.reduce((a, s) => a + tokens(s), 0), cost: sessions.reduce((a, s) => a + cost(s), 0), cached: sessions.reduce((a, s) => a + (s.cache_read_tokens ?? 0), 0) };
+const days = [...byDay].sort((a, b) => b[0].localeCompare(a[0]));
+const maxDay = Math.max(1, ...days.map(([, v]) => v.tokens));
+const models = [...byModel].sort((a, b) => b[1].cost - a[1].cost);
+const sources = [...bySource].sort((a, b) => b[1].cost - a[1].cost);
+---
+
+<HermesShell title="Usage" current="usage">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Usage</h1>
+      <p class="filters" style="margin: 0">
+        <span class="group">
+          {[7, 30, 90].map((r) => <a href={`?range=${r}`} aria-current={r === range ? 'true' : undefined}>{r} days</a>)}
+        </span>
+      </p>
+    </div>
+
+    {!reachable && <p class="notice error" role="alert">Could not reach the Hermes API.</p>}
+    {truncated && <p class="notice">Very many sessions in this range: only the newest 2,400 are counted.</p>}
+
+    <section class="block">
+      <div class="figures">
+        <div class="figure"><p class="value">{usd(total.cost)}</p><p class="label">estimated cost</p></div>
+        <div class="figure"><p class="value">{compact(total.tokens)}</p><p class="label">input + output tokens</p></div>
+        <div class="figure"><p class="value">{compact(total.cached)}</p><p class="label">cache-read tokens</p></div>
+        <div class="figure"><p class="value">{sessions.length}</p><p class="label">sessions (incl. cron runs)</p></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Per day</h2><p class="label muted">tokens · cost · WIB days</p></div>
+      <div class="bars">
+        {
+          days.map(([day, v]) => (
+            <div class="bar-row">
+              <span>{day.slice(5)}</span>
+              <span class="bar"><span style={`width: ${Math.max(1, (v.tokens / maxDay) * 100)}%`}></span></span>
+              <span class="num">{compact(v.tokens)} · {usd(v.cost)}</span>
+            </div>
+          ))
+        }
+      </div>
+      {!days.length && reachable && <p class="empty">No sessions in this range.</p>}
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>By model</h2></div>
+      <div class="ruled">
+        {
+          models.map(([name, v]) => (
+            <div class="row row-usage">
+              <span class="name" style="font-size: var(--text-body)">{name}</span>
+              <span class="num">{v.n} sessions</span>
+              <span class="num">{compact(v.tokens)} tok</span>
+              <span class="num">{usd(v.cost)}</span>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>By source</h2></div>
+      <div class="ruled">
+        {
+          sources.map(([name, v]) => (
+            <div class="row row-usage">
+              <span class="name" style="font-size: var(--text-body)">{name}</span>
+              <span class="num">{v.n} sessions</span>
+              <span class="num">{compact(v.tokens)} tok</span>
+              <span class="num">{usd(v.cost)}</span>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <p class="label muted">Costs are Hermes' own estimates (actual cost when the provider reports it); cache reads are billed far below normal input.</p>
+  </div>
+</HermesShell>
+
+<style is:global>
+  .row-usage {
+    grid-template-columns: minmax(160px, 2fr) 1fr 1fr 1fr;
+    padding-block: 10px;
+  }
+</style>
