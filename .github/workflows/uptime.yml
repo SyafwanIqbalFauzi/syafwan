@@ -39,5 +39,5 @@ jobs:
           check "Jadwal"                  "https://sejarahpersib.com/jadwal"           "Jadwal"
           check "Kalender ICS"            "https://sejarahpersib.com/jadwal-persib.ics" "BEGIN:VCALENDAR"
           check "Search index (API)"      "https://sejarahpersib.com/api/search-index" "\\["
-          check "Situs pribadi"           "https://syafwan.sejarahpersib.com/"        "<html"
+          check "Situs pribadi"           "https://syafwan.com/"                       "<html"
           exit $fail
