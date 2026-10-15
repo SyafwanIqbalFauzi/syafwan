@@ -49,8 +49,22 @@ export interface AgentSkill {
   version: string | null;
   enabled: boolean | null;
   files: number | null;
+  body_hash: string | null;
+  editable: boolean | null;
+  essential: boolean | null;
   content_md: string | null;
   synced_at: string | null;
+}
+
+export interface SkillChange {
+  id: number;
+  skill: string;
+  action: 'set_enabled' | 'set_content';
+  status: 'pending' | 'applied' | 'failed' | 'rejected';
+  requested_by: string | null;
+  requested_at: string | null;
+  applied_at: string | null;
+  result: string | null;
 }
 
 export class DirectusReadError extends Error {
@@ -62,7 +76,7 @@ export class DirectusReadError extends Error {
 }
 
 /** `params` are Directus query params, e.g. `{ 'filter[job_id][_eq]': 'abc', sort: '-started_at' }`. */
-export async function readItems<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills', params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
+export async function readItems<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills' | 'skill_changes', params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
   const query = new URLSearchParams({ meta: 'filter_count', ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -73,7 +87,7 @@ export async function readItems<T>(token: string, collection: 'agent_runs' | 'ag
   return { data: body.data, total: body.meta?.filter_count ?? null };
 }
 
-export async function readItem<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills', params: Record<string, string | number>): Promise<T | null> {
+export async function readItem<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills' | 'skill_changes', params: Record<string, string | number>): Promise<T | null> {
   const { data } = await readItems<T>(token, collection, { ...params, limit: 1 });
   return data[0] ?? null;
 }
@@ -87,4 +101,16 @@ export async function updateItem(token: string, collection: 'agent_jobs', id: nu
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new DirectusReadError(`Directus ${res.status} updating ${collection}`, res.status);
+}
+
+/** Create one item with the signed-in user's token (skill change requests). */
+export async function createItem<T>(token: string, collection: 'skill_changes', data: Record<string, unknown>): Promise<T> {
+  const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new DirectusReadError(`Directus ${res.status} creating ${collection}`, res.status);
+  return ((await res.json()) as { data: T }).data;
 }

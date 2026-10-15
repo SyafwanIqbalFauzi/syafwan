@@ -343,6 +343,37 @@ def split_front_matter(text: str) -> tuple[dict, str]:
     return meta, text[match.end() :]
 
 
+def redacted_body(body: str, redact) -> str:
+    """What the website shows for a skill: the body with secrets, credential paths and long ids hidden.
+    Not stripped and not capped, so it maps line-for-line onto the real file (see apply_skill_changes.py)."""
+    return hide_opaque_ids(redact(body) or "")
+
+
+def body_hash_of(shown: str) -> str:
+    return hashlib.sha256(shown.encode("utf-8")).hexdigest()
+
+
+def is_editable(source: str, has_front_matter: bool, body: str, shown: str) -> bool:
+    """Only your own skills, whose redacted text is line-for-line the real text and fits the size cap."""
+    return (
+        source == "local"
+        and has_front_matter
+        and len(shown) <= SKILL_CAP
+        and "\x00" not in body
+        and len(body.split("\n")) == len(shown.split("\n"))
+    )
+
+
+def essential_skills() -> set[str]:
+    try:
+        sys.path.insert(0, os.path.join(HOME, "hermes-agent"))
+        from agent.skill_utils import ESSENTIAL_SKILLS
+
+        return set(ESSENTIAL_SKILLS)
+    except Exception:  # noqa: BLE001
+        return {"hermes-agent"}
+
+
 def _bundled_names() -> set[str]:
     try:
         with open(os.path.join(SKILLS_DIR, ".bundled_manifest"), encoding="utf-8") as fh:
@@ -374,7 +405,7 @@ def _disabled_skills() -> set[str]:
 
 
 def collect_skills(redact) -> list[dict]:
-    bundled, hub, disabled = _bundled_names(), _hub_names(), _disabled_skills()
+    bundled, hub, disabled, essentials = _bundled_names(), _hub_names(), _disabled_skills(), essential_skills()
     now = iso(dt.datetime.now(dt.timezone.utc))
     rows: list[dict] = []
     if not os.path.isdir(SKILLS_DIR):
@@ -389,10 +420,13 @@ def collect_skills(redact) -> list[dict]:
             meta, body = split_front_matter(fh.read())
         name = meta.get("name") or os.path.basename(root)
         source = "builtin" if name in bundled else "hub" if name in hub else "local"
-        content = hide_opaque_ids(redact(body.strip()) or "")[:SKILL_CAP]
+        shown = redacted_body(body, redact)
+        content = shown[:SKILL_CAP]
         description = hide_opaque_ids(redact(meta.get("description") or "") or "")
         n_files = sum(len(fs) for _, _, fs in os.walk(root))
-        parts = [name, category, source, description, str(name not in disabled), meta.get("version", ""), str(n_files), content]
+        editable = is_editable(source, bool(meta), body, shown)
+        essential = name in essentials
+        parts = [name, category, source, description, str(name not in disabled), meta.get("version", ""), str(n_files), content, str(editable), str(essential)]
         fingerprint = hashlib.sha256("\x00".join(parts).encode()).hexdigest()[:20]
         rows.append(
             {
@@ -405,6 +439,9 @@ def collect_skills(redact) -> list[dict]:
                 "modified": False,
                 "files": n_files,
                 "content_md": content,
+                "body_hash": body_hash_of(shown),
+                "editable": editable,
+                "essential": essential,
                 "content_hash": fingerprint,
                 "synced_at": now,
             }

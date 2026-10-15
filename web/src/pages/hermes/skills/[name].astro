@@ -1,7 +1,7 @@
 ---
 import HermesShell from '../../../layouts/HermesShell.astro';
 import StatusTag from '../../../components/StatusTag.astro';
-import { readItem, readItems, type AgentJob, type AgentSkill } from '../../../lib/directus-user';
+import { readItem, readItems, type AgentJob, type AgentSkill, type SkillChange } from '../../../lib/directus-user';
 import { formatWhen, relative } from '../../../lib/format';
 import { renderMarkdown } from '../../../lib/markdown';
 import { SKILL_NAME, usageMap } from '../../../lib/skills';
@@ -14,6 +14,7 @@ if (!name || !SKILL_NAME.test(name)) return Astro.rewrite('/404');
 const token = Astro.locals.hermesToken!;
 let skill: AgentSkill | null = null;
 let jobs: AgentJob[] = [];
+let changes: SkillChange[] = [];
 let problem = '';
 try {
   skill = await readItem<AgentSkill>(token, 'agent_skills', { 'filter[name][_eq]': name });
@@ -22,6 +23,18 @@ try {
   problem = 'Could not read this skill from Directus.';
 }
 if (!skill && !problem) return Astro.rewrite('/404');
+try {
+  changes = (
+    await readItems<SkillChange>(token, 'skill_changes', {
+      'filter[skill][_eq]': name,
+      sort: '-requested_at',
+      limit: 5,
+      fields: 'id,skill,action,status,requested_by,requested_at,applied_at,result',
+    })
+  ).data;
+} catch {
+  /* the history is optional */
+}
 
 const users = usageMap(jobs).get(name) ?? [];
 const usingIds = new Set(users.map((u) => u.job_id));
@@ -39,16 +52,33 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
       <div class="chips">
         {skill && <span class="tag">{skill.source === 'builtin' ? 'built-in' : skill.source === 'removed' ? 'removed' : 'yours'}</span>}
         {skill?.enabled === false && <StatusTag status="paused" label="disabled" />}
+        {skill?.essential && <span class="tag tag-idle">essential</span>}
       </div>
     </div>
 
     {problem && <p class="notice error" role="alert">{problem}</p>}
+    <p class="notice" data-change-banner role="status" hidden></p>
     {removed && <p class="notice">This skill no longer exists in Hermes. Its last synced text is shown below.</p>}
 
     {
       skill && (
         <>
           <p class="skill-desc">{skill.description}</p>
+
+          {
+            !removed && (
+              <div class="actions" style="margin-bottom: var(--s-22)">
+                {skill.essential ? (
+                  <span class="label muted">Essential for Hermes: cannot be disabled.</span>
+                ) : (
+                  <button type="button" class="btn" data-toggle data-skill={name} data-enabled={skill.enabled === false ? 'false' : 'true'} data-users={JSON.stringify(users.map((u) => u.name))}>
+                    {skill.enabled === false ? 'enable skill' : 'disable skill'}
+                  </button>
+                )}
+                {!skill.essential && <span class="label muted">Hermes applies this within a couple of minutes; agents use it from their next run.</span>}
+              </div>
+            )
+          }
 
           <section class="block">
             <div class="ruled">
@@ -97,8 +127,49 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
               <h2>Instructions</h2>
               <p class="label muted">SKILL.md · secrets, long ids and credential paths are hidden</p>
             </div>
+            {
+              skill.editable ? (
+                <details class="edit-box" id="editor">
+                  <summary class="act">edit instructions</summary>
+                  <form class="editor-form" data-editor data-skill={name} data-base-hash={skill.body_hash}>
+                    <p class="label muted">
+                      You are editing a copy in which secrets, long ids and credential paths are hidden. Lines that contain a hidden value
+                      (shown as <code>[id hidden]</code> or <code>credentials/[hidden]</code>) cannot be changed or removed here; every other
+                      line can. Hermes keeps the previous version as a backup.
+                    </p>
+                    <label class="visually-hidden" for="skill-text">Instructions</label>
+                    <textarea id="skill-text" name="content" rows="26" spellcheck="false" maxlength="60000" required>{skill.content_md}</textarea>
+                    <div class="sf-actions">
+                      <button type="submit" class="btn btn-solid">save changes</button>
+                      <button type="button" class="act" data-undo>undo my edits</button>
+                      <span class="label muted" data-editor-status role="status"></span>
+                    </div>
+                  </form>
+                </details>
+              ) : (
+                !removed && <p class="label muted" style="margin-bottom: var(--s-15)">{skill.source === 'builtin' ? 'Built-in skills are read-only here.' : 'This skill cannot be edited safely from the website.'}</p>
+              )
+            }
             {skill.content_md ? <div class="skill-body prose prose-compact" set:html={renderMarkdown(skill.content_md)} /> : <p class="empty">This skill has no text.</p>}
           </section>
+
+          {
+            changes.length > 0 && (
+              <section class="block">
+                <div class="block-head"><h2>Recent changes</h2><p class="label muted">made from this website</p></div>
+                <div class="ruled">
+                  {changes.map((c) => (
+                    <div class="row row-change">
+                      <span>{formatWhen(c.requested_at)}</span>
+                      <span>{c.action === 'set_enabled' ? 'enable / disable' : 'edit instructions'}</span>
+                      <span><StatusTag status={c.status === 'applied' ? 'completed' : c.status === 'pending' ? 'paused' : 'failed'} label={c.status} /></span>
+                      <span class="sub">{c.result ?? (c.status === 'pending' ? 'waiting for Hermes…' : '')}</span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )
+          }
         </>
       )
     }
@@ -107,9 +178,41 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
 
 <script>
   import '../../../scripts/hermes-skill-assign';
+  import '../../../scripts/hermes-skill-manage';
 </script>
 
 <style is:global>
+  .row-change {
+    grid-template-columns: 150px 150px 110px 1fr;
+    padding-block: 10px;
+  }
+  @media (max-width: 900px) {
+    .row-change {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .editor-form {
+    display: grid;
+    gap: var(--s-15);
+    margin-top: var(--s-15);
+  }
+  .editor-form textarea {
+    width: 100%;
+    min-height: 420px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    tab-size: 2;
+    background: var(--te-page);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 12px;
+    resize: vertical;
+  }
+  .editor-form textarea:focus-visible {
+    outline: 1px solid var(--te-black);
+    outline-offset: 0;
+  }
   .skill-desc {
     max-width: 760px;
     margin-bottom: var(--s-22);
