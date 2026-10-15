@@ -6,8 +6,8 @@ import type { APIContext } from 'astro';
 import { createHash } from 'node:crypto';
 import { DIRECTUS_INTERNAL_URL } from 'astro:env/server';
 
-/** Only users with this Directus role may enter. The role should have no data permissions. */
-export const HERMES_ROLE = 'hermes-admin';
+/** Only users with this Directus role may enter. */
+export const HERMES_ROLE = 'Administrator';
 const ACCESS_COOKIE = 'hermes_at';
 const REFRESH_COOKIE = 'hermes_rt';
 const REFRESH_MAX_AGE = 7 * 24 * 3600; // Directus default refresh-token lifetime
