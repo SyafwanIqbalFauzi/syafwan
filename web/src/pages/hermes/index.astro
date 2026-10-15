@@ -1,0 +1,298 @@
+---
+import Private from '../../layouts/Private.astro';
+
+export const prerender = false;
+
+const user = Astro.locals.hermesUser;
+---
+
+<Private title="Hermes">
+  <div class="app">
+    <aside>
+      <div class="brand">
+        <strong>Hermes</strong>
+        <span class="who">{user?.email}</span>
+      </div>
+      <button id="new-chat" type="button" class="primary">New chat</button>
+      <ul id="sessions" aria-label="Sessions"></ul>
+      <form method="post" action="/hermes/logout" class="signout">
+        <button type="submit" class="link">Sign out</button>
+      </form>
+    </aside>
+
+    <main>
+      <header>
+        <h1 id="title">New chat</h1>
+        <span id="status" role="status"></span>
+      </header>
+      <div id="log" aria-live="polite"></div>
+      <form id="composer">
+        <textarea id="input" rows="2" placeholder="Message Hermes (Enter to send, Shift+Enter for a new line)" autofocus></textarea>
+        <button id="send" type="submit" class="primary">Send</button>
+        <button id="stop" type="button" class="deny" hidden>Stop</button>
+      </form>
+    </main>
+  </div>
+</Private>
+
+<script>
+  import '../../scripts/hermes-chat';
+</script>
+
+<style is:global>
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    height: 100dvh;
+  }
+  .app aside {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-15);
+    padding: var(--s-15);
+    border-right: 1px solid var(--te-grey-100);
+    background: var(--te-white);
+    min-height: 0;
+  }
+  .brand {
+    display: grid;
+    gap: 2px;
+  }
+  .brand strong {
+    font-weight: var(--w-light);
+    font-size: 22px;
+  }
+  .who {
+    font-size: var(--text-caption);
+    color: var(--te-grey-600);
+    overflow-wrap: anywhere;
+  }
+  #sessions {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+  #sessions li {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+  #sessions li.active {
+    background: #fff;
+    box-shadow: inset 3px 0 0 var(--te-blue);
+  }
+  #sessions .open {
+    flex: 1;
+    text-align: left;
+    padding: 10px 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #sessions .mini {
+    font-size: 11px;
+    color: var(--te-grey-600);
+    padding: 4px;
+  }
+  .app button {
+    font: inherit;
+    font-size: 14px;
+    background: none;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    border-radius: 0;
+  }
+  .app button:hover:not(:disabled) {
+    color: var(--te-blue);
+  }
+  .app button.primary {
+    background: var(--te-blue);
+    color: #fff;
+    padding: 11px 16px;
+  }
+  .app button.primary:hover:not(:disabled) {
+    background: #005a96;
+    color: #fff;
+  }
+  .app button.deny {
+    background: var(--te-orange);
+    color: #fff;
+    padding: 11px 16px;
+  }
+  .app button.link {
+    color: var(--te-grey-600);
+    padding: 0;
+    font-size: var(--text-caption);
+  }
+  .app button:focus-visible,
+  .app textarea:focus-visible {
+    outline: 2px solid var(--te-blue);
+    outline-offset: 1px;
+  }
+
+  .app main {
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    min-width: 0;
+    min-height: 0;
+  }
+  .app main header {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s-15);
+    padding: var(--s-15) var(--s-22);
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+  .app main h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: var(--w-regular);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #status {
+    font-size: var(--text-caption);
+    color: var(--te-grey-600);
+  }
+  #log {
+    overflow-y: auto;
+    padding: var(--s-22);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-15);
+    min-height: 0;
+  }
+  .msg {
+    max-width: 760px;
+  }
+  .msg.user {
+    align-self: flex-end;
+  }
+  .msg .body {
+    padding: 12px 14px;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+  }
+  .msg.user .body {
+    background: var(--te-white);
+    white-space: pre-wrap;
+  }
+  .msg.assistant .body {
+    border-left: 2px solid var(--te-grey-100);
+  }
+  .msg.assistant .body.streaming {
+    white-space: pre-wrap;
+    border-left-color: var(--te-blue);
+  }
+  .msg .body.error {
+    border-left-color: var(--te-orange);
+    color: #8a2e0c;
+  }
+  .msg .body pre {
+    overflow-x: auto;
+    background: var(--te-carbon);
+    color: #f2f2f2;
+    padding: 12px;
+    font-size: 13px;
+  }
+  .msg .body code {
+    font-size: 0.92em;
+  }
+  .msg .body p:first-child {
+    margin-top: 0;
+  }
+  .msg .body p:last-child {
+    margin-bottom: 0;
+  }
+  .tool {
+    max-width: 760px;
+    font-size: 13px;
+    color: var(--te-grey-600);
+    border: 1px solid var(--te-grey-100);
+    padding: 6px 10px;
+    overflow-wrap: anywhere;
+  }
+  .tool.running {
+    border-color: var(--te-amber);
+  }
+  .tool.failed {
+    border-color: var(--te-orange);
+  }
+  .tool strong {
+    color: var(--te-carbon);
+    font-weight: var(--w-regular);
+  }
+  .approval {
+    max-width: 760px;
+    border: 1px solid var(--te-amber);
+    background: #fffaf0;
+    padding: 12px 14px;
+  }
+  .approval pre {
+    margin: 8px 0;
+    padding: 10px;
+    background: var(--te-carbon);
+    color: #f2f2f2;
+    font-size: 13px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .approval .choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .approval .choices button:not(.deny) {
+    background: var(--te-blue);
+    color: #fff;
+    padding: 8px 14px;
+  }
+  .approval .choices button.deny {
+    padding: 8px 14px;
+  }
+  .hint {
+    color: var(--te-grey-600);
+    font-size: 14px;
+    margin: 0;
+  }
+  #composer {
+    display: flex;
+    gap: 8px;
+    padding: var(--s-15) var(--s-22);
+    border-top: 1px solid var(--te-grey-100);
+  }
+  #composer textarea {
+    flex: 1;
+    font: inherit;
+    font-size: var(--text-body);
+    resize: none;
+    background: var(--te-white);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 10px 12px;
+  }
+
+  @media (max-width: 800px) {
+    .app {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr;
+    }
+    .app aside {
+      max-height: 38dvh;
+      border-right: 0;
+      border-bottom: 1px solid var(--te-grey-100);
+    }
+    #log,
+    #composer,
+    .app main header {
+      padding-left: var(--gutter);
+      padding-right: var(--gutter);
+    }
+  }
+</style>

@@ -1,0 +1,129 @@
+---
+import Private from '../../layouts/Private.astro';
+import { audit, login, setSession } from '../../lib/auth';
+import { RateLimiter } from '../../lib/ratelimit';
+
+export const prerender = false;
+
+// 5 attempts a minute per client. Behind the host gateway all visitors may share one
+// address, which only makes the limit stricter, never looser.
+const limiter = ((globalThis as any).__hermesLoginLimiter ??= new RateLimiter(5, 60_000)) as RateLimiter;
+
+const secure = (Astro.site ?? new URL(Astro.url.origin)).protocol === 'https:';
+let error = '';
+
+if (Astro.request.method === 'POST') {
+  const ip = Astro.request.headers.get('x-forwarded-for')?.split(',').pop()?.trim() || Astro.clientAddress || 'unknown';
+  const form = await Astro.request.formData();
+  const email = String(form.get('email') ?? '').trim().slice(0, 254);
+  const password = String(form.get('password') ?? '').slice(0, 512);
+  const otp = String(form.get('otp') ?? '').replace(/\s/g, '').slice(0, 12);
+
+  if (!limiter.take(ip)) {
+    audit('login_throttled', { ip });
+    Astro.response.status = 429;
+    error = 'Too many attempts. Try again in a minute.';
+  } else if (!email || !password) {
+    error = 'Enter your email and password.';
+  } else {
+    const result = await login(email, password, otp);
+    if (result.ok) {
+      limiter.reset(ip);
+      setSession(Astro.cookies, result.tokens, secure);
+      audit('login', { user: result.user.email, ip });
+      return Astro.redirect('/hermes', 303);
+    }
+    audit('login_failed', { email, ip, reason: result.reason });
+    Astro.response.status = result.reason === 'unavailable' ? 503 : 401;
+    error = result.reason === 'unavailable' ? 'Sign-in is temporarily unavailable.' : 'Invalid credentials.';
+  }
+}
+---
+
+<Private title="Sign in">
+  <main>
+    <form method="post" autocomplete="on">
+      <p class="eyebrow">syafwan / agents</p>
+      <h1>Sign in</h1>
+      {error && <p class="error" role="alert">{error}</p>}
+      <label>
+        Email
+        <input type="email" name="email" autocomplete="username" required autofocus />
+      </label>
+      <label>
+        Password
+        <input type="password" name="password" autocomplete="current-password" required />
+      </label>
+      <label>
+        Authenticator code
+        <input type="text" name="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="12" placeholder="000000" />
+      </label>
+      <button type="submit">Sign in</button>
+    </form>
+  </main>
+</Private>
+
+<style>
+  main {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: var(--s-22) var(--gutter);
+  }
+  form {
+    width: 100%;
+    max-width: 360px;
+    display: grid;
+    gap: var(--s-15);
+  }
+  .eyebrow {
+    margin: 0;
+    font-size: var(--text-caption);
+    color: var(--te-grey-600);
+    letter-spacing: 0.04em;
+  }
+  h1 {
+    margin: 0 0 var(--s-8);
+    font-weight: var(--w-light);
+    font-size: 32px;
+  }
+  label {
+    display: grid;
+    gap: 6px;
+    font-size: var(--text-caption);
+    color: var(--te-grey-600);
+  }
+  input {
+    font: inherit;
+    font-size: var(--text-body);
+    color: var(--te-carbon);
+    background: var(--te-white);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 12px;
+  }
+  input:focus-visible {
+    outline: 2px solid var(--te-blue);
+    outline-offset: 1px;
+  }
+  button {
+    font: inherit;
+    font-size: var(--text-body);
+    background: var(--te-blue);
+    color: #fff;
+    border: 0;
+    border-radius: 0;
+    padding: 13px;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #005a96;
+  }
+  .error {
+    margin: 0;
+    padding: 10px 12px;
+    border-left: 3px solid var(--te-orange);
+    background: var(--te-white);
+    font-size: 14px;
+  }
+</style>

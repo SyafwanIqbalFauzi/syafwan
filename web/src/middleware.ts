@@ -1,8 +1,48 @@
 import { defineMiddleware } from 'astro:middleware';
+import { authenticate } from './lib/auth';
 
-// Pages are rendered per request from Directus (cached in memory for 60s). Let a
-// reverse proxy / CDN reuse them briefly too, and serve stale while revalidating.
+const isPrivate = (path: string) => path === '/hermes' || path.startsWith('/hermes/') || path.startsWith('/api/hermes/');
+const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+const json = (status: number, error: string) =>
+  new Response(JSON.stringify({ error }), {
+    status,
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, no-store' },
+  });
+
+/** Mutations must come from this site: the Origin header has to match the configured origin. */
+function sameOrigin(origin: string | null, siteOrigin: string): boolean {
+  return origin !== null && origin === siteOrigin;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
+  const { pathname } = context.url;
+  const siteOrigin = (context.site ?? new URL(context.url.origin)).origin;
+  const secure = siteOrigin.startsWith('https:');
+
+  // Applies site-wide. Astro's own check is off (see astro.config.mjs).
+  if (!SAFE_METHODS.has(context.request.method) && !sameOrigin(context.request.headers.get('origin'), siteOrigin)) {
+    return json(403, 'Cross-origin request blocked');
+  }
+
+  if (isPrivate(pathname)) {
+    const isApi = pathname.startsWith('/api/');
+    const isLogin = pathname === '/hermes/login';
+
+    if (!isLogin) {
+      const user = await authenticate(context.cookies, secure);
+      if (!user) return isApi ? json(401, 'Not signed in') : context.redirect('/hermes/login', 302);
+      context.locals.hermesUser = user;
+    }
+
+    const response = await next();
+    response.headers.set('Cache-Control', 'private, no-store');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    return response;
+  }
+
+  // Public pages are rendered per request from Directus (cached in memory for 60s). Let a
+  // reverse proxy / CDN reuse them briefly too, and serve stale while revalidating.
   const response = await next();
   const type = response.headers.get('content-type') ?? '';
   if (context.request.method === 'GET' && response.status === 200 && !response.headers.has('cache-control')) {
