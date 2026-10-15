@@ -53,10 +53,12 @@ const RULES: Rule[] = [
   { method: 'POST', pattern: new RegExp(`^runs/${ID}/stop$`), build: (m) => `/v1/runs/${m[1]}/stop` },
   { method: 'POST', pattern: new RegExp(`^runs/${ID}/approval$`), build: (m) => `/v1/runs/${m[1]}/approval` },
 
+  // Jobs are created and edited only through dedicated, validated routes (see pages/api/hermes/agents/[id]/settings.ts),
+  // never by forwarding arbitrary JSON to Hermes.
+  // Jobs are created/edited only through dedicated, validated routes (pages/api/hermes/agents/[id]/settings.ts),
+  // never by forwarding arbitrary JSON to Hermes.
   { method: 'GET', pattern: /^jobs$/, build: () => '/api/jobs' },
-  { method: 'POST', pattern: /^jobs$/, build: () => '/api/jobs' },
   { method: 'GET', pattern: new RegExp(`^jobs/${ID}$`), build: (m) => `/api/jobs/${m[1]}` },
-  { method: 'PATCH', pattern: new RegExp(`^jobs/${ID}$`), build: (m) => `/api/jobs/${m[1]}` },
   { method: 'DELETE', pattern: new RegExp(`^jobs/${ID}$`), build: (m) => `/api/jobs/${m[1]}` },
   { method: 'POST', pattern: new RegExp(`^jobs/${ID}/(pause|resume|run)$`), build: (m) => `/api/jobs/${m[1]}/${m[2]}` },
 ];

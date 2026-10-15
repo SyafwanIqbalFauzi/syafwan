@@ -1,0 +1,141 @@
+---
+import HermesShell from '../../../layouts/HermesShell.astro';
+import FilterBar from '../../../components/FilterBar.astro';
+import StatusTag from '../../../components/StatusTag.astro';
+import { readItems, type AgentJob, type AgentSkill } from '../../../lib/directus-user';
+import { relative } from '../../../lib/format';
+import { parseSkillSort, SKILL_SORTS, sortSkills, usageMap } from '../../../lib/skills';
+
+export const prerender = false;
+
+const token = Astro.locals.hermesToken!;
+const param = (name: string) => Astro.url.searchParams.get(name);
+const category = param('category');
+const source = param('source');
+const status = param('status');
+const use = param('use');
+const sort = parseSkillSort(param('sort'));
+const q = (param('q') ?? '').trim().toLowerCase();
+
+let skills: AgentSkill[] = [];
+let jobs: Pick<AgentJob, 'job_id' | 'name' | 'skills' | 'state'>[] = [];
+let problem = '';
+try {
+  skills = (
+    await readItems<AgentSkill>(token, 'agent_skills', {
+      limit: -1,
+      fields: 'id,name,category,source,description,version,enabled,files,synced_at',
+    })
+  ).data.filter((s) => s.source !== 'removed');
+  jobs = (await readItems<AgentJob>(token, 'agent_jobs', { limit: -1, fields: 'job_id,name,skills,state' })).data;
+} catch {
+  problem = 'Could not read the skill catalogue from Directus.';
+}
+
+const used = usageMap(jobs);
+const useCount = (s: AgentSkill) => used.get(s.name)?.length ?? 0;
+const isYours = (s: AgentSkill) => s.source !== 'builtin';
+
+const matches = (s: AgentSkill) =>
+  (!category || s.category === category) &&
+  (!source || (source === 'yours' ? isYours(s) : s.source === source)) &&
+  (!status || (status === 'enabled' ? s.enabled !== false : s.enabled === false)) &&
+  (!use || (use === 'used' ? useCount(s) > 0 : useCount(s) === 0)) &&
+  (!q || `${s.name} ${s.description ?? ''} ${s.category ?? ''}`.toLowerCase().includes(q));
+
+const shown = sortSkills(skills.filter(matches), sort, used);
+const yours = shown.filter(isYours);
+const builtin = shown.filter((s) => !isYours(s));
+const categories = [...new Set(skills.map((s) => s.category).filter((c): c is string => Boolean(c)))].sort();
+const syncedAt = skills.map((s) => s.synced_at).filter(Boolean).sort().at(-1);
+const sections = [
+  { title: 'Your skills', hint: 'written or installed by you', items: yours },
+  { title: 'Built-in', hint: 'shipped with Hermes', items: builtin },
+].filter((s) => s.items.length);
+---
+
+<HermesShell title="Skills" current="skills">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Skills</h1>
+      <p class="label muted">
+        {skills.length} skills · {skills.filter(isYours).length} yours · {skills.filter((s) => useCount(s) > 0).length} in use by agents{syncedAt ? ` · synced ${relative(syncedAt)}` : ''}
+      </p>
+    </div>
+
+    {problem && <p class="notice error" role="alert">{problem}</p>}
+
+    <FilterBar
+      resetHref={Astro.url.pathname}
+      selects={[
+        { name: 'source', label: 'Source', value: source, all: 'All sources', options: [{ value: 'yours', label: 'Yours' }, { value: 'builtin', label: 'Built-in' }] },
+        { name: 'category', label: 'Category', value: category, all: 'All categories', options: categories.map((c) => ({ value: c, label: c })) },
+        { name: 'use', label: 'Used by agents', value: use, all: 'Any', options: [{ value: 'used', label: 'In use' }, { value: 'unused', label: 'Not used' }] },
+        { name: 'status', label: 'Status', value: status, all: 'Any status', options: [{ value: 'enabled', label: 'Enabled' }, { value: 'disabled', label: 'Disabled' }] },
+        { name: 'sort', label: 'Sort by', value: sort === 'name' ? null : sort, all: 'Name', options: SKILL_SORTS },
+      ]}
+      search={{ name: 'q', value: q, placeholder: 'name or description' }}
+    />
+
+    {
+      sections.map((section, index) => (
+        <section class="block">
+          <div class="block-head">
+            <h2>{section.title}</h2>
+            <p class="label muted">{section.items.length} · {section.hint}</p>
+          </div>
+          <div class="ruled">
+            {index === 0 && (
+              <div class="row row-skill row-head" aria-hidden="true">
+                <span>skill</span><span>category</span><span>what it does</span><span>used by</span>
+              </div>
+            )}
+            {section.items.map((skill) => {
+              const users = used.get(skill.name) ?? [];
+              return (
+                <a class="row row-skill row-link" href={`/hermes/skills/${encodeURIComponent(skill.name)}`}>
+                  <div>
+                    <p class="name">{skill.name}</p>
+                    <div class="chips" style="margin-top: 6px">
+                      {skill.enabled === false && <StatusTag status="paused" label="disabled" />}
+                      {skill.version && <span class="tag tag-idle">v{skill.version}</span>}
+                    </div>
+                  </div>
+                  <div><span class="tag tag-idle">{skill.category}</span></div>
+                  <p class="snippet">{skill.description}</p>
+                  <div>
+                    {users.length ? (
+                      <>
+                        <p>{users.length} {users.length === 1 ? 'agent' : 'agents'}</p>
+                        <p class="sub">{users.slice(0, 3).map((u) => u.name).join(', ')}{users.length > 3 ? `, +${users.length - 3}` : ''}</p>
+                      </>
+                    ) : (
+                      <span class="muted">not used</span>
+                    )}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      ))
+    }
+    {!sections.length && !problem && <p class="empty">No skills match.</p>}
+  </div>
+</HermesShell>
+
+<style is:global>
+  .row-skill {
+    grid-template-columns: minmax(200px, 1.3fr) 150px minmax(240px, 2fr) minmax(160px, 1fr);
+  }
+
+  @media (max-width: 900px) {
+    .row-skill {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .row-skill > :nth-child(3) {
+      grid-column: 1 / -1;
+    }
+  }
+</style>

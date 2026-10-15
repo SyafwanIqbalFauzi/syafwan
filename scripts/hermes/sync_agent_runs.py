@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -316,6 +317,101 @@ def job_rows(jobs: dict, directory: dict) -> list[dict]:
     return out
 
 
+
+# --------------------------------------------------------------------------- skills
+SKILLS_DIR = os.path.join(HOME, "skills")
+SKILL_CAP = 60_000
+FRONT_MATTER = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.S)
+OPAQUE_ID = re.compile(r"(?<![A-Za-z0-9_-])(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{33,}(?![A-Za-z0-9_-])")
+
+
+def hide_opaque_ids(text: str) -> str:
+    """Long mixed letter/digit tokens (spreadsheet ids, keys that slip past the redactor) are not shown."""
+    return OPAQUE_ID.sub("[id hidden]", text)
+
+
+def split_front_matter(text: str) -> tuple[dict, str]:
+    """Tiny front-matter reader: top-level `key: value` lines only (enough for name/description/version)."""
+    match = FRONT_MATTER.match(text)
+    if not match:
+        return {}, text
+    meta: dict = {}
+    for line in match.group(1).splitlines():
+        m = re.match(r"^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$", line)
+        if m and m.group(2) and not m.group(2).startswith(("|", ">")):
+            meta[m.group(1)] = m.group(2).strip().strip("\"'")
+    return meta, text[match.end() :]
+
+
+def _bundled_names() -> set[str]:
+    try:
+        with open(os.path.join(SKILLS_DIR, ".bundled_manifest"), encoding="utf-8") as fh:
+            return {line.split(":", 1)[0].strip() for line in fh if ":" in line}
+    except OSError:
+        return set()
+
+
+def _hub_names() -> set[str]:
+    try:
+        with open(os.path.join(SKILLS_DIR, ".hub", "lock.json"), encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        return set()
+    installed = data.get("installed", data) if isinstance(data, dict) else {}
+    return set(installed) if isinstance(installed, dict) else set()
+
+
+def _disabled_skills() -> set[str]:
+    try:
+        import yaml  # available in the Hermes venv
+
+        with open(os.path.join(HOME, "config.yaml"), encoding="utf-8") as fh:
+            cfg = yaml.safe_load(fh) or {}
+        names = (cfg.get("skills") or {}).get("disabled") or []
+        return {str(n) for n in names}
+    except Exception:  # noqa: BLE001 - unreadable config just means "none disabled"
+        return set()
+
+
+def collect_skills(redact) -> list[dict]:
+    bundled, hub, disabled = _bundled_names(), _hub_names(), _disabled_skills()
+    now = iso(dt.datetime.now(dt.timezone.utc))
+    rows: list[dict] = []
+    if not os.path.isdir(SKILLS_DIR):
+        return rows
+    for root, dirs, files in os.walk(SKILLS_DIR):
+        dirs[:] = sorted(d for d in dirs if not d.startswith("."))
+        if "SKILL.md" not in files:
+            continue
+        rel = os.path.relpath(root, SKILLS_DIR).replace(os.sep, "/")
+        category = rel.split("/")[0] if "/" in rel else "uncategorised"
+        with open(os.path.join(root, "SKILL.md"), encoding="utf-8", errors="replace") as fh:
+            meta, body = split_front_matter(fh.read())
+        name = meta.get("name") or os.path.basename(root)
+        source = "builtin" if name in bundled else "hub" if name in hub else "local"
+        content = hide_opaque_ids(redact(body.strip()) or "")[:SKILL_CAP]
+        description = hide_opaque_ids(redact(meta.get("description") or "") or "")
+        n_files = sum(len(fs) for _, _, fs in os.walk(root))
+        parts = [name, category, source, description, str(name not in disabled), meta.get("version", ""), str(n_files), content]
+        fingerprint = hashlib.sha256("\x00".join(parts).encode()).hexdigest()[:20]
+        rows.append(
+            {
+                "name": name,
+                "category": category,
+                "source": source,
+                "description": description,
+                "version": meta.get("version") or None,
+                "enabled": name not in disabled,
+                "modified": False,
+                "files": n_files,
+                "content_md": content,
+                "content_hash": fingerprint,
+                "synced_at": now,
+            }
+        )
+    return rows
+
+
 # --------------------------------------------------------------------------- Directus
 class Directus:
     def __init__(self, token: str):
@@ -355,6 +451,36 @@ class Directus:
             self.call("POST", "/items/agent_runs", batch)
             sent += len(batch)
         return sent
+
+    def sync_skills(self, rows: list[dict]) -> tuple[int, int, int]:
+        existing = {r["name"]: r for r in self.call("GET", "/items/agent_skills?fields=id,name,content_hash,source&limit=-1") or []}
+        new = [r for r in rows if r["name"] not in existing]
+        created = 0
+        batch, size = [], 0
+        for row in new:
+            row_size = len(json.dumps(row))
+            if batch and size + row_size > BATCH_BYTES:
+                self.call("POST", "/items/agent_skills", batch)
+                created += len(batch)
+                batch, size = [], 0
+            batch.append(row)
+            size += row_size
+        if batch:
+            self.call("POST", "/items/agent_skills", batch)
+            created += len(batch)
+        updated = 0
+        for row in rows:
+            current = existing.get(row["name"])
+            if current is not None and current.get("content_hash") != row["content_hash"]:
+                self.call("PATCH", f"/items/agent_skills/{current['id']}", row)
+                updated += 1
+        wanted = {r["name"] for r in rows}
+        gone = 0
+        for name, current in existing.items():
+            if name not in wanted and current.get("source") != "removed":
+                self.call("PATCH", f"/items/agent_skills/{current['id']}", {"source": "removed", "enabled": False})
+                gone += 1
+        return created, updated, gone
 
     def sync_jobs(self, rows: list[dict]) -> tuple[int, int]:
         existing = {r["job_id"]: r for r in self.call("GET", "/items/agent_jobs?limit=-1") or []}
@@ -421,7 +547,8 @@ def main() -> int:
 
     runs = collect_runs(jobs, executions, directory, redact, known)
     if args.dry_run:
-        print(json.dumps({"would_create": len(runs), "jobs": len(jobs)}))
+        skills = collect_skills(redact)
+        print(json.dumps({"would_create": len(runs), "jobs": len(jobs), "skills": len(skills)}))
         if args.verbose:
             for r in runs[:5]:
                 print(json.dumps({k: (v[:80] if isinstance(v, str) else v) for k, v in r.items()}, ensure_ascii=False))
@@ -429,8 +556,9 @@ def main() -> int:
 
     created = client.create_runs(runs) if runs else 0
     j_new, j_upd = client.sync_jobs(job_rows(jobs, directory))
+    s_new, s_upd, s_gone = client.sync_skills(collect_skills(redact))
     if args.verbose:
-        print(f"runs +{created}, jobs +{j_new} ~{j_upd}")
+        print(f"runs +{created}, jobs +{j_new} ~{j_upd}, skills +{s_new} ~{s_upd} -{s_gone}")
     return 0
 
 

@@ -7,6 +7,7 @@ import { duration, formatWhen, modelLabel, relative } from '../../../lib/format'
 import { orderGroups, UNGROUPED } from '../../../lib/groups';
 import { renderMarkdown } from '../../../lib/markdown';
 import { humanizeSchedule } from '../../../lib/schedule';
+import { MAX_NAME_LENGTH, parseScheduleForm } from '../../../lib/schedule-edit';
 
 export const prerender = false;
 
@@ -53,6 +54,8 @@ const paused = job ? job.enabled === false || job.state === 'paused' : snapshot?
 const done = (job?.state ?? snapshot?.state) === 'completed';
 const skills: string[] = job?.skills ?? snapshot?.skills ?? [];
 const scheduleRaw = job?.schedule_display ?? snapshot?.schedule_display ?? null;
+const canEdit = Boolean(job) && !done;
+const initialForm = parseScheduleForm(scheduleRaw);
 const deliver = snapshot?.deliver_labels ?? (job?.deliver ? String(job.deliver).split(',') : []);
 const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 const runHref = (exec: string) => `?${new URLSearchParams({ ...(page > 1 ? { page: String(page) } : {}), run: exec })}#result`;
@@ -80,6 +83,61 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
 
     {problem && <p class="notice error" role="alert">{problem}</p>}
     {!job && !problem && <p class="notice">Hermes is unreachable or this agent no longer exists: showing saved history only.</p>}
+
+    {
+      canEdit && (
+        <details class="edit-box" id="settings">
+          <summary class="act">edit name and schedule</summary>
+          <form class="settings-form" data-settings-form data-job={id} data-initial={JSON.stringify({ name, ...initialForm })} data-current-name={name} data-current-schedule={scheduleRaw ?? ''}>
+            <label class="sf-field sf-wide">
+              <span class="label muted">Name</span>
+              <input name="name" value={name} maxlength={MAX_NAME_LENGTH} required autocomplete="off" />
+            </label>
+
+            <label class="sf-field">
+              <span class="label muted">Runs</span>
+              <select name="mode">
+                <option value="interval">every N minutes</option>
+                <option value="hourly">every hour</option>
+                <option value="daily">every day</option>
+                <option value="weekly">every week</option>
+                <option value="custom">custom (cron, UTC)</option>
+              </select>
+            </label>
+
+            <label class="sf-field" data-for="interval">
+              <span class="label muted">Every (minutes)</span>
+              <input name="minutes" type="number" min="1" max="1440" step="1" />
+            </label>
+            <label class="sf-field" data-for="hourly">
+              <span class="label muted">At minute</span>
+              <input name="minute" type="number" min="0" max="59" step="1" />
+            </label>
+            <label class="sf-field" data-for="weekly">
+              <span class="label muted">On</span>
+              <select name="weekday">
+                {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((d, i) => <option value={i}>{d}</option>)}
+              </select>
+            </label>
+            <label class="sf-field" data-for="daily weekly">
+              <span class="label muted">At (WIB)</span>
+              <input name="time" type="time" />
+            </label>
+            <label class="sf-field sf-wide" data-for="custom">
+              <span class="label muted">Cron expression (UTC) or "every 30m"</span>
+              <input name="raw" placeholder="0 1,7,13,19 * * *" autocomplete="off" spellcheck="false" />
+            </label>
+
+            <p class="sf-preview sf-wide" data-preview aria-live="polite"></p>
+            <div class="sf-actions sf-wide">
+              <button type="submit" class="btn btn-solid">save changes</button>
+              <button type="button" class="act" data-reset>undo</button>
+              <span class="label muted" data-settings-status role="status"></span>
+            </div>
+          </form>
+        </details>
+      )
+    }
 
     <section class="block">
       <div class="ruled">
@@ -170,7 +228,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
             <StatusTag status={selected.status} />
           </div>
           <p class="meta">
-            <span>{formatWhen(selected.started_at)} WIB</span>
+            <span>{formatWhen(selected.started_at)}</span>
             <span>took {duration(selected.duration_s)}</span>
             <span>sent to {(selected.delivery?.targets ?? ['local']).join(', ')}</span>
             {selected.delivery?.outcome && <span>delivery: {selected.delivery.outcome}</span>}
@@ -185,9 +243,65 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
 
 <script>
   import '../../../scripts/hermes-job-actions';
+  import '../../../scripts/hermes-job-settings';
 </script>
 
 <style is:global>
+  .edit-box {
+    margin-bottom: var(--s-22);
+    border: 1px solid var(--te-grey-100);
+    background: var(--te-white);
+    padding: 10px var(--s-15);
+  }
+  .edit-box[open] {
+    padding-bottom: var(--s-15);
+  }
+  .settings-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: var(--s-15);
+    margin-top: var(--s-15);
+  }
+  .sf-field {
+    display: grid;
+    gap: 4px;
+  }
+  .sf-wide {
+    grid-column: 1 / -1;
+  }
+  .sf-field[hidden] {
+    display: none;
+  }
+  .settings-form input,
+  .settings-form select {
+    font: inherit;
+    font-size: var(--text-body);
+    background: var(--te-page);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 8px 10px;
+    min-height: 38px;
+  }
+  .settings-form input:focus-visible,
+  .settings-form select:focus-visible {
+    outline: 1px solid var(--te-black);
+    outline-offset: 0;
+  }
+  .sf-preview {
+    font-size: var(--text-caption);
+    padding: 8px 12px;
+    border-left: 3px solid var(--te-black);
+    background: var(--te-page);
+  }
+  .sf-preview.bad {
+    border-left-color: var(--te-orange);
+  }
+  .sf-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-8) var(--s-15);
+  }
   .group-form {
     display: flex;
     flex-wrap: wrap;

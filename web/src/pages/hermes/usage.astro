@@ -68,7 +68,7 @@ const sources = [...bySource].sort((a, b) => b[1].cost - a[1].cost);
   <div class="container page">
     <div class="page-head">
       <h1 class="h1">Usage</h1>
-      <p class="label muted">newest sessions first · WIB days</p>
+      <p class="label muted">newest sessions first</p>
     </div>
 
     <FilterBar
@@ -99,7 +99,7 @@ const sources = [...bySource].sort((a, b) => b[1].cost - a[1].cost);
     </section>
 
     <section class="block">
-      <div class="block-head"><h2>Per day</h2><p class="label muted">tokens · cost · WIB days</p></div>
+      <div class="block-head"><h2>Per day</h2><p class="label muted">tokens · cost</p></div>
       <div class="bars">
         {
           days.map(([day, v]) => (

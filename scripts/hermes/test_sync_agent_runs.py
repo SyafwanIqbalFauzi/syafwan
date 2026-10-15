@@ -31,6 +31,57 @@ Total: Rp1.615.465
 """
 
 
+class SkillTests(unittest.TestCase):
+    def test_front_matter(self):
+        meta, body = s.split_front_matter("---\nname: my-skill\ndescription: Does a thing.\nversion: 1.2.0\nmetadata:\n  x: 1\n---\n\n# Title\ntext")
+        self.assertEqual(meta, {"name": "my-skill", "description": "Does a thing.", "version": "1.2.0"})
+        self.assertTrue(body.lstrip().startswith("# Title"))
+
+    def test_no_front_matter(self):
+        meta, body = s.split_front_matter("# Just text")
+        self.assertEqual(meta, {})
+        self.assertEqual(body, "# Just text")
+
+    def test_long_opaque_ids_are_hidden_but_words_are_not(self):
+        sheet = "10IQCxWYW1UNqbCX9ClPYsGJCQVcrVga1YSByybOWSNE"
+        text = "Spreadsheet ID: `%s` and slug sejarah-persib-feature-delivery-workflow-notes-here" % sheet
+        out = s.hide_opaque_ids(text)
+        self.assertNotIn(sheet, out)
+        self.assertIn("[id hidden]", out)
+        self.assertIn("sejarah-persib-feature-delivery-workflow-notes-here", out)
+        self.assertEqual(s.hide_opaque_ids("short abc123 token"), "short abc123 token")
+
+    def test_collect_skills_classifies_source_and_masks(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as home:
+            skills = os.path.join(home, "skills")
+            for rel, text in {
+                "productivity/mine/SKILL.md": "---\nname: mine\ndescription: My own.\n---\nSheet 10IQCxWYW1UNqbCX9ClPYsGJCQVcrVga1YSByybOWSNE\nsee ~/.hermes/credentials/x/service-account.json\n",
+                "productivity/stock/SKILL.md": "---\nname: stock\ndescription: Bundled.\n---\nhello",
+                ".archive/old/SKILL.md": "---\nname: old\n---\nx",
+            }.items():
+                path = os.path.join(skills, rel)
+                os.makedirs(os.path.dirname(path))
+                with open(path, "w", encoding="utf-8") as fh:
+                    fh.write(text)
+            with open(os.path.join(skills, ".bundled_manifest"), "w", encoding="utf-8") as fh:
+                fh.write("stock:abc123\n")
+            old_home, old_dir = s.HOME, s.SKILLS_DIR
+            s.HOME, s.SKILLS_DIR = home, skills
+            try:
+                rows = {r["name"]: r for r in s.collect_skills(s.hide_credential_paths)}
+            finally:
+                s.HOME, s.SKILLS_DIR = old_home, old_dir
+            self.assertEqual(set(rows), {"mine", "stock"})  # hidden dirs (.archive) are skipped
+            self.assertEqual(rows["mine"]["source"], "local")
+            self.assertEqual(rows["stock"]["source"], "builtin")
+            self.assertEqual(rows["mine"]["category"], "productivity")
+            self.assertNotIn("10IQCxWYW1U", rows["mine"]["content_md"])
+            self.assertIn("credentials/[hidden]", rows["mine"]["content_md"])
+            self.assertTrue(rows["mine"]["enabled"])
+
+
 class GroupTests(unittest.TestCase):
     def test_rules(self):
         self.assertEqual(s.group_for({"name": "monitoring-jadwal-persib", "skills": ["monitoring-jadwal-persib"]}), "Sejarah Persib")

@@ -3,7 +3,7 @@
 // header (pinwheel, store bag, frame, finder): flat shapes, no strokes to speak of.
 // Cut-outs use the page colour so they read as negative space.
 interface Props {
-  name: 'work' | 'about' | 'writing' | 'overview' | 'agents' | 'chat' | 'sessions' | 'usage';
+  name: 'work' | 'about' | 'writing' | 'overview' | 'agents' | 'chat' | 'sessions' | 'usage' | 'skills';
   size?: number;
 }
 const { name, size = 56 } = Astro.props;
@@ -84,6 +84,13 @@ const { name, size = 56 } = Astro.props;
         <rect x="4" y="30" width="12" height="22" class="fill" />
         <rect x="22" y="16" width="12" height="36" class="fill" />
         <rect x="40" y="4" width="12" height="48" class="fill" />
+      </>
+    )
+  }
+  {
+    name === 'skills' && (
+      <>
+        <path d="M4 16H20V12a6 6 0 0 1 12 0V16H48V32H44a6 6 0 0 0 0 12H48V52H4Z" class="fill" />
       </>
     )
   }

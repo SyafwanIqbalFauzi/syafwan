@@ -33,7 +33,7 @@ test('humanizeSchedule: falls back to the raw text for anything it does not unde
 });
 
 test('format helpers', () => {
-  assert.equal(formatWhen('2026-10-15T04:00:00Z'), '15 Oct 11:00');
+  assert.equal(formatWhen('2026-10-15T04:00:00Z'), '15 Oct 11:00 WIB');
   assert.equal(formatWhen(null), '—');
   assert.equal(dayKey('2026-10-14T20:00:00Z'), '2026-10-15'); // 03:00 WIB next day
   assert.equal(duration(0.4), '<1 s');

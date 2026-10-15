@@ -1,0 +1,105 @@
+// Edit name and schedule on an agent's detail page. The form speaks WIB and friendly modes;
+// schedule-edit.ts turns it into what Hermes stores, and the preview shows the result before saving.
+import { humanizeSchedule } from '../lib/schedule';
+import { buildSchedule, type ScheduleForm, type ScheduleMode } from '../lib/schedule-edit';
+
+const form = document.querySelector<HTMLFormElement>('[data-settings-form]');
+
+if (form) {
+  const id = form.dataset.job!;
+  const currentName = form.dataset.currentName ?? '';
+  const currentSchedule = form.dataset.currentSchedule ?? '';
+  const initial = JSON.parse(form.dataset.initial ?? '{}') as ScheduleForm & { name: string };
+
+  const field = <T extends HTMLElement>(name: string) => form.elements.namedItem(name) as unknown as T;
+  const mode = field<HTMLSelectElement>('mode');
+  const preview = form.querySelector<HTMLElement>('[data-preview]')!;
+  const statusEl = form.querySelector<HTMLElement>('[data-settings-status]')!;
+  const groups = [...form.querySelectorAll<HTMLElement>('[data-for]')];
+
+  const read = (): ScheduleForm => ({
+    mode: mode.value as ScheduleMode,
+    minutes: Number(field<HTMLInputElement>('minutes').value),
+    minute: Number(field<HTMLInputElement>('minute').value),
+    time: field<HTMLInputElement>('time').value,
+    weekday: Number(field<HTMLSelectElement>('weekday').value),
+    raw: field<HTMLInputElement>('raw').value,
+  });
+
+  const fill = (values: ScheduleForm & { name?: string }) => {
+    if (values.name !== undefined) field<HTMLInputElement>('name').value = values.name;
+    mode.value = values.mode;
+    field<HTMLInputElement>('minutes').value = String(values.minutes ?? 30);
+    field<HTMLInputElement>('minute').value = String(values.minute ?? 0);
+    field<HTMLInputElement>('time').value = values.time ?? '07:00';
+    field<HTMLSelectElement>('weekday').value = String(values.weekday ?? 1);
+    field<HTMLInputElement>('raw').value = values.raw ?? '';
+  };
+
+  const refresh = () => {
+    for (const g of groups) g.hidden = !(g.dataset.for ?? '').split(' ').includes(mode.value);
+    const built = buildSchedule(read());
+    preview.classList.toggle('bad', built === null);
+    preview.textContent = built === null ? 'That schedule is not valid yet.' : `${humanizeSchedule(built)}  ·  stored as "${built}"`;
+    return built;
+  };
+
+  // Switching to "custom" starts from the current expression so it can be tweaked.
+  mode.addEventListener('change', () => {
+    if (mode.value === 'custom' && !field<HTMLInputElement>('raw').value) field<HTMLInputElement>('raw').value = buildSchedule(initial) ?? currentSchedule;
+    refresh();
+  });
+  form.addEventListener('input', refresh);
+  form.querySelector('[data-reset]')?.addEventListener('click', () => {
+    fill(initial);
+    statusEl.textContent = '';
+    refresh();
+  });
+
+  fill(initial);
+  refresh();
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const name = field<HTMLInputElement>('name').value.replace(/\s+/g, ' ').trim();
+    const schedule = buildSchedule(read());
+    if (!name) return void (statusEl.textContent = 'enter a name');
+    if (schedule === null) return void (statusEl.textContent = 'fix the schedule first');
+
+    const body: { name?: string; schedule?: string } = {};
+    if (name !== currentName) body.name = name;
+    if (schedule !== currentSchedule) body.schedule = schedule;
+    if (!body.name && !body.schedule) return void (statusEl.textContent = 'nothing changed');
+
+    const lines = [
+      body.name ? `Name:  "${currentName}"  →  "${body.name}"` : '',
+      body.schedule ? `Runs:  ${humanizeSchedule(currentSchedule)}  →  ${humanizeSchedule(body.schedule)}` : '',
+      '',
+      'This changes the live agent. Continue?',
+    ].filter((l, i) => l || i === 2);
+    if (!confirm(lines.join('\n'))) return;
+
+    const buttons = form.querySelectorAll<HTMLButtonElement>('button');
+    buttons.forEach((b) => (b.disabled = true));
+    statusEl.textContent = 'saving…';
+    try {
+      const res = await fetch(`/api/hermes/agents/${id}/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        credentials: 'same-origin',
+      });
+      if (res.status === 401) {
+        location.href = '/hermes/login';
+        return;
+      }
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
+      statusEl.textContent = 'saved';
+      location.reload();
+    } catch (error) {
+      statusEl.textContent = (error as Error).message;
+      buttons.forEach((b) => (b.disabled = false));
+    }
+  });
+}

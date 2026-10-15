@@ -1,4 +1,5 @@
-// Small display helpers shared by the /hermes pages. Times are shown in WIB (Asia/Jakarta).
+// Small display helpers shared by the /hermes pages. Clock times are shown in WIB (Asia/Jakarta)
+// and always say so ("15 Oct 11:00 WIB"), so no page needs a separate timezone note.
 
 const TZ = 'Asia/Jakarta';
 
@@ -12,10 +13,10 @@ const dateTime = new Intl.DateTimeFormat('en-GB', {
 });
 const dateOnly = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' });
 
-/** `2026-10-15T04:00:00Z` -> "15 Oct, 11:00". Accepts ISO strings or epoch seconds. */
+/** `2026-10-15T04:00:00Z` -> "15 Oct 11:00 WIB". Accepts ISO strings or epoch seconds. */
 export function formatWhen(value: string | number | null | undefined): string {
   const date = toDate(value);
-  return date ? dateTime.format(date).replace(',', '') : '—';
+  return date ? `${dateTime.format(date).replace(',', '')} WIB` : '—';
 }
 
 /** Calendar day in WIB, `YYYY-MM-DD`. */

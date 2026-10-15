@@ -1,9 +1,11 @@
 ---
 import HermesShell from '../../layouts/HermesShell.astro';
+import FilterBar from '../../components/FilterBar.astro';
 import StatusTag from '../../components/StatusTag.astro';
 import { readItems, type AgentJob, type AgentRun } from '../../lib/directus-user';
 import { hermesGet } from '../../lib/hermes';
 import { compact, formatWhen, relative } from '../../lib/format';
+import { orderGroups, UNGROUPED } from '../../lib/groups';
 import { humanizeSchedule } from '../../lib/schedule';
 
 export const prerender = false;
@@ -11,26 +13,45 @@ export const prerender = false;
 const token = Astro.locals.hermesToken!;
 const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
 
-const [health, jobsResult, failedResult, recentResult] = await Promise.all([
+const groupFilter = Astro.url.searchParams.get('group');
+
+// Jobs first: the group filter works through the jobs that belong to the chosen group.
+const [health, jobsResult] = await Promise.all([
   hermesGet<Record<string, any>>('/health/detailed'),
   readItems<AgentJob>(token, 'agent_jobs', { limit: -1 }).catch(() => null),
-  readItems<Omit<AgentRun, 'response_md'>>(token, 'agent_runs', {
-    'filter[status][_eq]': 'failed',
-    'filter[started_at][_gte]': weekAgo,
-    sort: '-started_at',
-    limit: 10,
-    fields: 'execution_id,job_id,job_name,started_at,error,summary',
-  }).catch(() => null),
-  readItems<Omit<AgentRun, 'response_md'>>(token, 'agent_runs', {
-    'filter[status][_eq]': 'completed',
-    'filter[kind][_eq]': 'agent',
-    sort: '-started_at',
-    limit: 8,
-    fields: 'execution_id,job_id,job_name,started_at,duration_s,summary',
-  }).catch(() => null),
 ]);
 
-const jobs = (jobsResult?.data ?? []).filter((j) => j.state !== 'removed');
+const allJobs = (jobsResult?.data ?? []).filter((j) => j.state !== 'removed');
+const groupOf = (j: AgentJob) => j.agent_group || UNGROUPED;
+const groups = orderGroups(allJobs.map(groupOf));
+const jobs = groupFilter ? allJobs.filter((j) => groupOf(j) === groupFilter) : allJobs;
+const groupIds = jobs.map((j) => j.job_id);
+const groupByJob = new Map(allJobs.map((j) => [j.job_id, groupOf(j)]));
+// With a group chosen, restrict the run queries to that group's jobs (an empty group has no runs at all).
+const inGroup: Record<string, string> = groupFilter ? { 'filter[job_id][_in]': groupIds.join(',') } : {};
+const skipRuns = Boolean(groupFilter) && groupIds.length === 0;
+
+const [failedResult, recentResult] = skipRuns
+  ? [{ data: [] as Omit<AgentRun, 'response_md'>[] }, { data: [] as Omit<AgentRun, 'response_md'>[] }]
+  : await Promise.all([
+      readItems<Omit<AgentRun, 'response_md'>>(token, 'agent_runs', {
+        'filter[status][_eq]': 'failed',
+        'filter[started_at][_gte]': weekAgo,
+        ...inGroup,
+        sort: '-started_at',
+        limit: 10,
+        fields: 'execution_id,job_id,job_name,started_at,error,summary',
+      }).catch(() => null),
+      readItems<Omit<AgentRun, 'response_md'>>(token, 'agent_runs', {
+        'filter[status][_eq]': 'completed',
+        'filter[kind][_eq]': 'agent',
+        ...inGroup,
+        sort: '-started_at',
+        limit: 8,
+        fields: 'execution_id,job_id,job_name,started_at,duration_s,summary',
+      }).catch(() => null),
+    ]);
+
 const upcoming = jobs
   .filter((j) => j.enabled && j.state === 'scheduled' && j.next_run_at && new Date(j.next_run_at).getFullYear() < 2030)
   .sort((a, b) => a.next_run_at!.localeCompare(b.next_run_at!))
@@ -41,8 +62,8 @@ const recent = recentResult?.data ?? [];
 const checks = health?.readiness?.checks ?? {};
 const platforms: [string, string][] = Object.entries(health?.platforms ?? {}).map(([name, p]: [string, any]) => [name, p?.state ?? 'unknown']);
 const counts = {
-  active: jobs.filter((j) => j.enabled && j.state === 'scheduled').length,
-  paused: jobs.filter((j) => j.state === 'paused' || (j.enabled === false && j.state !== 'completed')).length,
+  active: allJobs.filter((j) => j.enabled && j.state === 'scheduled').length,
+  paused: allJobs.filter((j) => j.state === 'paused' || (j.enabled === false && j.state !== 'completed')).length,
 };
 ---
 
@@ -54,6 +75,12 @@ const counts = {
     </div>
 
     {!health && <p class="notice error" role="alert">Could not reach the Hermes API. Saved history below is still available.</p>}
+
+    <FilterBar
+      resetHref={Astro.url.pathname}
+      selects={[{ name: 'group', label: 'Group', value: groupFilter, all: 'All groups', options: groups.map((g) => ({ value: g, label: g })) }]}
+    />
+    <p class="label muted" style="margin: -4px 0 var(--s-22)">The group filter applies to failures, upcoming and latest results. Health always covers everything.</p>
 
     <section class="block" id="health">
       <div class="block-head"><h2>Health</h2></div>
@@ -84,13 +111,13 @@ const counts = {
               <a class="row row-feed row-link" href={`/hermes/agents/${run.job_id}?run=${run.execution_id}#result`}>
                 <span>{formatWhen(run.started_at)}<br /><span class="sub">{relative(run.started_at)}</span></span>
                 <span><StatusTag status="failed" /></span>
-                <span class="name" style="font-size: var(--text-body)">{run.job_name}</span>
+                <span><span class="name" style="font-size: var(--text-body)">{run.job_name}</span><br /><span class="sub">{groupByJob.get(run.job_id)}</span></span>
                 <span class="snippet">{run.error ?? run.summary ?? ''}</span>
               </a>
             ))}
           </div>
         ) : (
-          <p class="empty">{failedResult ? 'No failed runs in the last 7 days.' : 'Run history is unavailable.'}</p>
+          <p class="empty">{failedResult ? `No failed runs in the last 7 days${groupFilter ? ` for ${groupFilter}` : ''}.` : 'Run history is unavailable.'}</p>
         )
       }
     </section>
@@ -108,12 +135,12 @@ const counts = {
                 <span>{formatWhen(job.next_run_at)}<br /><span class="sub">{relative(job.next_run_at)}</span></span>
                 <span><span class="tag">{job.kind === 'script' ? 'script' : 'ai'}</span></span>
                 <span></span>
-                <span><span class="name" style="font-size: var(--text-body)">{job.name}</span><br /><span class="sub">{humanizeSchedule(job.schedule_display)}</span></span>
+                <span><span class="name" style="font-size: var(--text-body)">{job.name}</span><br /><span class="sub">{groupOf(job)} · {humanizeSchedule(job.schedule_display)}</span></span>
               </a>
             ))}
           </div>
         ) : (
-          <p class="empty">Nothing scheduled.</p>
+          <p class="empty">Nothing scheduled{groupFilter ? ` for ${groupFilter}` : ''}.</p>
         )
       }
     </section>
@@ -127,13 +154,13 @@ const counts = {
               <a class="row row-feed row-link" href={`/hermes/agents/${run.job_id}?run=${run.execution_id}#result`}>
                 <span>{formatWhen(run.started_at)}<br /><span class="sub">{relative(run.started_at)}</span></span>
                 <span><StatusTag status="completed" label="done" /></span>
-                <span class="name" style="font-size: var(--text-body)">{run.job_name}</span>
+                <span><span class="name" style="font-size: var(--text-body)">{run.job_name}</span><br /><span class="sub">{groupByJob.get(run.job_id)}</span></span>
                 <span class="snippet">{run.summary ?? ''}</span>
               </a>
             ))}
           </div>
         ) : (
-          <p class="empty">No results saved yet.</p>
+          <p class="empty">No results saved yet{groupFilter ? ` for ${groupFilter}` : ''}.</p>
         )
       }
     </section>

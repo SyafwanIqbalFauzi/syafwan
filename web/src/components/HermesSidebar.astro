@@ -4,7 +4,7 @@
 // into a top bar with a menu button.
 import Pictogram from './Pictogram.astro';
 
-export type Section = 'overview' | 'agents' | 'chat' | 'sessions' | 'usage';
+export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage';
 
 interface Props {
   current?: Section;
@@ -22,7 +22,10 @@ const groups: { label: string; items: { section: Section; href: string; label: s
   },
   {
     label: 'Automation',
-    items: [{ section: 'agents', href: '/hermes/agents', label: 'Agents' }],
+    items: [
+      { section: 'agents', href: '/hermes/agents', label: 'Agents' },
+      { section: 'skills', href: '/hermes/skills', label: 'Skills' },
+    ],
   },
   {
     label: 'History',
@@ -62,7 +65,6 @@ const groups: { label: string; items: { section: Section; href: string; label: s
 
   <div class="side-foot">
     {email && <p class="who" title={email}>{email}</p>}
-    <p class="note">times in WIB</p>
     <form method="post" action="/hermes/logout">
       <button type="submit" class="signout">sign out</button>
     </form>
@@ -163,10 +165,6 @@ const groups: { label: string; items: { section: Section; href: string; label: s
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .note {
-    color: var(--te-grey-600);
   }
 
   .signout {

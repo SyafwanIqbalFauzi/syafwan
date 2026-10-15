@@ -1,0 +1,157 @@
+---
+import HermesShell from '../../../layouts/HermesShell.astro';
+import StatusTag from '../../../components/StatusTag.astro';
+import { readItem, readItems, type AgentJob, type AgentSkill } from '../../../lib/directus-user';
+import { formatWhen, relative } from '../../../lib/format';
+import { renderMarkdown } from '../../../lib/markdown';
+import { SKILL_NAME, usageMap } from '../../../lib/skills';
+
+export const prerender = false;
+
+const { name } = Astro.params;
+if (!name || !SKILL_NAME.test(name)) return Astro.rewrite('/404');
+
+const token = Astro.locals.hermesToken!;
+let skill: AgentSkill | null = null;
+let jobs: AgentJob[] = [];
+let problem = '';
+try {
+  skill = await readItem<AgentSkill>(token, 'agent_skills', { 'filter[name][_eq]': name });
+  jobs = (await readItems<AgentJob>(token, 'agent_jobs', { limit: -1, sort: 'name' })).data.filter((j) => j.state !== 'removed');
+} catch {
+  problem = 'Could not read this skill from Directus.';
+}
+if (!skill && !problem) return Astro.rewrite('/404');
+
+const users = usageMap(jobs).get(name) ?? [];
+const usingIds = new Set(users.map((u) => u.job_id));
+// Only AI agents can use skills, and only those that do not already have this one.
+const candidates = jobs.filter((j) => j.kind === 'agent' && !usingIds.has(j.job_id) && j.state !== 'completed');
+const removed = skill?.source === 'removed';
+const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
+---
+
+<HermesShell title={name} current="skills">
+  <div class="container page">
+    <p class="label muted"><a class="link" href="/hermes/skills">← skills</a></p>
+    <div class="page-head" style="margin-top: 12px">
+      <h1 class="h1">{name}</h1>
+      <div class="chips">
+        {skill && <span class="tag">{skill.source === 'builtin' ? 'built-in' : skill.source === 'removed' ? 'removed' : 'yours'}</span>}
+        {skill?.enabled === false && <StatusTag status="paused" label="disabled" />}
+      </div>
+    </div>
+
+    {problem && <p class="notice error" role="alert">{problem}</p>}
+    {removed && <p class="notice">This skill no longer exists in Hermes. Its last synced text is shown below.</p>}
+
+    {
+      skill && (
+        <>
+          <p class="skill-desc">{skill.description}</p>
+
+          <section class="block">
+            <div class="ruled">
+              <div class="row row-kv"><span class="muted">category</span><span>{skill.category}</span></div>
+              {skill.version && <div class="row row-kv"><span class="muted">version</span><span>{skill.version}</span></div>}
+              <div class="row row-kv"><span class="muted">files</span><span>{skill.files ?? 1}</span></div>
+              <div class="row row-kv"><span class="muted">synced</span><span>{formatWhen(skill.synced_at)} ({relative(skill.synced_at)})</span></div>
+            </div>
+          </section>
+
+          <section class="block">
+            <div class="block-head">
+              <h2>Used by</h2>
+              <p class="label muted">{users.length} {users.length === 1 ? 'agent' : 'agents'}</p>
+            </div>
+            <div class="ruled" data-skill={name}>
+              {
+                users.map((u) => (
+                  <div class="row row-use">
+                    <a class="name" style="font-size: var(--text-body)" href={`/hermes/agents/${u.job_id}`}>{u.name}</a>
+                    <button type="button" class="act danger" data-assign="remove" data-job={u.job_id} data-job-name={u.name}>remove</button>
+                  </div>
+                ))
+              }
+              {!users.length && <p class="empty">No agent uses this skill.</p>}
+            </div>
+
+            {
+              canAttach && candidates.length > 0 && (
+                <form class="attach-form" data-attach data-skill={name}>
+                  <label class="visually-hidden" for="attach-job">Add to agent</label>
+                  <select id="attach-job" name="job" class="fb-select">
+                    <option value="">Add to an agent…</option>
+                    {candidates.map((j) => <option value={j.job_id} data-name={j.name}>{j.name}</option>)}
+                  </select>
+                  <button type="submit" class="btn btn-solid">add</button>
+                  <span class="label muted" data-assign-status role="status"></span>
+                </form>
+              )
+            }
+            {!canAttach && !removed && <p class="label muted" style="margin-top: 12px">Disabled skills cannot be added to agents.</p>}
+          </section>
+
+          <section class="block">
+            <div class="block-head">
+              <h2>Instructions</h2>
+              <p class="label muted">SKILL.md · secrets, long ids and credential paths are hidden</p>
+            </div>
+            {skill.content_md ? <div class="skill-body prose prose-compact" set:html={renderMarkdown(skill.content_md)} /> : <p class="empty">This skill has no text.</p>}
+          </section>
+        </>
+      )
+    }
+  </div>
+</HermesShell>
+
+<script>
+  import '../../../scripts/hermes-skill-assign';
+</script>
+
+<style is:global>
+  .skill-desc {
+    max-width: 760px;
+    margin-bottom: var(--s-22);
+    font-size: var(--text-sub);
+    font-weight: var(--w-light);
+    line-height: 1.4;
+  }
+  .row-use {
+    grid-template-columns: 1fr auto;
+    align-items: center;
+  }
+  .attach-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-8) var(--s-15);
+    align-items: center;
+    margin-top: var(--s-15);
+  }
+  .attach-form .fb-select {
+    min-width: 280px;
+  }
+  .skill-body {
+    border: 1px solid var(--te-grey-100);
+    padding: var(--s-22);
+    max-width: 920px;
+  }
+  .skill-body pre {
+    background: var(--te-carbon);
+    color: var(--te-white);
+    padding: var(--s-15);
+    overflow-x: auto;
+    font-size: 13px;
+  }
+  .skill-body table {
+    border-collapse: collapse;
+    display: block;
+    overflow-x: auto;
+  }
+  .skill-body th,
+  .skill-body td {
+    border: 1px solid var(--te-grey-100);
+    padding: 6px 10px;
+    font-size: var(--text-caption);
+  }
+</style>

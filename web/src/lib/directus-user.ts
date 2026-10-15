@@ -40,6 +40,19 @@ export interface AgentRun {
   error: string | null;
 }
 
+export interface AgentSkill {
+  id: number;
+  name: string;
+  category: string | null;
+  source: 'builtin' | 'local' | 'hub' | 'removed' | null;
+  description: string | null;
+  version: string | null;
+  enabled: boolean | null;
+  files: number | null;
+  content_md: string | null;
+  synced_at: string | null;
+}
+
 export class DirectusReadError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -49,7 +62,7 @@ export class DirectusReadError extends Error {
 }
 
 /** `params` are Directus query params, e.g. `{ 'filter[job_id][_eq]': 'abc', sort: '-started_at' }`. */
-export async function readItems<T>(token: string, collection: 'agent_runs' | 'agent_jobs', params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
+export async function readItems<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills', params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
   const query = new URLSearchParams({ meta: 'filter_count', ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}?${query}`, {
     headers: { Authorization: `Bearer ${token}` },
@@ -60,7 +73,7 @@ export async function readItems<T>(token: string, collection: 'agent_runs' | 'ag
   return { data: body.data, total: body.meta?.filter_count ?? null };
 }
 
-export async function readItem<T>(token: string, collection: 'agent_runs' | 'agent_jobs', params: Record<string, string | number>): Promise<T | null> {
+export async function readItem<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills', params: Record<string, string | number>): Promise<T | null> {
   const { data } = await readItems<T>(token, collection, { ...params, limit: 1 });
   return data[0] ?? null;
 }

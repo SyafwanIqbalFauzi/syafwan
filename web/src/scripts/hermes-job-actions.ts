@@ -1,5 +1,7 @@
 // Run now / pause / resume / delete on an agent's detail page. All calls go through the
 // allowlisted /api/hermes/jobs/* proxy; the page reloads afterwards to show the new state.
+
+export {}; // makes this file a module so its top-level names stay local
 const box = document.querySelector<HTMLElement>('[data-job]');
 const statusEl = document.querySelector<HTMLElement>('[data-job-status]');
 

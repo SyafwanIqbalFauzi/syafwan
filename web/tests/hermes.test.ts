@@ -27,6 +27,9 @@ test('route allowlist rejects everything else', () => {
   assert.equal(resolveHermesRoute('GET', 'sessions/'), null);
   assert.equal(resolveHermesRoute('POST', 'jobs/j1/explode'), null);
   assert.equal(resolveHermesRoute('GET', 'config'), null);
+  // Editing/creating jobs is not proxied: it goes through validated routes instead.
+  assert.equal(resolveHermesRoute('PATCH', 'jobs/j1'), null);
+  assert.equal(resolveHermesRoute('POST', 'jobs'), null);
 });
 
 test('route allowlist blocks path tricks in ids', () => {
