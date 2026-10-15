@@ -2,7 +2,7 @@
 # Built from the repo root so npm workspaces resolve; only the built server ships.
 FROM node:24-slim AS build
 # Astro bakes `site` into the build (canonical/hreflang/OG URLs), so the public origin is a build arg.
-ARG PUBLIC_SITE_URL=https://syafwan.sejarahpersib.com
+ARG PUBLIC_SITE_URL=https://syafwan.com
 ENV PUBLIC_SITE_URL=$PUBLIC_SITE_URL
 WORKDIR /app
 COPY package.json package-lock.json ./
