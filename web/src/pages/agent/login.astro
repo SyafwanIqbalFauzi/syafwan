@@ -35,7 +35,7 @@ if (Astro.request.method === 'POST') {
       limiter.reset(ip);
       setSession(Astro.cookies, result.tokens, secure);
       audit('login', { user: result.user.email, ip });
-      return Astro.redirect('/hermes', 303);
+      return Astro.redirect('/agent', 303);
     }
     audit('login_failed', { email, ip, reason: result.reason });
     needsOtp = result.reason === 'otp';

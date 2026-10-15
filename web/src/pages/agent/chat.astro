@@ -9,12 +9,13 @@ export const prerender = false;
     <aside class="side" aria-label="Sessions">
       <button id="new-chat" type="button" class="btn btn-solid">new chat</button>
       <ul id="sessions" class="ruled"></ul>
-      <p class="label muted">web chats and your Telegram / Discord conversations. <a class="link" href="/hermes/sessions">all sessions</a></p>
+      <p class="label muted">web chats and your Telegram / Discord conversations. <a class="link" href="/agent/sessions">all sessions</a></p>
     </aside>
 
     <section class="pane">
       <header class="pane-head">
-        <h1 id="title" class="chat-title">New chat</h1>
+        <h1 id="title" class="chat-title" title="Click to rename this chat">New chat</h1>
+        <button id="rename-title" class="act" type="button" hidden aria-label="Rename this chat">rename</button>
         <span id="status" class="label muted" role="status"></span>
       </header>
       <div id="log" aria-live="polite"></div>
@@ -104,6 +105,30 @@ export const prerender = false;
     border-bottom: 1px solid var(--te-grey-100);
   }
 
+  .chat-title[data-editable='true'] {
+    cursor: text;
+  }
+
+  .chat-title[data-editable='true']:hover {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 4px;
+  }
+
+  .title-input {
+    width: min(560px, 100%);
+    font: inherit;
+    color: inherit;
+    background: var(--te-white);
+    border: 1px solid var(--te-black);
+    border-radius: 0;
+    padding: 2px 8px;
+  }
+
+  .title-input:focus-visible {
+    outline: none;
+  }
+
   .chat-title {
     font-size: var(--text-sub);
     font-weight: var(--w-light);
@@ -121,6 +146,89 @@ export const prerender = false;
     display: flex;
     flex-direction: column;
     gap: var(--s-15);
+  }
+
+  /* "Hermes is working" line at the end of the conversation */
+  .typing {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 780px;
+    padding: 6px 14px;
+    font-size: var(--text-caption);
+    color: var(--te-grey-600);
+    border-left: 1px solid var(--te-black);
+  }
+
+  .typing.wait {
+    border-left: 3px solid var(--te-amber);
+    color: var(--te-black);
+    background: var(--te-white);
+  }
+
+  .typing .dots {
+    display: inline-flex;
+    gap: 4px;
+  }
+
+  .typing .dots i {
+    width: 6px;
+    height: 6px;
+    background: currentColor;
+    animation: typing-pulse 1.2s infinite ease-in-out both;
+  }
+
+  .typing .dots i:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+
+  .typing .dots i:nth-child(3) {
+    animation-delay: 0.4s;
+  }
+
+  .typing.wait .dots {
+    display: none;
+  }
+
+  .typing .typing-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .typing .typing-time {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+    color: var(--te-grey-300);
+  }
+
+  @keyframes typing-pulse {
+    0%,
+    80%,
+    100% {
+      opacity: 0.2;
+    }
+    40% {
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .typing .dots i {
+      animation: none;
+      opacity: 0.6;
+    }
+  }
+
+  /* The answer bubble stays hidden until the first words arrive (the indicator covers that time). */
+  .msg.assistant:has(> .body:empty) {
+    display: none;
+  }
+
+  /* #log is a column flex box with a fixed height. Anything with overflow set (the tool cards,
+     code blocks) has a computed minimum height of 0, so once the conversation is long the browser
+     would squash them into thin strips and clip their text. Nothing in the log may shrink. */
+  #log > * {
+    flex-shrink: 0;
   }
 
   .msg {

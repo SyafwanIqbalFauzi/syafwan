@@ -40,5 +40,5 @@ jobs:
           check "Kalender ICS"            "https://sejarahpersib.com/jadwal-persib.ics" "BEGIN:VCALENDAR"
           check "Search index (API)"      "https://sejarahpersib.com/api/search-index" "\\["
           check "Situs pribadi"           "https://syafwan.com/"                       "<html"
-          check "Hermes login"           "https://syafwan.com/hermes/login"          "Sign in"
+          check "Hermes login"           "https://syafwan.com/agent/login"          "Sign in"
           exit $fail

@@ -1,5 +1,5 @@
 ---
-// Left sidebar for the private /hermes area. A conventional CMS menu: brand, grouped
+// Left sidebar for the private /agent area. A conventional CMS menu: brand, grouped
 // entries with small icons, and the signed-in account at the bottom. On phones it folds
 // into a top bar with a menu button.
 import Pictogram from './Pictogram.astro';
@@ -16,22 +16,22 @@ const groups: { label: string; items: { section: Section; href: string; label: s
   {
     label: 'Workspace',
     items: [
-      { section: 'overview', href: '/hermes', label: 'Overview' },
-      { section: 'chat', href: '/hermes/chat', label: 'Chat' },
+      { section: 'overview', href: '/agent', label: 'Overview' },
+      { section: 'chat', href: '/agent/chat', label: 'Chat' },
     ],
   },
   {
     label: 'Automation',
     items: [
-      { section: 'agents', href: '/hermes/agents', label: 'Agents' },
-      { section: 'skills', href: '/hermes/skills', label: 'Skills' },
+      { section: 'agents', href: '/agent/agents', label: 'Agents' },
+      { section: 'skills', href: '/agent/skills', label: 'Skills' },
     ],
   },
   {
     label: 'History',
     items: [
-      { section: 'sessions', href: '/hermes/sessions', label: 'Sessions' },
-      { section: 'usage', href: '/hermes/usage', label: 'Usage' },
+      { section: 'sessions', href: '/agent/sessions', label: 'Sessions' },
+      { section: 'usage', href: '/agent/usage', label: 'Usage' },
     ],
   },
 ];
@@ -39,7 +39,7 @@ const groups: { label: string; items: { section: Section; href: string; label: s
 
 <aside class="sidebar" data-sidebar>
   <div class="side-top">
-    <a href="/hermes" class="brand">syafwan <span>/ agents</span></a>
+    <a href="/agent" class="brand">syafwan <span>/ agents</span></a>
     <button type="button" class="menu-btn" aria-expanded="false" aria-controls="side-nav" data-menu-toggle>menu</button>
   </div>
 
@@ -54,6 +54,7 @@ const groups: { label: string; items: { section: Section; href: string; label: s
                 <a href={item.href} class="entry" aria-current={item.section === current ? 'page' : undefined}>
                   <Pictogram name={item.section} size={18} />
                   <span>{item.label}</span>
+                  {item.section === 'chat' && <span class="work-badge" data-work-badge hidden>working</span>}
                 </a>
               </li>
             ))}
@@ -65,7 +66,7 @@ const groups: { label: string; items: { section: Section; href: string; label: s
 
   <div class="side-foot">
     {email && <p class="who" title={email}>{email}</p>}
-    <form method="post" action="/hermes/logout">
+    <form method="post" action="/agent/logout">
       <button type="submit" class="signout">sign out</button>
     </form>
   </div>
@@ -78,6 +79,50 @@ const groups: { label: string; items: { section: Section; href: string; label: s
     const open = sidebar?.classList.toggle('open') ?? false;
     toggle.setAttribute('aria-expanded', String(open));
   });
+
+  // A chat turn runs on the server and carries on while you look at other pages. If this browser
+  // started one that has not finished, say so next to "Chat" and check on it now and then.
+  import { clearActiveRun, loadActiveRun } from '../lib/chat-run';
+
+  const badge = document.querySelector<HTMLElement>('[data-work-badge]');
+  const FINISHED = ['completed', 'failed', 'cancelled', 'interrupted'];
+
+  async function checkRun() {
+    const run = loadActiveRun(localStorage);
+    if (!badge || !run) {
+      if (badge) badge.hidden = true;
+      return false;
+    }
+    try {
+      const res = await fetch(`/api/agent/runs/${encodeURIComponent(run.runId)}`, { credentials: 'same-origin' });
+      if (res.status === 404) {
+        clearActiveRun(localStorage);
+        badge.hidden = true;
+        return false;
+      }
+      const status = res.ok ? await res.json() : null;
+      if (status && FINISHED.includes(status.status)) {
+        // Finished while nobody was watching: keep the entry so the chat page can clear it and show the result.
+        badge.textContent = 'done';
+        badge.dataset.state = 'done';
+        badge.hidden = false;
+        return false;
+      }
+      badge.textContent = status?.status === 'waiting_for_approval' ? 'needs you' : 'working';
+      badge.dataset.state = status?.status === 'waiting_for_approval' ? 'wait' : 'busy';
+      badge.hidden = false;
+      return true;
+    } catch {
+      return true; // offline: keep the last state and try again
+    }
+  }
+
+  if (badge && loadActiveRun(localStorage)) {
+    const tick = async () => {
+      if (await checkRun()) setTimeout(tick, 15_000);
+    };
+    void tick();
+  }
 </script>
 
 <style>
@@ -145,6 +190,42 @@ const groups: { label: string; items: { section: Section; href: string; label: s
 
   .entry:hover {
     background: var(--te-white);
+  }
+
+  .work-badge {
+    margin-left: auto;
+    padding: 2px 6px;
+    font-size: 11px;
+    line-height: 1.2;
+    border: 1px solid var(--te-amber);
+    background: var(--te-amber);
+    color: var(--te-black);
+    animation: work-pulse 1.6s ease-in-out infinite;
+  }
+
+  .work-badge[data-state='done'] {
+    animation: none;
+    background: var(--te-page);
+    border-color: var(--te-black);
+  }
+
+  .work-badge[data-state='wait'] {
+    animation: none;
+    background: var(--te-black);
+    border-color: var(--te-black);
+    color: var(--te-white);
+  }
+
+  @keyframes work-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .work-badge {
+      animation: none;
+    }
   }
 
   .entry[aria-current='page'] {

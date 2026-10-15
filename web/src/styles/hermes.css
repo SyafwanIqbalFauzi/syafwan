@@ -1,5 +1,5 @@
 /*
- * Extra rules for the private /hermes pages. Everything is built from the tokens and
+ * Extra rules for the private /agent pages. Everything is built from the tokens and
  * primitives in global.css (.container, .h1, .label, .muted, .tag, .btn, .arrow-link,
  * .ruled, .prose, .band-dark); this file only adds the few layouts those do not cover.
  */
@@ -410,4 +410,80 @@ a.row:hover {
   .cms-main .container {
     padding-inline: var(--gutter);
   }
+}
+
+/* =====================================================================
+ * Modal dialogs (scripts/dialog.ts): the native <dialog>, in the site's look
+ * ===================================================================== */
+.dlg {
+  width: min(440px, calc(100vw - 32px));
+  padding: var(--s-22);
+  border: 1px solid var(--te-black);
+  border-radius: 0;
+  background: var(--te-page);
+  color: var(--te-black);
+  box-shadow: none;
+}
+
+.dlg::backdrop {
+  background: rgb(15 14 18 / 0.45);
+}
+
+.dlg h2 {
+  margin-bottom: 8px;
+  font-size: 22px;
+  font-weight: var(--w-thin);
+  line-height: 1.2;
+}
+
+.dlg .dlg-message {
+  margin-bottom: var(--s-15);
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.dlg .dlg-field {
+  display: grid;
+  gap: 6px;
+}
+
+.dlg .dlg-field input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-body);
+  background: var(--te-white);
+  border: 1px solid var(--te-grey-200);
+  border-radius: 0;
+  padding: 10px 12px;
+}
+
+.dlg .dlg-field input:focus-visible {
+  outline: 1px solid var(--te-black);
+  outline-offset: 0;
+}
+
+.dlg .dlg-error {
+  min-height: 1.2em;
+  font-size: 12px;
+  color: var(--te-orange);
+}
+
+.dlg .dlg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-15);
+  margin-top: var(--s-15);
+}
+
+.dlg .btn-danger {
+  background: var(--te-orange);
+  border-color: var(--te-orange);
+  color: var(--te-white);
+}
+
+.dlg .btn-danger:hover {
+  background: var(--te-black);
+  border-color: var(--te-black);
 }

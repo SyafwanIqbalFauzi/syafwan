@@ -108,7 +108,7 @@ const counts = {
         failed.length ? (
           <div class="ruled">
             {failed.map((run) => (
-              <a class="row row-feed row-link" href={`/hermes/agents/${run.job_id}?run=${run.execution_id}#result`}>
+              <a class="row row-feed row-link" href={`/agent/agents/${run.job_id}?run=${run.execution_id}#result`}>
                 <span>{formatWhen(run.started_at)}<br /><span class="sub">{relative(run.started_at)}</span></span>
                 <span><StatusTag status="failed" /></span>
                 <span><span class="name" style="font-size: var(--text-body)">{run.job_name}</span><br /><span class="sub">{groupByJob.get(run.job_id)}</span></span>
@@ -125,13 +125,13 @@ const counts = {
     <section class="block" id="upcoming">
       <div class="block-head">
         <h2>Upcoming</h2>
-        <a class="arrow-link" href="/hermes/agents?state=active">all agents</a>
+        <a class="arrow-link" href="/agent/agents?state=active">all agents</a>
       </div>
       {
         upcoming.length ? (
           <div class="ruled">
             {upcoming.map((job) => (
-              <a class="row row-feed row-link" href={`/hermes/agents/${job.job_id}`}>
+              <a class="row row-feed row-link" href={`/agent/agents/${job.job_id}`}>
                 <span>{formatWhen(job.next_run_at)}<br /><span class="sub">{relative(job.next_run_at)}</span></span>
                 <span><span class="tag">{job.kind === 'script' ? 'script' : 'ai'}</span></span>
                 <span></span>
@@ -151,7 +151,7 @@ const counts = {
         recent.length ? (
           <div class="ruled">
             {recent.map((run) => (
-              <a class="row row-feed row-link" href={`/hermes/agents/${run.job_id}?run=${run.execution_id}#result`}>
+              <a class="row row-feed row-link" href={`/agent/agents/${run.job_id}?run=${run.execution_id}#result`}>
                 <span>{formatWhen(run.started_at)}<br /><span class="sub">{relative(run.started_at)}</span></span>
                 <span><StatusTag status="completed" label="done" /></span>
                 <span><span class="name" style="font-size: var(--text-body)">{run.job_name}</span><br /><span class="sub">{groupByJob.get(run.job_id)}</span></span>

@@ -1,6 +1,6 @@
 // Enable/disable a skill and edit its instructions. Neither touches Hermes directly: the page
 // records a request, then waits while the VPS applies it (usually within a minute) and reports
-// what happened. See pages/api/hermes/skills/[name]/{enabled,content}.ts and apply_skill_changes.py.
+// what happened. See pages/api/agent/skills/[name]/{enabled,content}.ts and apply_skill_changes.py.
 export {};
 
 const banner = document.querySelector<HTMLElement>('[data-change-banner]');
@@ -19,7 +19,7 @@ const say = (text: string, error = false) => {
 async function post(url: string, body: unknown): Promise<{ id?: number; unchanged?: boolean }> {
   const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin' });
   if (res.status === 401) {
-    location.href = '/hermes/login';
+    location.href = '/agent/login';
     throw new Error('signed out');
   }
   const data = await res.json().catch(() => null);
@@ -33,9 +33,9 @@ async function waitForApply(id: number): Promise<string> {
   say('Sent. Waiting for Hermes to apply it (a few seconds, up to two minutes)…');
   while (Date.now() - started < GIVE_UP_MS) {
     await new Promise((r) => setTimeout(r, POLL_MS));
-    const res = await fetch(`/api/hermes/skill-changes/${id}`, { credentials: 'same-origin' });
+    const res = await fetch(`/api/agent/skill-changes/${id}`, { credentials: 'same-origin' });
     if (res.status === 401) {
-      location.href = '/hermes/login';
+      location.href = '/agent/login';
       throw new Error('signed out');
     }
     const row = await res.json().catch(() => null);
@@ -77,7 +77,7 @@ toggle?.addEventListener('click', () => {
       ];
   if (!confirm(lines.filter(Boolean).join('\n'))) return;
   void run(toggle, async () => {
-    const res = await post(`/api/hermes/skills/${encodeURIComponent(skill)}/enabled`, { enabled: enable });
+    const res = await post(`/api/agent/skills/${encodeURIComponent(skill)}/enabled`, { enabled: enable });
     return res.unchanged ? null : (res.id ?? null);
   });
 });
@@ -91,7 +91,7 @@ editor?.addEventListener('submit', (event) => {
   }
   if (!confirm('Save these changes to the skill?\n\nAgents that use it follow the new instructions from their next run. The previous version is kept as a backup on the server.')) return;
   void run(null, async () => {
-    const res = await post(`/api/hermes/skills/${encodeURIComponent(editor.dataset.skill!)}/content`, { content: area.value, base_hash: editor.dataset.baseHash });
+    const res = await post(`/api/agent/skills/${encodeURIComponent(editor.dataset.skill!)}/content`, { content: area.value, base_hash: editor.dataset.baseHash });
     return res.id ?? null;
   });
 });

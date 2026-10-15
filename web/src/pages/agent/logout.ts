@@ -7,5 +7,5 @@ export const prerender = false;
 export const POST: APIRoute = async ({ cookies, locals, redirect }) => {
   audit('logout', { user: locals.hermesUser?.email });
   await clearSession(cookies);
-  return redirect('/hermes/login', 303);
+  return redirect('/agent/login', 303);
 };

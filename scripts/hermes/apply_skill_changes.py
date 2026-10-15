@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""apply_skill_changes.py -- apply skill change requests made on the website (syafwan.com/hermes/skills).
+"""apply_skill_changes.py -- apply skill change requests made on the website (syafwan.com/agent/skills).
 
 Runs as a no-agent cron job every minute. The website never touches this machine: it only adds
 requests to Directus (`skill_changes`). This script PULLS pending requests, re-validates each one

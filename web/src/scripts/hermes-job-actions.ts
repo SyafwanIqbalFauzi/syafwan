@@ -1,5 +1,5 @@
 // Run now / pause / resume / delete on an agent's detail page. All calls go through the
-// allowlisted /api/hermes/jobs/* proxy; the page reloads afterwards to show the new state.
+// allowlisted /api/agent/jobs/* proxy; the page reloads afterwards to show the new state.
 
 export {}; // makes this file a module so its top-level names stay local
 const box = document.querySelector<HTMLElement>('[data-job]');
@@ -19,21 +19,21 @@ if (box) {
     if (statusEl) statusEl.textContent = action === 'run' ? 'starting…' : 'working…';
 
     try {
-      const res = await fetch(action === 'delete' ? `/api/hermes/jobs/${id}` : `/api/hermes/jobs/${id}/${action}`, {
+      const res = await fetch(action === 'delete' ? `/api/agent/jobs/${id}` : `/api/agent/jobs/${id}/${action}`, {
         method: action === 'delete' ? 'DELETE' : 'POST',
         headers: action === 'delete' ? undefined : { 'Content-Type': 'application/json' },
         body: action === 'delete' ? undefined : '{}',
         credentials: 'same-origin',
       });
       if (res.status === 401) {
-        location.href = '/hermes/login';
+        location.href = '/agent/login';
         return;
       }
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.error?.message ?? data?.error ?? `Request failed (${res.status})`);
       }
-      if (action === 'delete') location.href = '/hermes/agents';
+      if (action === 'delete') location.href = '/agent/agents';
       else if (action === 'run' && statusEl) {
         statusEl.textContent = 'started: the result appears here within a few minutes';
         buttons.forEach((b) => (b.disabled = false));
@@ -45,7 +45,7 @@ if (box) {
   });
 }
 
-// Group field on the detail page: saved through /api/hermes/agents/<id>/group (Directus, not Hermes).
+// Group field on the detail page: saved through /api/agent/agents/<id>/group (Directus, not Hermes).
 const groupForm = document.querySelector<HTMLFormElement>('[data-group-form]');
 const groupStatus = document.querySelector<HTMLElement>('[data-group-status]');
 
@@ -59,14 +59,14 @@ groupForm?.addEventListener('submit', async (event) => {
   }
   if (groupStatus) groupStatus.textContent = 'saving…';
   try {
-    const res = await fetch(`/api/hermes/agents/${id}/group`, {
+    const res = await fetch(`/api/agent/agents/${id}/group`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ group: value }),
       credentials: 'same-origin',
     });
     if (res.status === 401) {
-      location.href = '/hermes/login';
+      location.href = '/agent/login';
       return;
     }
     const data = await res.json().catch(() => null);

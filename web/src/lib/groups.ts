@@ -1,4 +1,4 @@
-// Agent groups on /hermes/agents. The VPS sync gives every job a first group; after that the
+// Agent groups on /agent/agents. The VPS sync gives every job a first group; after that the
 // group is edited on the website and the sync leaves it alone.
 
 export const UNGROUPED = 'Ungrouped';

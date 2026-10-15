@@ -3,7 +3,7 @@
 
 Runs as a no-agent cron job (no LLM, no tokens) every few minutes. For every cron run that
 has a result (or failed) it stores one row in `agent_runs`, and it keeps `agent_jobs` in step
-with ~/.hermes/cron/jobs.json, so https://syafwan.com/hermes/agents can show agents, models,
+with ~/.hermes/cron/jobs.json, so https://syafwan.com/agent/agents can show agents, models,
 skills and the history of their results. Discord/Telegram delivery is untouched.
 
 Where the data comes from

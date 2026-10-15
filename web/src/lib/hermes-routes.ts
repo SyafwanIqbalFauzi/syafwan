@@ -1,4 +1,4 @@
-// Allowlist of Hermes API endpoints reachable through /api/hermes/*. The browser
+// Allowlist of Hermes API endpoints reachable through /api/agent/*. The browser
 // never talks to Hermes directly and never picks the upstream path: every request
 // is matched against this table, so the proxy cannot be used to reach anything else
 // (the Hermes API server can run terminal commands).
@@ -50,12 +50,20 @@ const RULES: Rule[] = [
     stream: true,
   },
 
+  // A chat turn is a run: it keeps going on the server without any browser attached, and a browser
+  // can attach (again) to watch it. Runs are STARTED only by pages/api/agent/runs/index.ts, which
+  // validates the body; here a run can only be read, watched, stopped or answered.
+  { method: 'GET', pattern: new RegExp(`^runs/${ID}$`), build: (m) => `/v1/runs/${m[1]}` },
+  {
+    method: 'GET',
+    pattern: new RegExp(`^runs/${ID}/events$`),
+    build: (m) => `/v1/runs/${m[1]}/events`,
+    stream: true,
+  },
   { method: 'POST', pattern: new RegExp(`^runs/${ID}/stop$`), build: (m) => `/v1/runs/${m[1]}/stop` },
   { method: 'POST', pattern: new RegExp(`^runs/${ID}/approval$`), build: (m) => `/v1/runs/${m[1]}/approval` },
 
-  // Jobs are created and edited only through dedicated, validated routes (see pages/api/hermes/agents/[id]/settings.ts),
-  // never by forwarding arbitrary JSON to Hermes.
-  // Jobs are created/edited only through dedicated, validated routes (pages/api/hermes/agents/[id]/settings.ts),
+  // Jobs are created and edited only through dedicated, validated routes (pages/api/agent/agents/[id]/settings.ts),
   // never by forwarding arbitrary JSON to Hermes.
   { method: 'GET', pattern: /^jobs$/, build: () => '/api/jobs' },
   { method: 'GET', pattern: new RegExp(`^jobs/${ID}$`), build: (m) => `/api/jobs/${m[1]}` },
@@ -63,7 +71,7 @@ const RULES: Rule[] = [
   { method: 'POST', pattern: new RegExp(`^jobs/${ID}/(pause|resume|run)$`), build: (m) => `/api/jobs/${m[1]}/${m[2]}` },
 ];
 
-/** `path` is the part after `/api/hermes/`, without a leading or trailing slash. */
+/** `path` is the part after `/api/agent/`, without a leading or trailing slash. */
 export function resolveHermesRoute(method: string, path: string): HermesRoute | null {
   const verb = method.toUpperCase();
   for (const rule of RULES) {

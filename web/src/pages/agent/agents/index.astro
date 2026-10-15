@@ -112,7 +112,7 @@ const syncedAt = jobs.map((j) => j.synced_at).filter(Boolean).sort().at(-1);
               const last = lastRun.get(job.job_id);
               const s = stateOf(job);
               return (
-                <a class="row row-agent row-link" href={`/hermes/agents/${job.job_id}`}>
+                <a class="row row-agent row-link" href={`/agent/agents/${job.job_id}`}>
                   <div>
                     <p class="name">{job.name}</p>
                     <div class="chips" style="margin-top: 6px">

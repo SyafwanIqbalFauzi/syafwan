@@ -1,4 +1,4 @@
-// Directus side of the /hermes agent history (see sync_agent_runs.py on the VPS):
+// Directus side of the /agent area history (see sync_agent_runs.py on the VPS):
 //   1. collections `agent_runs` and `agent_jobs`
 //   2. a "Hermes Sync" policy that may only read/create/update those two collections
 //   3. a user "hermes-sync" whose static token the VPS script uses

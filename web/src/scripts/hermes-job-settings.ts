@@ -83,14 +83,14 @@ if (form) {
     buttons.forEach((b) => (b.disabled = true));
     statusEl.textContent = 'saving…';
     try {
-      const res = await fetch(`/api/hermes/agents/${id}/settings`, {
+      const res = await fetch(`/api/agent/agents/${id}/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
         credentials: 'same-origin',
       });
       if (res.status === 401) {
-        location.href = '/hermes/login';
+        location.href = '/agent/login';
         return;
       }
       const data = await res.json().catch(() => null);

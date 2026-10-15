@@ -1,4 +1,4 @@
-// Login for the private /hermes area. Credentials are Directus accounts (so 2FA,
+// Login for the private /agent area. Credentials are Directus accounts (so 2FA,
 // password policy and reset live in one place), but the login page is our own and
 // the browser never talks to Directus: the server exchanges the credentials and
 // keeps the resulting tokens in httpOnly cookies.

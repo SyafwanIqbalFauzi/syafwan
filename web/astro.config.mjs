@@ -10,7 +10,7 @@ export default defineConfig({
     locales: ['en', 'id'],
     defaultLocale: 'en',
     // Manual: Astro's automatic mode 404s every page outside /en and /id, which would
-    // block the private /hermes area. Public pages validate `lang` themselves
+    // block the private /agent area. Public pages validate `lang` themselves
     // (`isLocale` → rewrite to /404) and `/` is handled by src/pages/index.astro.
     routing: 'manual',
   },

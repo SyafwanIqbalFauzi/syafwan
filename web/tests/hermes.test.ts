@@ -21,6 +21,15 @@ test('route allowlist maps known endpoints', () => {
   assert.equal(resolveHermesRoute('get', 'models')?.target, '/api/model/options');
 });
 
+test('runs can be read, watched, stopped and answered, but not started through the proxy', () => {
+  assert.deepEqual(resolveHermesRoute('GET', 'runs/run_ab12'), { target: '/v1/runs/run_ab12', stream: false, render: false });
+  assert.deepEqual(resolveHermesRoute('GET', 'runs/run_ab12/events'), { target: '/v1/runs/run_ab12/events', stream: true, render: false });
+  assert.equal(resolveHermesRoute('POST', 'runs/run_ab12/stop')?.target, '/v1/runs/run_ab12/stop');
+  assert.equal(resolveHermesRoute('POST', 'runs/run_ab12/approval')?.target, '/v1/runs/run_ab12/approval');
+  assert.equal(resolveHermesRoute('POST', 'runs'), null); // started only by the validated route
+  assert.equal(resolveHermesRoute('DELETE', 'runs/run_ab12'), null);
+});
+
 test('route allowlist rejects everything else', () => {
   assert.equal(resolveHermesRoute('GET', 'v1/chat/completions'), null);
   assert.equal(resolveHermesRoute('DELETE', 'sessions'), null);

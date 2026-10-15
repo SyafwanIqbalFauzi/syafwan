@@ -9,7 +9,7 @@ export type { HermesRoute };
 export const MAX_BODY_BYTES = 256 * 1024;
 const REQUEST_TIMEOUT_MS = 30_000;
 // Query parameters that may be forwarded (list/pagination only).
-const FORWARDED_QUERY = ['limit', 'offset', 'source', 'include_children', 'include_compacted', 'inline_images'];
+const FORWARDED_QUERY = ['limit', 'offset', 'source', 'include_children', 'include_compacted', 'inline_images', 'last_seq'];
 
 export const isConfigured = (): boolean => Boolean(HERMES_API_KEY);
 

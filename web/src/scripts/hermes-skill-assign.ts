@@ -1,5 +1,5 @@
 // Add a skill to an agent / remove it, from the skill's detail page. Goes through
-// /api/hermes/skills/<name>/assign, which changes only the agent's skills list in Hermes.
+// /api/agent/skills/<name>/assign, which changes only the agent's skills list in Hermes.
 
 export {}; // makes this file a module so its top-level names stay local
 const list = document.querySelector<HTMLElement>('[data-skill]');
@@ -8,14 +8,14 @@ const skill = (list ?? attach)?.dataset.skill;
 const statusEl = attach?.querySelector<HTMLElement>('[data-assign-status]') ?? null;
 
 async function assign(jobId: string, action: 'add' | 'remove'): Promise<void> {
-  const res = await fetch(`/api/hermes/skills/${encodeURIComponent(skill!)}/assign`, {
+  const res = await fetch(`/api/agent/skills/${encodeURIComponent(skill!)}/assign`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ job_id: jobId, action }),
     credentials: 'same-origin',
   });
   if (res.status === 401) {
-    location.href = '/hermes/login';
+    location.href = '/agent/login';
     return;
   }
   const data = await res.json().catch(() => null);

@@ -1,5 +1,5 @@
 ---
-// Page shell for every /hermes page: a plain CMS layout (sidebar on the left, content on the
+// Page shell for every /agent page: a plain CMS layout (sidebar on the left, content on the
 // right). Colours, type and spacing come from the public site's design tokens (global.css);
 // only the structure differs from the public pages. Never loads Directus content, never indexed.
 import '@fontsource-variable/inter';
@@ -38,7 +38,7 @@ const email = Astro.locals.hermesUser?.email;
     {
       bare ? (
         <main id="main" class="cms-bare">
-          <p class="cms-brand"><a href="/hermes">syafwan <span>/ agents</span></a></p>
+          <p class="cms-brand"><a href="/agent">syafwan <span>/ agents</span></a></p>
           <slot />
         </main>
       ) : (

@@ -74,7 +74,7 @@ const all = pages
     <div class="ruled">
       {
         all.map((s) => (
-          <a class="row row-session row-link" href={s.source === 'cron' ? undefined : `/hermes/chat?session=${s.id}`}>
+          <a class="row row-session row-link" href={s.source === 'cron' ? undefined : `/agent/chat?session=${s.id}`}>
             <div>
               <p class="name">{s.title || s.preview || s.id}</p>
               <p class="sub">{s.preview && s.preview !== s.title ? s.preview.slice(0, 140) : ''}</p>

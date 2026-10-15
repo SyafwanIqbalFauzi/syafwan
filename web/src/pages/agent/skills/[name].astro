@@ -46,7 +46,7 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
 
 <HermesShell title={name} current="skills">
   <div class="container page">
-    <p class="label muted"><a class="link" href="/hermes/skills">← skills</a></p>
+    <p class="label muted"><a class="link" href="/agent/skills">← skills</a></p>
     <div class="page-head" style="margin-top: 12px">
       <h1 class="h1">{name}</h1>
       <div class="chips">
@@ -98,7 +98,7 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
               {
                 users.map((u) => (
                   <div class="row row-use">
-                    <a class="name" style="font-size: var(--text-body)" href={`/hermes/agents/${u.job_id}`}>{u.name}</a>
+                    <a class="name" style="font-size: var(--text-body)" href={`/agent/agents/${u.job_id}`}>{u.name}</a>
                     <button type="button" class="act danger" data-assign="remove" data-job={u.job_id} data-job-name={u.name}>remove</button>
                   </div>
                 ))

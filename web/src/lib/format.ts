@@ -1,4 +1,4 @@
-// Small display helpers shared by the /hermes pages. Clock times are shown in WIB (Asia/Jakarta)
+// Small display helpers shared by the /agent pages. Clock times are shown in WIB (Asia/Jakarta)
 // and always say so ("15 Oct 11:00 WIB"), so no page needs a separate timezone note.
 
 const TZ = 'Asia/Jakarta';

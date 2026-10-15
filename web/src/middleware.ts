@@ -1,7 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { authenticate } from './lib/auth';
 
-const isPrivate = (path: string) => path === '/hermes' || path.startsWith('/hermes/') || path.startsWith('/api/hermes/');
+const isPrivate = (path: string) => path === '/agent' || path.startsWith('/agent/') || path.startsWith('/api/agent/');
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 const json = (status: number, error: string) =>
@@ -20,6 +20,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const siteOrigin = (context.site ?? new URL(context.url.origin)).origin;
   const secure = siteOrigin.startsWith('https:');
 
+  // The area used to live under /hermes. Keep old bookmarks and links working (308 keeps the method too).
+  if (pathname === '/hermes' || pathname.startsWith('/hermes/')) {
+    return context.redirect(`/agent${pathname.slice('/hermes'.length)}${context.url.search}`, 308);
+  }
+
   // Applies site-wide. Astro's own check is off (see astro.config.mjs).
   if (!SAFE_METHODS.has(context.request.method) && !sameOrigin(context.request.headers.get('origin'), siteOrigin)) {
     return json(403, 'Cross-origin request blocked');
@@ -27,11 +32,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (isPrivate(pathname)) {
     const isApi = pathname.startsWith('/api/');
-    const isLogin = pathname === '/hermes/login';
+    const isLogin = pathname === '/agent/login';
 
     if (!isLogin) {
       const session = await authenticate(context.cookies, secure);
-      if (!session) return isApi ? json(401, 'Not signed in') : context.redirect('/hermes/login', 302);
+      if (!session) return isApi ? json(401, 'Not signed in') : context.redirect('/agent/login', 302);
       context.locals.hermesUser = session.user;
       context.locals.hermesToken = session.access;
     }
