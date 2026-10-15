@@ -1,80 +1,71 @@
 # syafwan
 
-Personal website of Syafwan Iqbal Fauzi: an Astro (SSR) frontend reading from a Directus CMS.
+The source of **[syafwan.com](https://syafwan.com)**: my personal website, plus a private dashboard
+for the AI assistants I run.
+
+It has two parts.
+
+## 1. Personal website
+
+A bilingual (English / Bahasa Indonesia) portfolio:
+
+- **Work**: products and client projects I have built or led
+- **About**: experience, skills and how I work
+- **Writing**: articles on product management, agile and applied AI
+
+All content lives in a CMS, so I can edit it without touching code, and changes show up on the
+site within a minute.
+
+## 2. Hermes dashboard
+
+A private area of the site, only for me, behind a sign-in. It is the control room for
+[Hermes](https://github.com/NousResearch/hermes-agent), the open-source AI agent that runs my
+scheduled assistants, for example watching match schedules, researching data, keeping notes in
+sync and sending weekly summaries.
+
+From the dashboard I can:
+
+- **Chat** with Hermes from the browser
+- **See my agents**: what each one does, which model and skills it uses, when it runs next and
+  what it produced the last time, grouped by project
+- **Read the history of results** of every agent run, not only the latest message in a chat app
+- **Run, pause or resume** an agent
+- **Check the overview**: health, recent failures and what is coming up
+- **Browse conversations** from the web, Telegram and Discord, and **keep an eye on usage**
+
+The dashboard is not public and the repository contains no credentials or private data.
+
+## Built with
+
+- [Astro](https://astro.build) for the website and dashboard
+- [Directus](https://directus.io) as the CMS
+- Docker for running everything
+- GitHub Actions for building and publishing
+
+The design follows the clean, thin-type look of [teenage.engineering](https://teenage.engineering).
+
+## Repository
 
 ```
-web/                    Astro app (output: server, @astrojs/node)
-cms/                    Directus schema (schema/snapshot.yaml) + setup scripts
-scripts/import-brains/  One-time importer: Obsidian vault -> Directus REST API
+web/       the website and the dashboard
+cms/       CMS setup (data model and helper scripts)
+scripts/   small helper scripts, including the one that syncs agent results
 ```
 
-## Database
+## Running it locally
 
-Directus uses **Supabase Postgres** (session pooler). Connection settings are read from `.env`
-(`SUPABASE_DB_*`). `docker-compose.supabase.yml` overrides the Directus service to use them.
-The local Postgres in `docker-compose.dev.yml` is kept as an offline copy (`npm run cms:local-db`)
-but Directus does not use it by default. Uploaded files are still on `cms/uploads/` (local volume).
-
-## Local development
-
-Requirements: Node 22+, Docker.
+You need Node 22+ and Docker.
 
 ```bash
-cp .env.example .env        # fill in random secrets + admin email/password
+cp .env.example .env     # then fill in your own values
 npm install
-npm run cms:up              # Postgres + Directus at http://localhost:8055/admin
-npm run cms:apply           # create collections from cms/schema/snapshot.yaml
-npm run cms:bootstrap       # languages, read permissions, web-reader token -> .env
-npm run dev                 # Astro at http://localhost:4321
+npm run cms:up           # start the CMS
+npm run dev              # open http://localhost:4321
 ```
 
-`cms:bootstrap` is idempotent; re-run it any time.
+The public website works with just this. The dashboard also needs a running Hermes instance, so
+it will show empty pages without one.
 
-## Importing content (one-time)
+## Author
 
-Content was imported once from the Obsidian vault; Directus is the source of truth afterwards.
-
-```bash
-npm run import -- --dry-run --out payload.json   # parse the vault, review the payload
-npm run import                                   # create missing items (never overwrites)
-npm run import:translations -- file.json         # add id-ID translations to existing items
-```
-
-Set `BRAINS_DIR` to point at the vault (default `G:/My Drive/[999] Brains`) and
-`DIRECTUS_URL` to choose the target instance. Translation files are working files and are not committed.
-
-## Changing the schema
-
-1. Edit collections/fields in the Directus UI (local).
-2. `npm run cms:snapshot` to write `cms/schema/snapshot.yaml`.
-3. Commit the snapshot. Other environments run `npm run cms:apply`.
-
-`cms/init-schema.mjs` generated the very first schema on an empty Directus and is kept
-for reference only. The snapshot is the source of truth.
-
-## Scripts
-
-| Script | What it does |
-|---|---|
-| `npm run dev` | Astro dev server |
-| `npm run build` | Production build of `web/` |
-| `npm run cms:up` / `cms:down` | Start / stop the local Directus stack |
-| `npm run cms:logs` | Follow Directus logs |
-| `npm run cms:snapshot` | Export the schema to `cms/schema/snapshot.yaml` |
-| `npm run cms:apply` | Apply the snapshot, then restart Directus so it reloads its schema cache |
-| `npm run cms:bootstrap` | Seed languages, Public + Web Reader read permissions, web-reader token |
-| `npm run import` | Import the Obsidian vault (`--dry-run` to only parse) |
-| `npm run import:translations` | Apply a translations JSON (default `id-ID`) |
-
-## Frontend
-
-- Pages live in `web/src/pages/[lang]/` (`en`, `id`); `/` redirects by cookie or `Accept-Language`.
-- Data comes from Directus at request time, cached in memory for 60s (`web/src/lib/directus.ts`), so edits
-  appear within a minute without a rebuild.
-- Design tokens (teenage.engineering-inspired) are CSS variables in `web/src/styles/global.css`; components use scoped `<style>`.
-
-## Access model
-
-- Only published rows are readable without login (`status = published`); translations follow their parent's status.
-- The Astro server uses the static token of the `web-reader` user (read-only, same rules as Public).
-- `DIRECTUS_TOKEN` and other secrets are read at runtime through `astro:env`, never inlined into the build.
+Syafwan Iqbal Fauzi · [syafwan.com](https://syafwan.com)
