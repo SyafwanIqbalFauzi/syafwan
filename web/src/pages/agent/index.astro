@@ -2,7 +2,9 @@
 import HermesShell from '../../layouts/HermesShell.astro';
 import FilterBar from '../../components/FilterBar.astro';
 import StatusTag from '../../components/StatusTag.astro';
-import { readItems, type AgentJob, type AgentRun } from '../../lib/directus-user';
+import ClaudeUsage from '../../components/ClaudeUsage.astro';
+import { usageView } from '../../lib/claude-usage';
+import { readItems, type AgentJob, type AgentRun, type ClaudeUsageRow } from '../../lib/directus-user';
 import { hermesGet } from '../../lib/hermes';
 import { compact, formatWhen, relative } from '../../lib/format';
 import { orderGroups, UNGROUPED } from '../../lib/groups';
@@ -16,10 +18,12 @@ const weekAgo = new Date(Date.now() - 7 * 86_400_000).toISOString();
 const groupFilter = Astro.url.searchParams.get('group');
 
 // Jobs first: the group filter works through the jobs that belong to the chosen group.
-const [health, jobsResult] = await Promise.all([
+const [health, jobsResult, usageResult] = await Promise.all([
   hermesGet<Record<string, any>>('/health/detailed'),
   readItems<AgentJob>(token, 'agent_jobs', { limit: -1 }).catch(() => null),
+  readItems<ClaudeUsageRow>(token, 'claude_usage', { limit: -1 }).catch(() => null),
 ]);
+const plan = usageView(usageResult?.data);
 
 const allJobs = (jobsResult?.data ?? []).filter((j) => j.state !== 'removed');
 const groupOf = (j: AgentJob) => j.agent_group || UNGROUPED;
@@ -98,6 +102,8 @@ const counts = {
         )
       }
     </section>
+
+    <ClaudeUsage view={plan} />
 
     <section class="block" id="failures">
       <div class="block-head">

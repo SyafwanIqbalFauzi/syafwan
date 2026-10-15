@@ -1,0 +1,80 @@
+---
+// Claude plan usage: how much of the 5-hour and weekly limits has been used, and when they reset.
+// The numbers are read on the VPS every few minutes; everything is a percentage, nothing sensitive.
+import { formatWhen, relative } from '../lib/format';
+import type { UsageView } from '../lib/claude-usage';
+
+interface Props {
+  view: UsageView | null;
+}
+const { view } = Astro.props;
+---
+
+<section class="block" id="claude-usage">
+  <div class="block-head">
+    <h2>Claude plan</h2>
+    {view?.checkedAt && <p class="label muted">checked {relative(view.checkedAt)}</p>}
+  </div>
+
+  {
+    view ? (
+      <>
+        {view.stale && (
+          <p class="notice" role="status">
+            These numbers were last refreshed {relative(view.checkedAt)} and may be out of date.
+          </p>
+        )}
+        <div class="meters">
+          {view.windows.map((w) => (
+            <div class="meter" data-level={w.level}>
+              <div class="meter-head">
+                <span class="name" style="font-size: var(--text-body)">{w.label}</span>
+                <span class="num">{Math.round(w.percent)}% used</span>
+              </div>
+              <div class="bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.round(w.percent)} aria-label={w.label}>
+                <span style={`width: ${Math.max(1, w.percent)}%`}></span>
+              </div>
+              <p class="sub">
+                {w.rolledOver ? 'this window has reset; waiting for fresh numbers' : `resets ${w.resetsIn} · ${formatWhen(w.resetsAt)}`}
+              </p>
+            </div>
+          ))}
+        </div>
+      </>
+    ) : (
+      <p class="empty">Usage of the Claude plan is not available yet.</p>
+    )
+  }
+</section>
+
+<style is:global>
+  .meters {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--s-22);
+  }
+
+  .meter-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s-15);
+    margin-bottom: 6px;
+  }
+
+  .meter .bar {
+    height: 14px;
+  }
+
+  .meter[data-level='warning'] .bar > span {
+    background: var(--te-amber);
+  }
+
+  .meter[data-level='critical'] .bar > span {
+    background: var(--te-orange);
+  }
+
+  .meter .sub {
+    margin-top: 6px;
+  }
+</style>

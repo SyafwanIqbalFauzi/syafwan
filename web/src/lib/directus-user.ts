@@ -67,6 +67,15 @@ export interface SkillChange {
   result: string | null;
 }
 
+export interface ClaudeUsageRow {
+  id: number;
+  window: string;
+  percent: number | null;
+  severity: string | null;
+  resets_at: string | null;
+  checked_at: string | null;
+}
+
 export class DirectusReadError extends Error {
   status: number;
   constructor(message: string, status: number) {
@@ -76,7 +85,7 @@ export class DirectusReadError extends Error {
 }
 
 /** `params` are Directus query params, e.g. `{ 'filter[job_id][_eq]': 'abc', sort: '-started_at' }`. */
-export async function readItems<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills' | 'skill_changes', params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
+export async function readItems<T>(token: string, collection: 'agent_runs' | 'agent_jobs' | 'agent_skills' | 'skill_changes' | 'claude_usage', params: Record<string, string | number>): Promise<{ data: T[]; total: number | null }> {
   const query = new URLSearchParams({ meta: 'filter_count', ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])) });
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}?${query}`, {
     headers: { Authorization: `Bearer ${token}` },

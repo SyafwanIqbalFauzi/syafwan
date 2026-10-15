@@ -1,6 +1,9 @@
 ---
 import HermesShell from '../../layouts/HermesShell.astro';
 import FilterBar from '../../components/FilterBar.astro';
+import ClaudeUsage from '../../components/ClaudeUsage.astro';
+import { usageView } from '../../lib/claude-usage';
+import { readItems, type ClaudeUsageRow } from '../../lib/directus-user';
 import { hermesGet } from '../../lib/hermes';
 import { compact, dayKey, modelLabel, usd } from '../../lib/format';
 
@@ -18,6 +21,8 @@ interface Session {
   estimated_cost_usd: number | null;
   actual_cost_usd: number | null;
 }
+
+const plan = usageView((await readItems<ClaudeUsageRow>(Astro.locals.hermesToken!, 'claude_usage', { limit: -1 }).catch(() => null))?.data);
 
 const asked = Number(Astro.url.searchParams.get('range'));
 const range = [7, 30, 90].includes(asked) ? asked : 30;
@@ -70,6 +75,8 @@ const sources = [...bySource].sort((a, b) => b[1].cost - a[1].cost);
       <h1 class="h1">Usage</h1>
       <p class="label muted">newest sessions first</p>
     </div>
+
+    <ClaudeUsage view={plan} />
 
     <FilterBar
       selects={[
