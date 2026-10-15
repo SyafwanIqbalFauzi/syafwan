@@ -25,7 +25,7 @@ interface Tokens {
   expiresIn: number;
 }
 
-export type LoginResult = { ok: true; user: HermesUser; tokens: Tokens } | { ok: false; reason: 'invalid' | 'unavailable' };
+export type LoginResult = { ok: true; user: HermesUser; tokens: Tokens } | { ok: false; reason: 'invalid' | 'otp' | 'unavailable' };
 
 async function directusJson(path: string, init: RequestInit): Promise<{ status: number; body: any }> {
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}${path}`, {
@@ -74,7 +74,12 @@ export async function login(email: string, password: string, otp: string): Promi
     });
     if (status >= 500) return { ok: false, reason: 'unavailable' };
     const tokens = status === 200 ? toTokens(body?.data) : null;
-    if (!tokens) return { ok: false, reason: 'invalid' };
+    if (!tokens) {
+      // Directus answers INVALID_OTP only after the password was accepted, and it says so on its
+      // own public /auth/login too, so naming it here gives away nothing new and saves a lot of guessing.
+      const code = body?.errors?.[0]?.extensions?.code;
+      return { ok: false, reason: code === 'INVALID_OTP' ? 'otp' : 'invalid' };
+    }
     const user = await whoami(tokens.access);
     if (!user) {
       // Valid Directus account, but not allowed in here: drop the session we just opened.

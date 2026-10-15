@@ -1,0 +1,135 @@
+---
+// Filter bar for list pages: one dropdown per filter, an optional search box, and a reset
+// link. A plain GET form, so every filter state is a shareable URL; dropdowns submit as soon
+// as they change (no apply button needed), the search box on Enter.
+export interface FilterSelect {
+  name: string;
+  label: string;
+  /** Currently selected value; null/'' means "all". */
+  value: string | null;
+  /** Text of the empty ("no filter") option. */
+  all?: string;
+  options: { value: string; label: string }[];
+}
+
+interface Props {
+  selects: FilterSelect[];
+  search?: { name: string; value: string; placeholder: string };
+  /** Where "reset" goes (the page without any query). Omit to hide the link. */
+  resetHref?: string;
+}
+const { selects, search, resetHref } = Astro.props;
+const active = selects.some((s) => s.value) || Boolean(search?.value);
+---
+
+<form class="filterbar" method="get" data-filterbar>
+  {
+    selects.map((select) => (
+      <label class="fb-field">
+        <span class="fb-label">{select.label}</span>
+        <select name={select.name} class="fb-select" data-active={select.value ? 'true' : undefined}>
+          <option value="">{select.all ?? 'All'}</option>
+          {select.options.map((option) => (
+            <option value={option.value} selected={option.value === select.value}>{option.label}</option>
+          ))}
+        </select>
+      </label>
+    ))
+  }
+  {
+    search && (
+      <label class="fb-field fb-grow">
+        <span class="fb-label">Search</span>
+        <input class="fb-input" type="search" name={search.name} value={search.value} placeholder={search.placeholder} />
+      </label>
+    )
+  }
+  <noscript><button type="submit" class="btn">apply</button></noscript>
+  {resetHref && active && <a href={resetHref} class="fb-reset">reset</a>}
+</form>
+
+<script>
+  document.querySelectorAll<HTMLFormElement>('[data-filterbar]').forEach((form) => {
+    form.querySelectorAll('select').forEach((select) => select.addEventListener('change', () => form.requestSubmit()));
+    // Keep URLs clean: empty filters are not sent at all.
+    form.addEventListener('submit', () => {
+      form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('select, input[type="search"]').forEach((field) => {
+        if (!field.value) field.disabled = true;
+      });
+    });
+  });
+</script>
+
+<style is:global>
+  .filterbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--s-15);
+    margin-bottom: var(--s-15);
+    padding: var(--s-15);
+    background: var(--te-white);
+    border: 1px solid var(--te-grey-100);
+  }
+
+  .fb-field {
+    display: grid;
+    gap: 4px;
+    min-width: 160px;
+  }
+
+  .fb-grow {
+    flex: 1;
+    min-width: 220px;
+  }
+
+  .fb-label {
+    font-size: 12px;
+    color: var(--te-grey-600);
+  }
+
+  .fb-select,
+  .fb-input {
+    font: inherit;
+    font-size: var(--text-caption);
+    color: var(--te-black);
+    background: var(--te-page);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 8px 10px;
+    min-height: 36px;
+  }
+
+  .fb-select {
+    cursor: pointer;
+  }
+
+  .fb-select[data-active='true'] {
+    border-color: var(--te-black);
+  }
+
+  .fb-select:focus-visible,
+  .fb-input:focus-visible {
+    outline: 1px solid var(--te-black);
+    outline-offset: 0;
+  }
+
+  .fb-reset {
+    align-self: center;
+    font-size: var(--text-caption);
+    color: var(--te-blue);
+    padding-top: 16px;
+  }
+
+  .fb-reset:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  @media (max-width: 599px) {
+    .fb-field,
+    .fb-grow {
+      flex: 1 1 100%;
+    }
+  }
+</style>

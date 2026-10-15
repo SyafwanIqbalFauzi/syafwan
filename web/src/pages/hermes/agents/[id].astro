@@ -4,6 +4,7 @@ import StatusTag from '../../../components/StatusTag.astro';
 import { readItem, readItems, type AgentJob, type AgentRun } from '../../../lib/directus-user';
 import { hermesGet } from '../../../lib/hermes';
 import { duration, formatWhen, modelLabel, relative } from '../../../lib/format';
+import { orderGroups, UNGROUPED } from '../../../lib/groups';
 import { renderMarkdown } from '../../../lib/markdown';
 import { humanizeSchedule } from '../../../lib/schedule';
 
@@ -22,6 +23,7 @@ let snapshot: AgentJob | null = null;
 let runs: Omit<AgentRun, 'response_md'>[] = [];
 let total = 0;
 let selected: AgentRun | null = null;
+let knownGroups: string[] = [];
 try {
   snapshot = await readItem<AgentJob>(token, 'agent_jobs', { 'filter[job_id][_eq]': id });
   const list = await readItems<Omit<AgentRun, 'response_md'>>(token, 'agent_runs', {
@@ -35,6 +37,8 @@ try {
   total = list.total ?? runs.length;
   const pick = wantedRun ?? runs[0]?.execution_id;
   if (pick) selected = await readItem<AgentRun>(token, 'agent_runs', { 'filter[execution_id][_eq]': pick });
+  const all = await readItems<Pick<AgentJob, 'agent_group'>>(token, 'agent_jobs', { limit: -1, fields: 'agent_group' });
+  knownGroups = orderGroups(all.data.map((j) => j.agent_group).filter((g): g is string => Boolean(g)));
 } catch {
   problem = 'Could not read this agent from Directus.';
 }
@@ -79,6 +83,16 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
 
     <section class="block">
       <div class="ruled">
+        <div class="row row-kv">
+          <span class="muted">group</span>
+          <form class="group-form" data-group-form data-job={id}>
+            <label class="visually-hidden" for="agent-group">Group</label>
+            <input id="agent-group" name="group" list="known-groups" value={snapshot?.agent_group ?? ''} placeholder={UNGROUPED} maxlength="40" autocomplete="off" />
+            <datalist id="known-groups">{knownGroups.map((g) => <option value={g} />)}</datalist>
+            <button type="submit" class="act">save</button>
+            <span class="label muted" data-group-status role="status"></span>
+          </form>
+        </div>
         <div class="row row-kv"><span class="muted">type</span><span>{kind === 'script' ? 'script (no model)' : 'ai agent'}</span></div>
         {kind === 'agent' && <div class="row row-kv"><span class="muted">model</span><span>{job?.model ? modelLabel(job.model) : 'default (follows Hermes)'}</span></div>}
         <div class="row row-kv">
@@ -172,3 +186,25 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
 <script>
   import '../../../scripts/hermes-job-actions';
 </script>
+
+<style is:global>
+  .group-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-8) var(--s-15);
+  }
+  .group-form input {
+    font: inherit;
+    font-size: var(--text-body);
+    background: var(--te-white);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 6px 10px;
+    min-width: 240px;
+  }
+  .group-form input:focus-visible {
+    outline: 1px solid var(--te-black);
+    outline-offset: 0;
+  }
+</style>

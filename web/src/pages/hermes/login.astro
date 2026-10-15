@@ -11,6 +11,9 @@ const limiter = ((globalThis as any).__hermesLoginLimiter ??= new RateLimiter(5,
 
 const secure = (Astro.site ?? new URL(Astro.url.origin)).protocol === 'https:';
 let error = '';
+// The authenticator field only appears when Directus says this account has 2FA on.
+let needsOtp = false;
+let emailValue = '';
 
 if (Astro.request.method === 'POST') {
   const ip = Astro.request.headers.get('x-forwarded-for')?.split(',').pop()?.trim() || Astro.clientAddress || 'unknown';
@@ -18,6 +21,7 @@ if (Astro.request.method === 'POST') {
   const email = String(form.get('email') ?? '').trim().slice(0, 254);
   const password = String(form.get('password') ?? '').slice(0, 512);
   const otp = String(form.get('otp') ?? '').replace(/\s/g, '').slice(0, 12);
+  emailValue = email;
 
   if (!limiter.take(ip)) {
     audit('login_throttled', { ip });
@@ -34,8 +38,16 @@ if (Astro.request.method === 'POST') {
       return Astro.redirect('/hermes', 303);
     }
     audit('login_failed', { email, ip, reason: result.reason });
+    needsOtp = result.reason === 'otp';
     Astro.response.status = result.reason === 'unavailable' ? 503 : 401;
-    error = result.reason === 'unavailable' ? 'Sign-in is temporarily unavailable.' : 'Invalid credentials.';
+    error =
+      result.reason === 'unavailable'
+        ? 'Sign-in is temporarily unavailable.'
+        : result.reason === 'otp'
+          ? otp
+            ? 'That authenticator code was not accepted. Wait for a fresh code and try again; if it keeps failing, check this computer’s clock.'
+            : 'This account uses two-step verification. Enter your password again together with the 6-digit code from your authenticator app.'
+          : 'Invalid credentials.';
   }
 }
 ---
@@ -48,16 +60,20 @@ if (Astro.request.method === 'POST') {
       {error && <p class="notice error" role="alert">{error}</p>}
       <label>
         <span class="label muted">Email</span>
-        <input type="email" name="email" autocomplete="username" required autofocus />
+        <input type="email" name="email" autocomplete="username" value={emailValue} required autofocus={!needsOtp} />
       </label>
       <label>
         <span class="label muted">Password</span>
         <input type="password" name="password" autocomplete="current-password" required />
       </label>
-      <label>
-        <span class="label muted">Authenticator code</span>
-        <input type="text" name="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="12" placeholder="000000" />
-      </label>
+      {
+        needsOtp && (
+          <label>
+            <span class="label muted">Authenticator code</span>
+            <input type="text" name="otp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="12" placeholder="000000" required autofocus />
+          </label>
+        )
+      }
       <button type="submit" class="btn btn-solid">sign in</button>
     </form>
   </div>

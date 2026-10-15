@@ -11,6 +11,7 @@ export interface AgentJob {
   skills: string[] | null;
   model: string | null;
   schedule_display: string | null;
+  agent_group: string | null;
   state: string | null;
   enabled: boolean | null;
   deliver_labels: string[] | null;
@@ -62,4 +63,15 @@ export async function readItems<T>(token: string, collection: 'agent_runs' | 'ag
 export async function readItem<T>(token: string, collection: 'agent_runs' | 'agent_jobs', params: Record<string, string | number>): Promise<T | null> {
   const { data } = await readItems<T>(token, collection, { ...params, limit: 1 });
   return data[0] ?? null;
+}
+
+/** PATCH one item with the signed-in user's token (e.g. the agent group). */
+export async function updateItem(token: string, collection: 'agent_jobs', id: number, data: Record<string, unknown>): Promise<void> {
+  const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}/${id}`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!res.ok) throw new DirectusReadError(`Directus ${res.status} updating ${collection}`, res.status);
 }

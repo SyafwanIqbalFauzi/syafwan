@@ -1,19 +1,20 @@
 ---
-// Page shell for every /hermes page: the site's header pattern, a slim carbon footer, and
-// noindex. Public pages use Layout.astro; this one never loads Directus content.
+// Page shell for every /hermes page: a plain CMS layout (sidebar on the left, content on the
+// right). Colours, type and spacing come from the public site's design tokens (global.css);
+// only the structure differs from the public pages. Never loads Directus content, never indexed.
 import '@fontsource-variable/inter';
 import interWoff2 from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
 import '../styles/global.css';
 import '../styles/hermes.css';
-import HermesNav, { type Section } from '../components/HermesNav.astro';
+import HermesSidebar, { type Section } from '../components/HermesSidebar.astro';
 
 interface Props {
   title: string;
-  /** Which menu entry is active. Omit together with `bare` on the sign-in page. */
+  /** Which sidebar entry is active. Omit together with `bare` on the sign-in page. */
   current?: Section;
-  /** Wordmark-only header (sign-in page). */
+  /** Sign-in page: no sidebar, content centred. */
   bare?: boolean;
-  /** Fill the viewport (chat): the page itself does not scroll and the footer is hidden. */
+  /** Fill the viewport (chat): the page itself does not scroll. */
   fill?: boolean;
 }
 const { title, current, bare = false, fill = false } = Astro.props;
@@ -32,33 +33,27 @@ const email = Astro.locals.hermesUser?.email;
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href={interWoff2} as="font" type="font/woff2" crossorigin />
   </head>
-  <body class:list={{ fill }}>
+  <body class:list={['cms-body', { fill }]}>
     <a href="#main" class="skip label">Skip to content</a>
-    <HermesNav current={current} email={email} bare={bare} />
-    <main id="main">
-      <slot />
-    </main>
     {
-      !fill && (
-        <footer class="band-dark foot">
-          <p class="label">syafwan.com / agents</p>
-          <p class="label">times in WIB · history synced every 5 min</p>
-        </footer>
+      bare ? (
+        <main id="main" class="cms-bare">
+          <p class="cms-brand"><a href="/hermes">syafwan <span>/ agents</span></a></p>
+          <slot />
+        </main>
+      ) : (
+        <div class="cms">
+          <HermesSidebar current={current} email={email} />
+          <main id="main" class="cms-main">
+            <slot />
+          </main>
+        </div>
       )
     }
   </body>
 </html>
 
 <style is:global>
-  body.fill {
-    height: 100dvh;
-    overflow: hidden;
-  }
-  body.fill main {
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
   .skip {
     position: absolute;
     left: -9999px;
@@ -69,14 +64,58 @@ const email = Astro.locals.hermesUser?.email;
     background: var(--te-black);
     color: var(--te-white);
     padding: 6px 10px;
-    z-index: 10;
+    z-index: 30;
   }
-  .foot {
+
+  .cms {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 252px minmax(0, 1fr);
+    min-height: 100dvh;
+  }
+
+  .cms-main {
+    min-width: 0;
+  }
+
+  body.fill {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  body.fill .cms {
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  body.fill .cms-main {
+    min-height: 0;
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    gap: var(--s-8);
-    padding: var(--s-22) var(--gutter);
-    color: var(--te-grey-100);
+    flex-direction: column;
+  }
+
+  .cms-bare {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100dvh;
+    padding: var(--s-33) var(--gutter);
+  }
+
+  .cms-brand {
+    align-self: flex-start;
+    font-size: var(--text-sub);
+    font-weight: var(--w-thin);
+  }
+
+  .cms-brand span {
+    color: var(--te-grey-600);
+  }
+
+  @media (max-width: 899px) {
+    .cms {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
   }
 </style>

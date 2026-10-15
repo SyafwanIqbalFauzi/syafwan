@@ -42,3 +42,35 @@ if (box) {
     }
   });
 }
+
+// Group field on the detail page: saved through /api/hermes/agents/<id>/group (Directus, not Hermes).
+const groupForm = document.querySelector<HTMLFormElement>('[data-group-form]');
+const groupStatus = document.querySelector<HTMLElement>('[data-group-status]');
+
+groupForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const id = groupForm.dataset.job!;
+  const value = (groupForm.elements.namedItem('group') as HTMLInputElement).value.trim();
+  if (!value) {
+    if (groupStatus) groupStatus.textContent = 'enter a group name';
+    return;
+  }
+  if (groupStatus) groupStatus.textContent = 'saving…';
+  try {
+    const res = await fetch(`/api/hermes/agents/${id}/group`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ group: value }),
+      credentials: 'same-origin',
+    });
+    if (res.status === 401) {
+      location.href = '/hermes/login';
+      return;
+    }
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
+    if (groupStatus) groupStatus.textContent = `saved: ${data.group}`;
+  } catch (error) {
+    if (groupStatus) groupStatus.textContent = (error as Error).message;
+  }
+});

@@ -31,6 +31,24 @@ Total: Rp1.615.465
 """
 
 
+class GroupTests(unittest.TestCase):
+    def test_rules(self):
+        self.assertEqual(s.group_for({"name": "monitoring-jadwal-persib", "skills": ["monitoring-jadwal-persib"]}), "Sejarah Persib")
+        self.assertEqual(s.group_for({"name": "update-klasemen-berjalan"}), "Sejarah Persib")
+        self.assertEqual(s.group_for({"name": "x", "workdir": "/home/syafwan/sejarah-persib"}), "Sejarah Persib")
+        self.assertEqual(s.group_for({"name": "insight-mingguan-keuangan", "skills": ["insight-mingguan-keuangan"]}), "Keuangan")
+        self.assertEqual(s.group_for({"name": "log-token-harian", "skills": ["log-token-usage"]}), "Hermes & sistem")
+        self.assertEqual(s.group_for({"name": "backup-hermes-config"}), "Hermes & sistem")
+
+    def test_overrides_for_jobs_without_a_hint(self):
+        self.assertEqual(s.group_for({"name": "ux-scan-mingguan"}), "Sejarah Persib")
+        self.assertEqual(s.group_for({"name": "post-rekap-logo"}), "Sejarah Persib")
+
+    def test_job_rows_carry_the_group(self):
+        rows = s.job_rows({"a": {"id": "a", "name": "ide-konten-persib", "enabled": True}}, {})
+        self.assertEqual(rows[0]["agent_group"], "Sejarah Persib")
+
+
 class CompareTests(unittest.TestCase):
     def test_timestamps_compare_by_instant(self):
         self.assertTrue(s.same_value("2026-10-15T04:00:00", "2026-10-15T04:00:00+00:00"))

@@ -1,5 +1,6 @@
 ---
 import HermesShell from '../../layouts/HermesShell.astro';
+import FilterBar from '../../components/FilterBar.astro';
 import { hermesGet } from '../../lib/hermes';
 import { compact, formatWhen, modelLabel, relative, usd } from '../../lib/format';
 
@@ -39,13 +40,6 @@ const all = pages
   .sort((a, b) => (b.last_active ?? b.started_at ?? 0) - (a.last_active ?? a.started_at ?? 0))
   .slice(0, 150);
 
-const link = (params: Record<string, string | null>) => {
-  const next = new URLSearchParams();
-  for (const [k, v] of Object.entries({ source, q: q || null, ...params })) if (v) next.set(k, v);
-  const s = next.toString();
-  return s ? `?${s}` : Astro.url.pathname;
-};
-const current = source ?? 'conversations';
 ---
 
 <HermesShell title="Sessions" current="sessions">
@@ -57,18 +51,25 @@ const current = source ?? 'conversations';
 
     {!reachable && <p class="notice error" role="alert">Could not reach the Hermes API.</p>}
 
-    <form class="filters" method="get">
-      <div class="group">
-        <span class="muted">source</span>
-        <a href={link({ source: null })} aria-current={current === 'conversations' ? 'true' : undefined}>conversations</a>
-        {['api_server', 'telegram', 'discord', 'cron', 'all'].map((s) => (
-          <a href={link({ source: s })} aria-current={current === s ? 'true' : undefined}>{s === 'all' ? 'everything' : LABELS[s]}</a>
-        ))}
-      </div>
-      {source && <input type="hidden" name="source" value={source} />}
-      <label class="visually-hidden" for="q">Search sessions</label>
-      <input id="q" class="search" type="search" name="q" value={q} placeholder="search title or text" />
-    </form>
+    <FilterBar
+      resetHref={Astro.url.pathname}
+      selects={[
+        {
+          name: 'source',
+          label: 'Source',
+          value: source,
+          all: 'Conversations (web, Telegram, Discord)',
+          options: [
+            { value: 'api_server', label: 'Web chat' },
+            { value: 'telegram', label: 'Telegram' },
+            { value: 'discord', label: 'Discord' },
+            { value: 'cron', label: 'Cron runs' },
+            { value: 'all', label: 'Everything' },
+          ],
+        },
+      ]}
+      search={{ name: 'q', value: q, placeholder: 'title or text' }}
+    />
 
     <div class="ruled">
       {

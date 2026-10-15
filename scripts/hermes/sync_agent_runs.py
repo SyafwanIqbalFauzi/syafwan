@@ -271,6 +271,26 @@ def collect_runs(jobs: dict, executions: dict, directory: dict, redact, known: s
     return rows
 
 
+GROUP_PERSIB = "Sejarah Persib"
+GROUP_MONEY = "Keuangan"
+GROUP_SYSTEM = "Hermes & sistem"
+# Jobs whose name/skill/workdir give no hint but belong to a group anyway.
+GROUP_OVERRIDES = {"ux-scan-mingguan": GROUP_PERSIB, "post-rekap-logo": GROUP_PERSIB}
+
+
+def group_for(job: dict) -> str:
+    """First guess at an agent's group. It is only written once; after that the website owns it."""
+    name = job.get("name") or ""
+    if name in GROUP_OVERRIDES:
+        return GROUP_OVERRIDES[name]
+    text = " ".join([name, " ".join(job.get("skills") or []), job.get("workdir") or ""]).lower()
+    if "persib" in text or "klasemen" in text:
+        return GROUP_PERSIB
+    if "keuangan" in text or "money" in text:
+        return GROUP_MONEY
+    return GROUP_SYSTEM
+
+
 def job_rows(jobs: dict, directory: dict) -> list[dict]:
     now = iso(dt.datetime.now(dt.timezone.utc))
     out = []
@@ -289,6 +309,7 @@ def job_rows(jobs: dict, directory: dict) -> list[dict]:
                 "last_status": job.get("last_status"),
                 "last_run_at": iso(parse_dt(job.get("last_run_at"))),
                 "next_run_at": iso(parse_dt(job.get("next_run_at"))),
+                "agent_group": group_for(job),
                 "synced_at": now,
             }
         )
@@ -347,7 +368,12 @@ class Directus:
             if current is None:
                 continue
             # synced_at changes every run; only write when something real changed.
-            changed = {k: v for k, v in r.items() if k != "synced_at" and not same_value(current.get(k), v)}
+            # agent_group is set once: a group already stored (possibly edited on the website) is kept.
+            changed = {
+                k: v
+                for k, v in r.items()
+                if k != "synced_at" and not (k == "agent_group" and current.get(k)) and not same_value(current.get(k), v)
+            }
             if changed:
                 self.call("PATCH", f"/items/agent_jobs/{current['id']}", {**changed, "synced_at": r["synced_at"]})
                 updated += 1

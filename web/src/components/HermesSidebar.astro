@@ -1,0 +1,220 @@
+---
+// Left sidebar for the private /hermes area. A conventional CMS menu: brand, grouped
+// entries with small icons, and the signed-in account at the bottom. On phones it folds
+// into a top bar with a menu button.
+import Pictogram from './Pictogram.astro';
+
+export type Section = 'overview' | 'agents' | 'chat' | 'sessions' | 'usage';
+
+interface Props {
+  current?: Section;
+  email?: string;
+}
+const { current, email } = Astro.props;
+
+const groups: { label: string; items: { section: Section; href: string; label: string }[] }[] = [
+  {
+    label: 'Workspace',
+    items: [
+      { section: 'overview', href: '/hermes', label: 'Overview' },
+      { section: 'chat', href: '/hermes/chat', label: 'Chat' },
+    ],
+  },
+  {
+    label: 'Automation',
+    items: [{ section: 'agents', href: '/hermes/agents', label: 'Agents' }],
+  },
+  {
+    label: 'History',
+    items: [
+      { section: 'sessions', href: '/hermes/sessions', label: 'Sessions' },
+      { section: 'usage', href: '/hermes/usage', label: 'Usage' },
+    ],
+  },
+];
+---
+
+<aside class="sidebar" data-sidebar>
+  <div class="side-top">
+    <a href="/hermes" class="brand">syafwan <span>/ agents</span></a>
+    <button type="button" class="menu-btn" aria-expanded="false" aria-controls="side-nav" data-menu-toggle>menu</button>
+  </div>
+
+  <nav id="side-nav" class="side-nav" aria-label="Hermes">
+    {
+      groups.map((group) => (
+        <div class="group">
+          <p class="group-label">{group.label}</p>
+          <ul>
+            {group.items.map((item) => (
+              <li>
+                <a href={item.href} class="entry" aria-current={item.section === current ? 'page' : undefined}>
+                  <Pictogram name={item.section} size={18} />
+                  <span>{item.label}</span>
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))
+    }
+  </nav>
+
+  <div class="side-foot">
+    {email && <p class="who" title={email}>{email}</p>}
+    <p class="note">times in WIB</p>
+    <form method="post" action="/hermes/logout">
+      <button type="submit" class="signout">sign out</button>
+    </form>
+  </div>
+</aside>
+
+<script>
+  const sidebar = document.querySelector<HTMLElement>('[data-sidebar]');
+  const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
+  toggle?.addEventListener('click', () => {
+    const open = sidebar?.classList.toggle('open') ?? false;
+    toggle.setAttribute('aria-expanded', String(open));
+  });
+</script>
+
+<style>
+  .sidebar {
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    background: var(--te-page);
+    border-right: 1px solid var(--te-grey-100);
+    padding: var(--s-22) var(--s-15);
+    overflow-y: auto;
+  }
+
+  .side-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 8px var(--s-22);
+  }
+
+  .brand {
+    font-size: var(--text-sub);
+    font-weight: var(--w-thin);
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
+
+  .brand span {
+    color: var(--te-grey-600);
+  }
+
+  .menu-btn {
+    display: none;
+    font-size: var(--text-caption);
+    border: 1px solid currentColor;
+    padding: 6px 12px;
+  }
+
+  .side-nav {
+    flex: 1;
+    display: grid;
+    align-content: start;
+    gap: var(--s-22);
+  }
+
+  .group-label {
+    padding: 0 8px 6px;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--te-grey-600);
+  }
+
+  .entry {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 8px;
+    font-size: var(--text-body);
+    font-weight: var(--w-light);
+    border-left: 2px solid transparent;
+  }
+
+  .entry:hover {
+    background: var(--te-white);
+  }
+
+  .entry[aria-current='page'] {
+    background: var(--te-white);
+    border-left-color: var(--te-black);
+    font-weight: var(--w-regular);
+  }
+
+  .side-foot {
+    display: grid;
+    gap: 4px;
+    padding: var(--s-15) 8px 0;
+    border-top: 1px solid var(--te-grey-100);
+    font-size: var(--text-caption);
+  }
+
+  .who {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .note {
+    color: var(--te-grey-600);
+  }
+
+  .signout {
+    justify-self: start;
+    margin-top: 6px;
+    font-weight: var(--w-regular);
+  }
+
+  .signout:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Phone / narrow window: top bar, menu hidden until the button is pressed */
+  @media (max-width: 899px) {
+    .sidebar {
+      position: static;
+      height: auto;
+      border-right: 0;
+      border-bottom: 1px solid var(--te-grey-100);
+      padding: var(--s-15) var(--gutter);
+      overflow: visible;
+    }
+
+    .side-top {
+      padding: 0;
+    }
+
+    .menu-btn {
+      display: inline-block;
+    }
+
+    .side-nav,
+    .side-foot {
+      display: none;
+    }
+
+    .sidebar.open .side-nav,
+    .sidebar.open .side-foot {
+      display: grid;
+    }
+
+    .sidebar.open .side-nav {
+      margin-top: var(--s-15);
+    }
+
+    .sidebar.open .side-foot {
+      margin-top: var(--s-15);
+    }
+  }
+</style>

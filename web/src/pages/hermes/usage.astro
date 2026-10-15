@@ -1,5 +1,6 @@
 ---
 import HermesShell from '../../layouts/HermesShell.astro';
+import FilterBar from '../../components/FilterBar.astro';
 import { hermesGet } from '../../lib/hermes';
 import { compact, dayKey, modelLabel, usd } from '../../lib/format';
 
@@ -67,12 +68,23 @@ const sources = [...bySource].sort((a, b) => b[1].cost - a[1].cost);
   <div class="container page">
     <div class="page-head">
       <h1 class="h1">Usage</h1>
-      <p class="filters" style="margin: 0">
-        <span class="group">
-          {[7, 30, 90].map((r) => <a href={`?range=${r}`} aria-current={r === range ? 'true' : undefined}>{r} days</a>)}
-        </span>
-      </p>
+      <p class="label muted">newest sessions first · WIB days</p>
     </div>
+
+    <FilterBar
+      selects={[
+        {
+          name: 'range',
+          label: 'Period',
+          value: String(range),
+          all: 'Last 30 days',
+          options: [
+            { value: '7', label: 'Last 7 days' },
+            { value: '90', label: 'Last 90 days' },
+          ],
+        },
+      ]}
+    />
 
     {!reachable && <p class="notice error" role="alert">Could not reach the Hermes API.</p>}
     {truncated && <p class="notice">Very many sessions in this range: only the newest 2,400 are counted.</p>}
