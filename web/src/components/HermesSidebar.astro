@@ -66,6 +66,7 @@ const groups: { label: string; items: { section: Section; href: string; label: s
 
   <div class="side-foot">
     {email && <p class="who" title={email}>{email}</p>}
+    <button type="button" class="alerts" data-alerts aria-pressed="true">alerts: on</button>
     <form method="post" action="/agent/logout">
       <button type="submit" class="signout">sign out</button>
     </form>
@@ -83,6 +84,7 @@ const groups: { label: string; items: { section: Section; href: string; label: s
   // A chat turn runs on the server and carries on while you look at other pages. If this browser
   // started one that has not finished, say so next to "Chat" and check on it now and then.
   import { clearActiveRun, loadActiveRun } from '../lib/chat-run';
+  import { alertFor, alertsEnabled, alertUser, firstTime, setAlerts } from '../lib/notify';
 
   const badge = document.querySelector<HTMLElement>('[data-work-badge]');
   const FINISHED = ['completed', 'failed', 'cancelled', 'interrupted'];
@@ -101,6 +103,8 @@ const groups: { label: string; items: { section: Section; href: string; label: s
         return false;
       }
       const status = res.ok ? await res.json() : null;
+      const text = status ? alertFor(status.status, run.message) : null;
+      if (text && firstTime(localStorage, run.runId, text.kind)) alertUser(text, { onChatPage: location.pathname.startsWith('/agent/chat') });
       if (status && FINISHED.includes(status.status)) {
         // Finished while nobody was watching: keep the entry so the chat page can clear it and show the result.
         badge.textContent = 'done';
@@ -117,9 +121,24 @@ const groups: { label: string; items: { section: Section; href: string; label: s
     }
   }
 
+  const alertsBtn = document.querySelector<HTMLButtonElement>('[data-alerts]');
+  const paintAlerts = () => {
+    const on = alertsEnabled(localStorage);
+    if (!alertsBtn) return;
+    alertsBtn.textContent = `alerts: ${on ? 'on' : 'off'}`;
+    alertsBtn.setAttribute('aria-pressed', String(on));
+    alertsBtn.title = on ? 'Sound and pop-up when Hermes needs you or finishes. Click to turn off.' : 'Click to turn on sound and pop-up alerts.';
+  };
+  paintAlerts();
+  alertsBtn?.addEventListener('click', async () => {
+    const result = await setAlerts(!alertsEnabled(localStorage));
+    paintAlerts();
+    if (result === 'on-no-popup' && alertsBtn) alertsBtn.title = 'Sound is on. Pop-ups are blocked in this browser; allow notifications for this site to get them.';
+  });
+
   if (badge && loadActiveRun(localStorage)) {
     const tick = async () => {
-      if (await checkRun()) setTimeout(tick, 15_000);
+      if (await checkRun()) setTimeout(tick, 8_000);
     };
     void tick();
   }
@@ -246,6 +265,17 @@ const groups: { label: string; items: { section: Section; href: string; label: s
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .alerts {
+    justify-self: start;
+    font-size: var(--text-caption);
+    color: var(--te-grey-600);
+  }
+
+  .alerts:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   .signout {

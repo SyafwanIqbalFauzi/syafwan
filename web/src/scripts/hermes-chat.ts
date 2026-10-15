@@ -3,6 +3,7 @@
 import { describeActivity, isWaitingForPerson, nextActivity, type Activity } from '../lib/chat-activity';
 import { normalizeTitle, titleFromMessage } from '../lib/chat-title';
 import { askConfirm, askText } from './dialog';
+import { alertFor, alertUser, firstTime } from '../lib/notify';
 import { clearActiveRun, loadActiveRun, saveActiveRun, watchRun, type ActiveRun, type RunEvent } from '../lib/chat-run';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -327,9 +328,17 @@ function detachFromRun() {
   setBusy(false);
 }
 
+/** Sound + popup when Hermes needs an answer or has finished (once per run, also across pages). */
+function announce(eventName: string) {
+  const active = loadActiveRun(localStorage);
+  const text = alertFor(eventName, active?.message);
+  if (text && runId && firstTime(localStorage, runId, text.kind)) alertUser(text, { onChatPage: true });
+}
+
 function applyRunEvent(ev: RunEvent, turn: Turn) {
   const data = ev.data;
   onActivityEvent(ev.name, data);
+  announce(ev.name);
 
   switch (ev.name) {
     case 'message.delta':

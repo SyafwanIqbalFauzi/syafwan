@@ -487,3 +487,38 @@ a.row:hover {
   background: var(--te-black);
   border-color: var(--te-black);
 }
+
+/* Alert pop-up shown inside the page (alongside the sound) */
+.toast {
+  position: fixed;
+  right: var(--gutter);
+  bottom: var(--gutter);
+  z-index: 60;
+  display: grid;
+  gap: 4px;
+  max-width: min(360px, calc(100vw - 2 * var(--gutter)));
+  padding: var(--s-15);
+  background: var(--te-black);
+  color: var(--te-white);
+  border-left: 4px solid var(--te-amber);
+  font-size: var(--text-caption);
+  animation: toast-in 0.2s ease-out;
+}
+
+.toast strong {
+  font-weight: var(--w-regular);
+  font-size: var(--text-body);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
