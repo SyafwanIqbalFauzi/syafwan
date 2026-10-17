@@ -84,6 +84,42 @@ export const prerender = false;
     text-underline-offset: 3px;
   }
 
+  .chat #sessions .run-flag {
+    flex: none;
+    padding: 1px 6px;
+    font-size: 11px;
+    line-height: 1.3;
+    border: 1px solid var(--te-amber);
+    background: var(--te-amber);
+    color: var(--te-black);
+    animation: run-flag-pulse 1.6s ease-in-out infinite;
+  }
+
+  @keyframes run-flag-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+
+  .chat #sessions .run-flag[data-state='done'] {
+    animation: none;
+    background: var(--te-page);
+    border-color: var(--te-black);
+  }
+
+  .chat #sessions .run-flag[data-state='wait'] {
+    animation: none;
+    background: var(--te-black);
+    border-color: var(--te-black);
+    color: var(--te-white);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .chat #sessions .run-flag {
+      animation: none;
+    }
+  }
+
   .chat #sessions .mini {
     font-size: 11px;
     color: var(--te-grey-600);

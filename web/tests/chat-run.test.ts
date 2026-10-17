@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  ACTIVE_RUN_KEY,
+  ACTIVE_RUNS_KEY,
   clearActiveRun,
+  LEGACY_RUN_KEY,
   loadActiveRun,
+  loadActiveRuns,
+  MAX_ACTIVE_RUNS,
   MAX_RUN_AGE_MS,
   saveActiveRun,
   watchRun,
@@ -19,27 +22,61 @@ const memoryStore = (): KeyValueStore & { map: Map<string, string> } => {
 
 const run = (over: Partial<ActiveRun> = {}): ActiveRun => ({ runId: 'run_abc', sessionId: 'api_1_x', message: 'hi', lastSeq: -1, startedAt: 1000, ...over });
 
-test('active run: save, load and clear', () => {
+test('active runs: one per conversation, saved, loaded and cleared separately', () => {
   const store = memoryStore();
-  assert.equal(loadActiveRun(store, 2000), null);
-  saveActiveRun(store, run());
-  assert.deepEqual(loadActiveRun(store, 2000), run());
-  clearActiveRun(store);
-  assert.equal(loadActiveRun(store, 2000), null);
+  assert.deepEqual(loadActiveRuns(store, 2000), []);
+  saveActiveRun(store, run(), 2000);
+  saveActiveRun(store, run({ runId: 'run_b', sessionId: 'api_2_y', startedAt: 1500 }), 2000);
+  assert.deepEqual(loadActiveRuns(store, 2000).map((r) => r.runId), ['run_b', 'run_abc']); // newest first
+  assert.deepEqual(loadActiveRun(store, 'api_1_x', 2000), run());
+  assert.equal(loadActiveRun(store, 'nope', 2000), null);
+  clearActiveRun(store, 'api_1_x', 2000);
+  assert.deepEqual(loadActiveRuns(store, 2000).map((r) => r.runId), ['run_b']);
+  clearActiveRun(store, 'api_2_y', 2000);
+  assert.equal(store.map.has(ACTIVE_RUNS_KEY), false);
 });
 
-test('active run: stale, corrupt or malformed entries are dropped', () => {
+test('active runs: saving the same conversation again replaces its entry', () => {
   const store = memoryStore();
-  saveActiveRun(store, run({ startedAt: 0 }));
-  assert.equal(loadActiveRun(store, MAX_RUN_AGE_MS + 1), null);
-  assert.equal(store.map.has(ACTIVE_RUN_KEY), false); // and forgotten
+  saveActiveRun(store, run({ lastSeq: 1 }), 2000);
+  saveActiveRun(store, run({ lastSeq: 7 }), 2000);
+  const all = loadActiveRuns(store, 2000);
+  assert.equal(all.length, 1);
+  assert.equal(all[0]!.lastSeq, 7);
+});
 
-  store.map.set(ACTIVE_RUN_KEY, '{not json');
-  assert.equal(loadActiveRun(store, 2000), null);
-  store.map.set(ACTIVE_RUN_KEY, JSON.stringify({ ...run(), runId: '../../etc' }));
-  assert.equal(loadActiveRun(store, 2000), null);
-  store.map.set(ACTIVE_RUN_KEY, JSON.stringify({ ...run(), lastSeq: 'x' }));
-  assert.equal(loadActiveRun(store, 2000), null);
+test('active runs: at most MAX_ACTIVE_RUNS are kept, the oldest go first', () => {
+  const store = memoryStore();
+  for (let i = 0; i < MAX_ACTIVE_RUNS + 2; i++) saveActiveRun(store, run({ runId: `run_${i}`, sessionId: `s_${i}`, startedAt: 1000 + i }), 2000);
+  const ids = loadActiveRuns(store, 2000).map((r) => r.runId);
+  assert.equal(ids.length, MAX_ACTIVE_RUNS);
+  assert.equal(ids[0], `run_${MAX_ACTIVE_RUNS + 1}`);
+  assert.equal(ids.includes('run_0'), false);
+});
+
+test('active runs: stale, corrupt or malformed entries are dropped', () => {
+  const store = memoryStore();
+  saveActiveRun(store, run({ startedAt: 0 }), 0);
+  assert.deepEqual(loadActiveRuns(store, MAX_RUN_AGE_MS + 1), []);
+  assert.equal(store.map.has(ACTIVE_RUNS_KEY), false); // and forgotten
+
+  store.map.set(ACTIVE_RUNS_KEY, '{not json');
+  assert.deepEqual(loadActiveRuns(store, 2000), []);
+  store.map.set(ACTIVE_RUNS_KEY, '[1,2]');
+  assert.deepEqual(loadActiveRuns(store, 2000), []);
+  store.map.set(ACTIVE_RUNS_KEY, JSON.stringify({ a: { ...run(), runId: '../../etc' }, b: { ...run(), lastSeq: 'x' }, c: run({ sessionId: 'good' }) }));
+  assert.deepEqual(loadActiveRuns(store, 2000).map((r) => r.sessionId), ['good']);
+});
+
+test('active runs: a run saved under the old single key is migrated, not lost', () => {
+  const store = memoryStore();
+  store.map.set(LEGACY_RUN_KEY, JSON.stringify(run()));
+  assert.deepEqual(loadActiveRuns(store, 2000), [run()]);
+  assert.equal(store.map.has(LEGACY_RUN_KEY), false);
+  assert.deepEqual(loadActiveRuns(store, 2000), [run()]); // now kept under the new key
+  store.map.set(LEGACY_RUN_KEY, '{broken');
+  assert.deepEqual(loadActiveRuns(store, 2000), [run()]);
+  assert.equal(store.map.has(LEGACY_RUN_KEY), false);
 });
 
 // ---- watchRun --------------------------------------------------------------------------------

@@ -5,7 +5,8 @@ import { normalizeTitle, titleFromMessage } from '../lib/chat-title';
 import { askConfirm, askText } from './dialog';
 import { alertFor, alertUser, firstTime } from '../lib/notify';
 import { toast } from './toast';
-import { clearActiveRun, loadActiveRun, saveActiveRun, watchRun, type ActiveRun, type RunEvent } from '../lib/chat-run';
+import { clearActiveRun, loadActiveRun, loadActiveRuns, MAX_ACTIVE_RUNS, saveActiveRun, watchRun, type ActiveRun, type RunEvent } from '../lib/chat-run';
+import { markerText, type RunState } from '../lib/run-badge';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const sessionsEl = $<HTMLUListElement>('#sessions');
@@ -22,6 +23,28 @@ const statusEl = $<HTMLElement>('#status');
 let sessionId: string | null = null;
 let runId: string | null = null;
 let controller: AbortController | null = null;
+
+// Which conversations are being answered (working / needs you / done). The sidebar checks the server
+// every few seconds and announces the result as an 'agent:runs' event; this page only paints it.
+let runStates = new Map<string, RunState>(Object.entries((window as any).__agentRunStates ?? {}) as [string, RunState][]);
+
+function paintMarkers() {
+  sessionsEl.querySelectorAll<HTMLElement>('li[data-session]').forEach((li) => {
+    const state = runStates.get(li.dataset.session ?? '');
+    const flag = li.querySelector<HTMLElement>('.run-flag');
+    if (!flag) return;
+    flag.hidden = !state;
+    if (state) {
+      flag.textContent = markerText(state);
+      flag.dataset.state = state;
+    }
+  });
+}
+
+window.addEventListener('agent:runs', (event) => {
+  runStates = new Map(Object.entries((event as CustomEvent).detail ?? {}) as [string, RunState][]);
+  paintMarkers();
+});
 
 // ---- helpers -------------------------------------------------------------
 
@@ -140,6 +163,7 @@ async function loadSessions() {
       ...data.map((s) => {
         const id = idOf(s);
         const li = el('li', id === sessionId ? 'active' : '');
+        if (id) li.dataset.session = id;
         const badge = SOURCES[s.source] && s.source !== 'api_server' ? `[${SOURCES[s.source]}] ` : '';
         const open = el('button', 'open', badge + (s.title || s.preview || id || 'untitled'));
         open.addEventListener('click', () => id && openSession(id, s.title || s.preview || 'Chat'));
@@ -165,10 +189,13 @@ async function loadSessions() {
           if (id === sessionId) newChat();
           loadSessions();
         });
-        li.append(open, rename, del);
+        const flag = el('span', 'run-flag');
+        flag.hidden = true;
+        li.append(open, flag, rename, del);
         return li;
       }),
     );
+    paintMarkers();
   } catch (e) {
     setStatus((e as Error).message);
   }
@@ -315,17 +342,19 @@ function addBubble(role: 'user' | 'assistant'): HTMLDivElement {
 // back to the conversation re-attaches and replays what was missed. See lib/chat-run.ts.
 
 interface Turn {
+  run: ActiveRun;
   reply: HTMLElement;
   streamed: string;
   toolCards: HTMLElement[];
 }
 
-function beginTurn(message: string, showUserBubble: boolean): Turn {
+function beginTurn(run: ActiveRun, showUserBubble: boolean): Turn {
+  const message = run.message;
   logEl.querySelector('.hint')?.remove();
   if (showUserBubble) addBubble('user').textContent = message;
   const reply = addBubble('assistant');
   reply.classList.add('streaming');
-  return { reply, streamed: '', toolCards: [] };
+  return { run, reply, streamed: '', toolCards: [] };
 }
 
 /** Stop watching the current run in this page (the run itself is not touched). */
@@ -337,16 +366,15 @@ function detachFromRun() {
 }
 
 /** Sound + popup when Hermes needs an answer or has finished (once per run, also across pages). */
-function announce(eventName: string) {
-  const active = loadActiveRun(localStorage);
-  const text = alertFor(eventName, active?.message);
-  if (text && runId && firstTime(localStorage, runId, text.kind)) alertUser(text, { onChatPage: true });
+function announce(eventName: string, run: ActiveRun) {
+  const text = alertFor(eventName, run.message);
+  if (text && firstTime(localStorage, run.runId, text.kind)) alertUser(text, { onChatPage: true });
 }
 
 function applyRunEvent(ev: RunEvent, turn: Turn) {
   const data = ev.data;
   onActivityEvent(ev.name, data);
-  announce(ev.name);
+  announce(ev.name, turn.run);
 
   switch (ev.name) {
     case 'message.delta':
@@ -429,7 +457,7 @@ async function followRun(run: ActiveRun, turn: Turn) {
     return;
   }
   if (result === 'aborted') return;
-  clearActiveRun(localStorage);
+  clearActiveRun(localStorage, run.sessionId);
   runId = null;
   if (result === 'lost') {
     // The server no longer has the live view of this run; whatever Hermes saved is in the conversation.
@@ -442,6 +470,14 @@ async function followRun(run: ActiveRun, turn: Turn) {
 }
 
 async function send(message: string) {
+  // Several conversations may answer at once, up to a limit (each one is watched from here and the sidebar).
+  const running = loadActiveRuns(localStorage).filter((r) => r.sessionId !== sessionId);
+  if (running.length >= MAX_ACTIVE_RUNS) {
+    input.value = message;
+    setStatus(`${MAX_ACTIVE_RUNS} chats are answering already. Wait for one to finish, or stop one.`);
+    toast(`${MAX_ACTIVE_RUNS} chats are answering already`, 'info');
+    return;
+  }
   if (!sessionId) {
     const created = await api('sessions', { method: 'POST', body: '{}' });
     sessionId = idOf(created?.session ?? created);
@@ -449,13 +485,16 @@ async function send(message: string) {
     titleEl.textContent = titleFromMessage(message);
     syncTitleControls();
   }
-  const turn = beginTurn(message, true);
+  const placeholder: ActiveRun = { runId: '', sessionId, message, lastSeq: -1, startedAt: Date.now() };
+  const turn = beginTurn(placeholder, true);
   setBusy(true);
   setStatus('');
   try {
     const started = await api('runs', { method: 'POST', body: JSON.stringify({ input: message, session_id: sessionId }) });
-    const run: ActiveRun = { runId: started.run_id, sessionId, message, lastSeq: -1, startedAt: Date.now() };
+    const run: ActiveRun = { ...placeholder, runId: started.run_id };
+    turn.run = run;
     saveActiveRun(localStorage, run);
+    window.dispatchEvent(new Event('agent:run-saved')); // the sidebar starts checking on it
     void followRun(run, turn);
   } catch (e) {
     turn.reply.classList.remove('streaming');
@@ -467,8 +506,8 @@ async function send(message: string) {
 
 /** If this conversation has a run in progress (started here earlier, or before a reload), watch it again. */
 async function resumeIfRunning(id: string) {
-  const active = loadActiveRun(localStorage);
-  if (!active || active.sessionId !== id || controller) return;
+  const active = loadActiveRun(localStorage, id);
+  if (!active || controller) return;
 
   const res = await fetch(`/api/agent/runs/${encodeURIComponent(active.runId)}`, { credentials: 'same-origin' }).catch(() => null);
   if (!res) return; // offline: try again next time
@@ -476,17 +515,17 @@ async function resumeIfRunning(id: string) {
     location.href = '/agent/login';
     return;
   }
-  if (res.status === 404) return clearActiveRun(localStorage);
+  if (res.status === 404) return clearActiveRun(localStorage, id);
   const status = res.ok ? await res.json().catch(() => null) : null;
   if (!status) return;
   if (['completed', 'failed', 'cancelled', 'interrupted'].includes(status.status)) {
-    clearActiveRun(localStorage); // finished while we were away: it is already in the conversation
+    clearActiveRun(localStorage, id); // finished while we were away: it is already in the conversation
     return;
   }
 
   // Still going. The conversation shows finished turns only, so show the pending message and replay the rest.
   const lastUser = [...logEl.querySelectorAll('.msg.user .body')].at(-1)?.textContent;
-  const turn = beginTurn(active.message, lastUser?.trim() !== active.message.trim());
+  const turn = beginTurn(active, lastUser?.trim() !== active.message.trim());
   void followRun({ ...active, lastSeq: -1 }, turn);
 }
 
@@ -582,11 +621,10 @@ stopBtn.addEventListener('click', async () => {
   setStatus('Stopping…');
 });
 
+// Always available: a conversation that is still answering keeps going on the server while you start another.
 newBtn.addEventListener('click', () => {
-  if (!controller) {
-    newChat();
-    loadSessions();
-  }
+  newChat();
+  loadSessions();
 });
 
 // No "are you sure you want to leave?" prompt: a chat turn runs on the server, so leaving the page
@@ -601,6 +639,6 @@ const wanted = new URLSearchParams(location.search).get('session');
 if (wanted && /^[A-Za-z0-9_.:-]{1,128}$/.test(wanted)) {
   void openSession(wanted, 'Session');
 } else if (!new URLSearchParams(location.search).has('new')) {
-  const pending = loadActiveRun(localStorage);
+  const pending = loadActiveRuns(localStorage)[0]; // the one started last
   if (pending) void openSession(pending.sessionId, 'Chat');
 }
