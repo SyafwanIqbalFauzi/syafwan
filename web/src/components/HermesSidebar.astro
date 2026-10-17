@@ -1,11 +1,14 @@
 ---
-// Left sidebar for the private areas: /agent (Hermes) and /finance (money). A conventional CMS menu:
-// brand, grouped entries with small icons, a switch to the other area, and the signed-in account at
-// the bottom. On phones it folds into a top bar with a menu button.
+// Navigation for the private areas: /agent (Hermes) and /finance (money), in two levels.
+//  1. A narrow rail with the areas (and search). It reopens the page you last used in that area.
+//     On phones the same rail becomes a bar at the bottom of the screen.
+//  2. The pages of the current area, grouped, with the signed-in account at the bottom.
+// Ctrl+K (or the search button) opens a palette to jump to any page. On phones the page list folds
+// into a top bar with a menu button.
 import Pictogram from './Pictogram.astro';
+import { AREA_ORDER, AREAS, type Area, type Section } from '../lib/nav';
 
-export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets' | 'categories';
-export type Area = 'agent' | 'finance';
+export type { Area, Section };
 
 interface Props {
   current?: Section;
@@ -14,58 +17,31 @@ interface Props {
 }
 const { current, email, area = 'agent' } = Astro.props;
 
-type Group = { label: string; items: { section: Section; href: string; label: string }[] };
-
-const agentGroups: Group[] = [
-  {
-    label: 'Workspace',
-    items: [
-      { section: 'overview', href: '/agent', label: 'Overview' },
-      { section: 'chat', href: '/agent/chat', label: 'Chat' },
-    ],
-  },
-  {
-    label: 'Automation',
-    items: [
-      { section: 'agents', href: '/agent/agents', label: 'Agents' },
-      { section: 'skills', href: '/agent/skills', label: 'Skills' },
-    ],
-  },
-  {
-    label: 'History',
-    items: [
-      { section: 'sessions', href: '/agent/sessions', label: 'Sessions' },
-      { section: 'usage', href: '/agent/usage', label: 'Usage' },
-    ],
-  },
-];
-
-const financeGroups: Group[] = [
-  {
-    label: 'Money',
-    items: [
-      { section: 'finance', href: '/finance', label: 'Dashboard' },
-      { section: 'transactions', href: '/finance/transactions', label: 'Transactions' },
-      { section: 'budgets', href: '/finance/budgets', label: 'Budgets' },
-      { section: 'categories', href: '/finance/categories', label: 'Categories' },
-    ],
-  },
-];
-
-const groups = area === 'finance' ? financeGroups : agentGroups;
-const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { href: '/agent', name: 'agents' };
+const groups = AREAS[area].groups;
+const brand = { href: AREAS[area].home, name: area === 'finance' ? 'finance' : 'agents' };
 ---
 
-<aside class="sidebar" data-sidebar>
+<aside class="sidebar" data-sidebar data-area={area}>
+  <nav class="rail" aria-label="Area">
+    {
+      AREA_ORDER.map((key) => (
+        <a href={AREAS[key].home} class="rail-link" data-area-link={key} aria-current={key === area ? 'true' : undefined}>
+          <Pictogram name={key === 'finance' ? 'finance' : 'agents'} size={22} />
+          <span class="rail-label">{AREAS[key].label}</span>
+        </a>
+      ))
+    }
+    <button type="button" class="rail-link rail-search" data-palette-open aria-keyshortcuts="Control+K Meta+K" title="Go to a page (Ctrl+K)">
+      <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="9" cy="9" r="6" fill="none" stroke="currentColor" stroke-width="2.4" /><path d="M13.5 13.5L20 20" stroke="currentColor" stroke-width="2.4" /></svg>
+      <span class="rail-label">Search</span>
+    </button>
+  </nav>
+
+  <div class="side-body">
   <div class="side-top">
     <a href={brand.href} class="brand">syafwan <span>/ {brand.name}</span></a>
     <button type="button" class="menu-btn" aria-expanded="false" aria-controls="side-nav" data-menu-toggle>menu</button>
   </div>
-
-  <nav class="area-switch" aria-label="Area">
-    <a href="/agent" aria-current={area === 'agent' ? 'true' : undefined}>Agents</a>
-    <a href="/finance" aria-current={area === 'finance' ? 'true' : undefined}>Finance</a>
-  </nav>
 
   <nav id="side-nav" class="side-nav" aria-label={area === 'finance' ? 'Finance' : 'Hermes'}>
     {
@@ -95,9 +71,21 @@ const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { hre
       <button type="submit" class="signout">sign out</button>
     </form>
   </div>
+  </div>
 </aside>
 
 <script>
+  import { pageFor, rememberPage, type Area } from '../lib/nav';
+  import { initPalette } from '../scripts/nav-palette';
+
+  // Remember the page, so the rail reopens it later; and send the rail links there now.
+  rememberPage(localStorage, location.pathname);
+  document.querySelectorAll<HTMLAnchorElement>('[data-area-link]').forEach((link) => {
+    const key = link.dataset.areaLink as Area;
+    if (link.getAttribute('aria-current') !== 'true') link.href = pageFor(localStorage, key);
+  });
+  initPalette();
+
   const sidebar = document.querySelector<HTMLElement>('[data-sidebar]');
   const toggle = document.querySelector<HTMLButtonElement>('[data-menu-toggle]');
   toggle?.addEventListener('click', () => {
@@ -188,9 +176,58 @@ const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { hre
     top: 0;
     height: 100dvh;
     display: flex;
-    flex-direction: column;
     background: var(--te-page);
     border-right: 1px solid var(--te-grey-100);
+  }
+
+  /* Level 1: the areas */
+  .rail {
+    flex: none;
+    width: 68px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: var(--s-22) 6px;
+    background: var(--te-white);
+    border-right: 1px solid var(--te-grey-100);
+  }
+
+  .rail-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 2px 8px;
+    font-size: 11px;
+    line-height: 1.2;
+    border-left: 2px solid transparent;
+    color: var(--te-grey-600);
+    cursor: pointer;
+  }
+
+  .rail-link:hover {
+    background: var(--te-page);
+    color: var(--te-black);
+  }
+
+  .rail-link[aria-current='true'] {
+    background: var(--te-page);
+    color: var(--te-black);
+    border-left-color: var(--te-black);
+    font-weight: var(--w-regular);
+  }
+
+  .rail-search {
+    margin-top: auto;
+  }
+
+  /* Level 2: the pages of the area */
+  .side-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
     padding: var(--s-22) var(--s-15);
     overflow-y: auto;
   }
@@ -218,35 +255,6 @@ const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { hre
     font-size: var(--text-caption);
     border: 1px solid currentColor;
     padding: 6px 12px;
-  }
-
-  /* Switch between the two private areas: always visible, also on a phone */
-  .area-switch {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    margin: 0 8px var(--s-22);
-    border: 1px solid var(--te-black);
-    font-size: var(--text-caption);
-  }
-
-  .area-switch a {
-    padding: 7px 10px;
-    text-align: center;
-  }
-
-  .area-switch a:hover {
-    background: var(--te-white);
-  }
-
-  .area-switch a[aria-current='true'] {
-    background: var(--te-black);
-    color: var(--te-white);
-  }
-
-  @media (max-width: 899px) {
-    .area-switch {
-      margin: var(--s-15) 0 0;
-    }
   }
 
   .side-nav {
@@ -356,29 +364,64 @@ const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { hre
     text-underline-offset: 3px;
   }
 
-  /* Phone / narrow window: top bar, menu hidden until the button is pressed */
+  /* Phone / narrow window: top bar (brand + menu), areas as a bar at the bottom of the screen */
   @media (max-width: 899px) {
     .sidebar {
       position: sticky;
       top: 0;
       z-index: 20;
+      display: block;
       height: auto;
       max-height: 100dvh;
       border-right: 0;
       border-bottom: 1px solid var(--te-grey-100);
       background: var(--te-page);
-      padding: var(--s-15) var(--gutter);
-      padding-top: max(var(--s-15), env(safe-area-inset-top));
       overflow-y: auto;
     }
 
-    .menu-btn {
-      min-height: 44px;
-      padding-inline: 16px;
+    .side-body {
+      display: block;
+      overflow: visible;
+      padding: var(--s-15) var(--gutter);
+      padding-top: max(var(--s-15), env(safe-area-inset-top));
     }
 
-    .area-switch a {
-      padding-block: 12px;
+    .rail {
+      position: fixed;
+      inset: auto 0 0 0;
+      z-index: 25;
+      width: auto;
+      height: calc(var(--rail-h) + env(safe-area-inset-bottom));
+      flex-direction: row;
+      gap: 0;
+      padding: 0 0 env(safe-area-inset-bottom);
+      border-right: 0;
+      border-top: 1px solid var(--te-grey-100);
+      background: var(--te-page);
+    }
+
+    .rail-link {
+      flex: 1;
+      min-height: 0;
+      padding-block: 4px;
+      justify-content: center;
+      border-left: 0;
+      border-top: 2px solid transparent;
+    }
+
+    .rail-link[aria-current='true'] {
+      border-left-color: transparent;
+      border-top-color: var(--te-black);
+    }
+
+    .rail-search {
+      margin-top: 0;
+    }
+
+    .menu-btn {
+      display: inline-block;
+      min-height: 44px;
+      padding-inline: 16px;
     }
 
     .side-nav a {
@@ -387,10 +430,6 @@ const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { hre
 
     .side-top {
       padding: 0;
-    }
-
-    .menu-btn {
-      display: inline-block;
     }
 
     .side-nav,
@@ -403,10 +442,7 @@ const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { hre
       display: grid;
     }
 
-    .sidebar.open .side-nav {
-      margin-top: var(--s-15);
-    }
-
+    .sidebar.open .side-nav,
     .sidebar.open .side-foot {
       margin-top: var(--s-15);
     }

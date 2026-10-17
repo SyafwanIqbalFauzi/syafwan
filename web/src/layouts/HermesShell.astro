@@ -74,9 +74,10 @@ const email = Astro.locals.hermesUser?.email;
   }
 
   .cms {
+    --rail-h: 58px; /* the bar of areas at the bottom of a phone screen */
     flex: 1;
     display: grid;
-    grid-template-columns: 252px minmax(0, 1fr);
+    grid-template-columns: 320px minmax(0, 1fr);
     min-height: 100dvh;
   }
 
@@ -125,6 +126,8 @@ const email = Astro.locals.hermesUser?.email;
     /* Phone: a plain column, so the top bar (sidebar) can stay pinned while the page scrolls. */
     .cms {
       display: block;
+      /* room for the bar of areas at the bottom of the screen */
+      padding-bottom: calc(var(--rail-h) + env(safe-area-inset-bottom));
     }
 
     body.fill .cms {
@@ -139,6 +142,10 @@ const email = Astro.locals.hermesUser?.email;
     /* Keyboard open: the whole screen goes to the conversation and the box (the top bar returns when it closes). */
     html[data-keyboard] body.fill .sidebar {
       display: none;
+    }
+
+    html[data-keyboard] body.fill .cms {
+      padding-bottom: 0;
     }
   }
 </style>

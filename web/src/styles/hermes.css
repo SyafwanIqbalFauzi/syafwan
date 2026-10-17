@@ -942,3 +942,95 @@ a.row:hover {
 [hidden] {
   display: none !important;
 }
+
+/* =====================================================================
+ * Go-to-page palette (Ctrl+K, scripts/nav-palette.ts)
+ * ===================================================================== */
+.palette {
+  position: fixed;
+  inset: 0;
+  margin: 12vh auto auto;
+  width: min(520px, calc(100vw - 24px));
+  max-height: 70dvh;
+  padding: 0;
+  border: 1px solid var(--te-black);
+  border-radius: 0;
+  background: var(--te-page);
+  color: var(--te-black);
+  overflow: hidden;
+}
+
+.palette:not([open]) {
+  display: none;
+}
+
+.palette[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.palette::backdrop {
+  background: rgb(15 14 18 / 0.45);
+}
+
+.palette-input {
+  width: 100%;
+  font: inherit;
+  font-size: 16px;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid var(--te-grey-100);
+  border-radius: 0;
+  background: transparent;
+  appearance: none;
+}
+
+.palette-input:focus-visible {
+  outline: none;
+}
+
+.palette-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  overflow-y: auto;
+}
+
+.palette-list a {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 11px 16px;
+  min-height: 44px;
+  border-left: 2px solid transparent;
+}
+
+.palette-list li.active a {
+  background: var(--te-white);
+  border-left-color: var(--te-black);
+}
+
+.palette-where {
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+  text-align: right;
+}
+
+.palette-none {
+  padding: 14px 16px;
+  color: var(--te-grey-600);
+}
+
+.palette-hint {
+  padding: 8px 16px;
+  border-top: 1px solid var(--te-grey-100);
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+}
+
+@media (max-width: 899px) {
+  .palette-hint {
+    display: none;
+  }
+}
