@@ -359,12 +359,30 @@ const brand = area === 'finance' ? { href: '/finance', name: 'finance' } : { hre
   /* Phone / narrow window: top bar, menu hidden until the button is pressed */
   @media (max-width: 899px) {
     .sidebar {
-      position: static;
+      position: sticky;
+      top: 0;
+      z-index: 20;
       height: auto;
+      max-height: 100dvh;
       border-right: 0;
       border-bottom: 1px solid var(--te-grey-100);
+      background: var(--te-page);
       padding: var(--s-15) var(--gutter);
-      overflow: visible;
+      padding-top: max(var(--s-15), env(safe-area-inset-top));
+      overflow-y: auto;
+    }
+
+    .menu-btn {
+      min-height: 44px;
+      padding-inline: 16px;
+    }
+
+    .area-switch a {
+      padding-block: 12px;
+    }
+
+    .side-nav a {
+      padding-block: 12px;
     }
 
     .side-top {

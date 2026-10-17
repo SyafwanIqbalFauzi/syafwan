@@ -162,4 +162,15 @@ const sources = [...bySource].sort((a, b) => b[1].cost - a[1].cost);
     grid-template-columns: minmax(160px, 2fr) 1fr 1fr 1fr;
     padding-block: 10px;
   }
+
+  @media (max-width: 720px) {
+    .row-usage {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .row-usage > :first-child {
+      grid-column: 1 / -1;
+      overflow-wrap: anywhere;
+    }
+  }
 </style>

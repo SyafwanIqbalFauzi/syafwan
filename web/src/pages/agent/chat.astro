@@ -14,6 +14,7 @@ export const prerender = false;
 
     <section class="pane">
       <header class="pane-head">
+        <button id="chats-toggle" class="btn chats-btn" type="button" aria-expanded="false" aria-controls="sessions">chats</button>
         <h1 id="title" class="chat-title" title="Click to rename this chat">New chat</h1>
         <button id="rename-title" class="act" type="button" hidden aria-label="Rename this chat">rename</button>
         <span id="status" class="label muted" role="status"></span>
@@ -419,16 +420,92 @@ export const prerender = false;
     border-color: var(--te-black);
   }
 
+  .chats-btn {
+    display: none;
+  }
+
+  /* Phone: one screen at a time. The conversation fills the screen; "chats" swaps it for the list
+     of conversations (like a messenger), and opening one swaps back. */
   @media (max-width: 800px) {
     .chat {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: minmax(0, 1fr);
     }
 
     .chat .side {
-      max-height: 30dvh;
+      display: none;
       border-right: 0;
-      border-bottom: 1px solid var(--te-grey-100);
+      padding-top: var(--s-15);
+    }
+
+    .chat.show-sessions .side {
+      display: flex;
+    }
+
+    .chat.show-sessions .pane {
+      display: none;
+    }
+
+    .chats-btn {
+      display: inline-flex;
+      align-self: center;
+      min-height: 40px;
+      flex: none;
+    }
+
+    .pane-head {
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding-block: 10px;
+    }
+
+    .chat-title {
+      flex: 1;
+      min-width: 0;
+      font-size: var(--text-body);
+    }
+
+    .chat #sessions .open {
+      padding-block: 14px;
+    }
+
+    .chat #sessions .mini {
+      min-height: 44px;
+      padding-inline: 8px;
+    }
+
+    #log {
+      padding-block: var(--s-15);
+    }
+
+    .msg {
+      max-width: 100%;
+    }
+
+    .msg.user {
+      max-width: 92%;
+    }
+
+    #composer {
+      gap: 8px;
+      padding-bottom: max(var(--s-15), env(safe-area-inset-bottom));
+    }
+
+    #composer textarea {
+      flex-basis: 100%;
+      font-size: 16px;
+    }
+
+    #composer .btn {
+      flex: 1;
+      justify-content: center;
+      min-height: 46px;
+    }
+
+    #composer #send,
+    #composer #stop {
+      flex: 2;
     }
   }
 </style>

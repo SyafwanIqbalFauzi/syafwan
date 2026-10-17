@@ -27,7 +27,7 @@ const email = Astro.locals.hermesUser?.email;
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#ffffff" />
     <title>{title} — {area === 'finance' ? 'finance' : 'agents'}</title>
@@ -119,9 +119,18 @@ const email = Astro.locals.hermesUser?.email;
   }
 
   @media (max-width: 899px) {
+    /* Phone: a plain column, so the top bar (sidebar) can stay pinned while the page scrolls. */
     .cms {
-      grid-template-columns: minmax(0, 1fr);
-      grid-template-rows: auto minmax(0, 1fr);
+      display: block;
+    }
+
+    body.fill .cms {
+      display: flex;
+      flex-direction: column;
+    }
+
+    body.fill .cms-main {
+      flex: 1;
     }
   }
 </style>
