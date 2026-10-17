@@ -192,3 +192,73 @@ export async function watchRun(options: WatchOptions): Promise<WatchResult> {
   }
   return 'aborted';
 }
+
+// ---- polling the run's status (when the event stream is gone) --------------------------------
+//
+// Hermes drops the event stream of a run nobody is watching after ~5 minutes, so a page opened later
+// gets 404 from `/events` even though the run is still going, and it may be waiting for an approval.
+// The run's status stays available, and while it waits it carries the approval request. So when the
+// stream is gone the page falls back to reading that status.
+
+export const TERMINAL_STATUSES = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
+
+export interface RunStatus {
+  status?: string;
+  /** Present while status === 'waiting_for_approval': same shape as the `approval.request` event. */
+  approval?: Record<string, any>;
+  [key: string]: unknown;
+}
+
+/** The approval a run is waiting for, if its status says so. */
+export function pendingApproval(status: RunStatus | null | undefined): Record<string, any> | null {
+  if (!status || status.status !== 'waiting_for_approval') return null;
+  const a = status.approval;
+  return a && typeof a === 'object' && !Array.isArray(a) ? a : null;
+}
+
+/** Identity of one approval request, so the same one is never drawn twice (stream replay + status). */
+export function approvalKey(runId: string, approval: Record<string, any>): string {
+  const id = approval.request_id ?? approval.timestamp ?? approval.command ?? '';
+  return `${runId}:${String(id)}`;
+}
+
+export type PollResult = 'terminal' | 'aborted' | 'gone' | 'signed-out';
+
+export interface PollOptions {
+  fetchImpl: typeof fetch;
+  runId: string;
+  signal: AbortSignal;
+  onStatus: (status: RunStatus) => void;
+  intervalMs?: number;
+  /** Consecutive network failures tolerated before reporting the run as gone. */
+  maxFailures?: number;
+  sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
+}
+
+/** Read the run's status until it ends. Stops quietly when `signal` aborts. */
+export async function pollRun(options: PollOptions): Promise<PollResult> {
+  const { fetchImpl, runId, signal, onStatus } = options;
+  const interval = options.intervalMs ?? 3000;
+  const maxFailures = options.maxFailures ?? 20;
+  const sleep = options.sleep ?? defaultSleep;
+  let failures = 0;
+
+  while (!signal.aborted) {
+    try {
+      const res = await fetchImpl(`/api/agent/runs/${encodeURIComponent(runId)}`, { credentials: 'same-origin', signal });
+      if (res.status === 401) return 'signed-out';
+      if (res.status === 404) return 'gone';
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const status = (await res.json()) as RunStatus;
+      failures = 0;
+      onStatus(status);
+      if (status.status && TERMINAL_STATUSES.has(status.status)) return 'terminal';
+    } catch (error) {
+      if (signal.aborted || (error as Error).name === 'AbortError') return 'aborted';
+      failures += 1;
+      if (failures > maxFailures) return 'gone';
+    }
+    await sleep(interval, signal);
+  }
+  return 'aborted';
+}

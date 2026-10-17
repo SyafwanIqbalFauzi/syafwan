@@ -5,7 +5,7 @@ import { normalizeTitle, titleFromMessage } from '../lib/chat-title';
 import { askConfirm, askText } from './dialog';
 import { alertFor, alertUser, firstTime } from '../lib/notify';
 import { toast } from './toast';
-import { clearActiveRun, loadActiveRun, loadActiveRuns, MAX_ACTIVE_RUNS, saveActiveRun, watchRun, type ActiveRun, type RunEvent } from '../lib/chat-run';
+import { approvalKey, clearActiveRun, loadActiveRun, loadActiveRuns, MAX_ACTIVE_RUNS, pendingApproval, pollRun, saveActiveRun, watchRun, type ActiveRun, type RunEvent, type WatchResult } from '../lib/chat-run';
 import { markerText, type RunState } from '../lib/run-badge';
 import { fitWithin, imageSourcesOf, MAX_IMAGES, MAX_IMAGE_DATA_URL_CHARS, textOfContent } from '../lib/chat-images';
 
@@ -327,6 +327,7 @@ function newChat() {
   detachFromRun(); // a run in progress keeps going in the background
   sessionId = null;
   runId = null;
+  shownApprovals.clear();
   syncTitleControls();
   titleEl.textContent = 'New chat';
   logEl.replaceChildren(el('p', 'hint', 'Ask Hermes anything. It can run commands on the server, so approvals will appear here.'));
@@ -340,6 +341,7 @@ async function openSession(id: string, title: string, opts: { skipResume?: boole
   syncTitleControls();
   titleEl.textContent = title;
   logEl.replaceChildren(el('p', 'hint', 'Loading…'));
+  shownApprovals.clear(); // the log is rebuilt, so a request still pending is drawn again
   if (title === 'Session' || title === 'Chat') {
     // Opened by id only (a link, or after a reload): look the real title up.
     void api(`sessions/${id}`)
@@ -494,7 +496,7 @@ async function followRun(run: ActiveRun, turn: Turn) {
   startActivity();
   scrollDown();
 
-  const result = await watchRun({
+  let result: WatchResult = await watchRun({
     fetchImpl: fetch,
     runId: run.runId,
     lastSeq: run.lastSeq,
@@ -505,6 +507,29 @@ async function followRun(run: ActiveRun, turn: Turn) {
     },
     onEvent: (ev) => applyRunEvent(ev, turn),
   });
+
+  // Hermes drops the live stream of a run nobody watched for ~5 minutes, while the run itself keeps going
+  // (and may be waiting for an answer). Without the stream, follow the run's status: it carries the pending
+  // approval, so the question is still shown instead of the page waiting for nothing.
+  let followedByStatus = false;
+  if (result === 'lost' && controller === mine) {
+    followedByStatus = true;
+    const polled = await pollRun({
+      fetchImpl: fetch,
+      runId: run.runId,
+      signal: mine.signal,
+      onStatus: (status) => {
+        const approval = pendingApproval(status);
+        if (approval) {
+          setStatus('Hermes is waiting for your answer.');
+          showApproval({ ...approval, run_id: approval.run_id ?? run.runId });
+        } else {
+          setStatus('Live view unavailable; following the run.');
+        }
+      },
+    });
+    result = polled === 'terminal' || polled === 'gone' ? 'lost' : polled;
+  }
 
   if (controller !== mine) return; // another conversation took over while we were watching
   controller = null;
@@ -522,7 +547,7 @@ async function followRun(run: ActiveRun, turn: Turn) {
   runId = null;
   if (result === 'lost') {
     // The server no longer has the live view of this run; whatever Hermes saved is in the conversation.
-    setStatus('Lost the live view of this message. Showing what Hermes saved…');
+    setStatus(followedByStatus ? 'Hermes has finished. Showing the conversation…' : 'Lost the live view of this message. Showing what Hermes saved…');
     await openSession(run.sessionId, titleEl.textContent || 'Chat', { skipResume: true });
   } else {
     await renderFinal(turn.reply, turn.streamed);
@@ -593,6 +618,10 @@ async function resumeIfRunning(id: string) {
   // Still going. The conversation shows finished turns only, so show the pending message and replay the rest.
   const lastUser = [...logEl.querySelectorAll('.msg.user .body')].at(-1)?.textContent;
   const turn = beginTurn(active, lastUser?.trim() !== active.message.trim());
+  // A run waiting for an answer shows its question right away (the status carries it); the stream replay
+  // below would show the same request, which showApproval then ignores.
+  const waiting = pendingApproval(status);
+  if (waiting) showApproval({ ...waiting, run_id: waiting.run_id ?? active.runId });
   void followRun({ ...active, lastSeq: -1 }, turn);
 }
 
@@ -613,7 +642,14 @@ const APPROVAL_LABELS: Record<string, { label: string; hint: string }> = {
   deny: { label: 'Deny', hint: 'do not run it' },
 };
 
+// Requests already drawn in the open conversation: the stream replay and the run status can both report the
+// same one, and an answered one must not come back from a late status poll.
+const shownApprovals = new Set<string>();
+
 function showApproval(ev: any) {
+  const key = approvalKey(String(ev.run_id ?? runId ?? ''), ev);
+  if (shownApprovals.has(key)) return;
+  shownApprovals.add(key);
   const box = el('div', 'approval');
   box.setAttribute('role', 'alertdialog');
   box.append(el('strong', '', 'Hermes needs your permission'));
