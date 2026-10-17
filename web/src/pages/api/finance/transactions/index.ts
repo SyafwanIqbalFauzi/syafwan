@@ -19,6 +19,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const category = await readItem<FinanceCategory>(token, 'finance_categories', { 'filter[id][_eq]': fields.value.kategori });
     if (!category) return json(400, { error: 'That category does not exist' });
+    if (!category.aktif) return json(400, { error: 'That category is turned off. Turn it on in Categories first.' });
     if (fields.value.member && !(await readItem<FinanceMember>(token, 'finance_members', { 'filter[id][_eq]': fields.value.member }))) return json(400, { error: 'Unknown person' });
     const created = await createItem<FinanceTransaction>(token, 'finance_transactions', {
       ...fields.value,

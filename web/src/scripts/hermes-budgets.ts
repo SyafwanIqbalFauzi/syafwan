@@ -1,5 +1,6 @@
 // The budget page: add / edit a line in a dialog, delete with a confirmation, copy last year's lines.
 // Every change goes to /api/finance/budgets*, which checks everything again; the page then reloads.
+import { showCurrentCategory } from './category-options';
 import { askConfirm } from './dialog';
 import { flash, toast } from './toast';
 import { parseBudgetFields } from '../lib/budget-input';
@@ -40,6 +41,7 @@ function openDialog(line?: { id: number; kategori: string; name: string; amount:
   if (!dialog || !form) return;
   editingId = line?.id ?? null;
   dialog.querySelector('#budget-dialog-title')!.textContent = line ? 'Edit line' : 'Add a line';
+  showCurrentCategory(form.elements.namedItem('kategori') as HTMLSelectElement, line?.kategori ?? '');
   (form.elements.namedItem('kategori') as HTMLSelectElement).value = line?.kategori ?? '';
   (form.elements.namedItem('nama_pos') as HTMLInputElement).value = line?.name ?? '';
   (form.elements.namedItem('jumlah') as HTMLInputElement).value = line ? new Intl.NumberFormat('id-ID').format(Number(line.amount)) : '';

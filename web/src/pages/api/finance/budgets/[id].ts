@@ -20,6 +20,7 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
     if (!current) return json(404, { error: 'Unknown budget line' });
     const category = await readItem<FinanceCategory>(token, 'finance_categories', { 'filter[id][_eq]': fields.value.kategori });
     if (!category) return json(400, { error: 'That category does not exist' });
+    if (!category.aktif && category.id !== current.kategori) return json(400, { error: 'That category is turned off. Turn it on in Categories first.' });
     const sameYear = await readItems<FinanceBudget>(token, 'finance_budgets', { 'filter[tahun][_eq]': current.tahun, 'filter[kategori][_eq]': category.id, limit: -1 });
     if (sameYear.data.some((b) => b.id !== id && sameName(b.nama_pos, fields.value.nama_pos))) return json(409, { error: `${category.nama} already has a line called “${fields.value.nama_pos}” in ${current.tahun}` });
     await updateItem(token, 'finance_budgets', id, { ...fields.value });

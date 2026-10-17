@@ -29,7 +29,10 @@ export const PATCH: APIRoute = async ({ params, request, locals }) => {
   try {
     const before = await current(token, id);
     if (!before) return json(404, { error: 'Unknown transaction' });
-    if (!(await readItem<FinanceCategory>(token, 'finance_categories', { 'filter[id][_eq]': fields.value.kategori }))) return json(400, { error: 'That category does not exist' });
+    const category = await readItem<FinanceCategory>(token, 'finance_categories', { 'filter[id][_eq]': fields.value.kategori });
+    if (!category) return json(400, { error: 'That category does not exist' });
+    // An old transaction may keep a category that was turned off since; only moving one onto it is refused.
+    if (!category.aktif && category.id !== before.kategori) return json(400, { error: 'That category is turned off. Turn it on in Categories first.' });
     if (fields.value.member && !(await readItem<FinanceMember>(token, 'finance_members', { 'filter[id][_eq]': fields.value.member }))) return json(400, { error: 'Unknown person' });
     const change: Record<string, unknown> = { ...fields.value };
     if (fields.value.tanggal !== before.tanggal) change.waktu = waktuFor(fields.value.tanggal, today);

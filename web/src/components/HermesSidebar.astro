@@ -4,7 +4,7 @@
 // the bottom. On phones it folds into a top bar with a menu button.
 import Pictogram from './Pictogram.astro';
 
-export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets';
+export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets' | 'categories';
 export type Area = 'agent' | 'finance';
 
 interface Props {
@@ -47,6 +47,7 @@ const financeGroups: Group[] = [
       { section: 'finance', href: '/finance', label: 'Dashboard' },
       { section: 'transactions', href: '/finance/transactions', label: 'Transactions' },
       { section: 'budgets', href: '/finance/budgets', label: 'Budgets' },
+      { section: 'categories', href: '/finance/categories', label: 'Categories' },
     ],
   },
 ];
