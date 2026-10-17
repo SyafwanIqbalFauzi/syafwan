@@ -27,7 +27,7 @@ const email = Astro.locals.hermesUser?.email;
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#ffffff" />
     <title>{title} — {area === 'finance' ? 'finance' : 'agents'}</title>
@@ -84,13 +84,16 @@ const email = Astro.locals.hermesUser?.email;
     min-width: 0;
   }
 
+  /* --app-h is the part of the screen that is really visible (set by the chat script from visualViewport:
+     the on-screen keyboard on iPhones does not shrink dvh). Without it, dvh. */
   body.fill {
-    height: 100dvh;
+    min-height: 0; /* global.css gives body min-height: 100vh, which would keep it taller than --app-h */
+    height: var(--app-h, 100dvh);
     overflow: hidden;
   }
 
   body.fill .cms {
-    height: 100dvh;
+    height: var(--app-h, 100dvh);
     min-height: 0;
   }
 
@@ -131,6 +134,11 @@ const email = Astro.locals.hermesUser?.email;
 
     body.fill .cms-main {
       flex: 1;
+    }
+
+    /* Keyboard open: the whole screen goes to the conversation and the box (the top bar returns when it closes). */
+    html[data-keyboard] body.fill .sidebar {
+      display: none;
     }
   }
 </style>
