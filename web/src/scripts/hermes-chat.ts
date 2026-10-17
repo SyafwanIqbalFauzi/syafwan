@@ -7,6 +7,7 @@ import { alertFor, alertUser, firstTime } from '../lib/notify';
 import { toast } from './toast';
 import { clearActiveRun, loadActiveRun, loadActiveRuns, MAX_ACTIVE_RUNS, saveActiveRun, watchRun, type ActiveRun, type RunEvent } from '../lib/chat-run';
 import { markerText, type RunState } from '../lib/run-badge';
+import { fitWithin, imageSourcesOf, MAX_IMAGES, MAX_IMAGE_DATA_URL_CHARS, textOfContent } from '../lib/chat-images';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const sessionsEl = $<HTMLUListElement>('#sessions');
@@ -17,6 +18,9 @@ const form = $<HTMLFormElement>('#composer');
 const input = $<HTMLTextAreaElement>('#input');
 const sendBtn = $<HTMLButtonElement>('#send');
 const stopBtn = $<HTMLButtonElement>('#stop');
+const attachBtn = $<HTMLButtonElement>('#attach');
+const fileInput = $<HTMLInputElement>('#file');
+const attachmentsEl = $<HTMLUListElement>('#attachments');
 const newBtn = $<HTMLButtonElement>('#new-chat');
 const statusEl = $<HTMLElement>('#status');
 
@@ -65,12 +69,7 @@ async function api(path: string, init: RequestInit = {}): Promise<any> {
 
 const asList = (d: any, key: string): any[] => (Array.isArray(d) ? d : (d?.[key] ?? d?.data ?? d?.items ?? []));
 const idOf = (s: any): string | null => s?.id ?? s?.session_id ?? null;
-const textOf = (content: unknown): string =>
-  typeof content === 'string'
-    ? content
-    : Array.isArray(content)
-      ? content.map((p: any) => (typeof p === 'string' ? p : (p?.text ?? ''))).join('')
-      : '';
+const textOf = textOfContent;
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
@@ -86,6 +85,7 @@ function setBusy(busy: boolean) {
   sendBtn.hidden = busy;
   stopBtn.hidden = !busy;
   input.disabled = busy;
+  attachBtn.disabled = busy;
   if (!busy) input.focus();
 }
 
@@ -313,10 +313,11 @@ async function openSession(id: string, title: string, opts: { skipResume?: boole
     for (const m of messages) {
       if (m.role !== 'user' && m.role !== 'assistant') continue;
       const text = textOf(m.content);
-      if (!text.trim()) continue;
+      const pictures = m.role === 'user' ? imageSourcesOf(m.content) : [];
+      if (!text.trim() && pictures.length === 0) continue;
       const bubble = addBubble(m.role);
       if (m.role === 'assistant' && typeof m.html === 'string') bubble.innerHTML = m.html;
-      else bubble.textContent = text;
+      else fillUserBubble(bubble, text, pictures);
     }
     if (!logEl.children.length) logEl.append(el('p', 'hint', 'Empty session.'));
     scrollDown();
@@ -325,6 +326,23 @@ async function openSession(id: string, title: string, opts: { skipResume?: boole
   }
   loadSessions();
   if (!opts.skipResume && id === sessionId) await resumeIfRunning(id);
+}
+
+/** Text plus the pictures that came with a message. Pictures are set as <img src> only (never as HTML). */
+function fillUserBubble(body: HTMLElement, text: string, pictures: string[]) {
+  if (pictures.length === 0) {
+    body.textContent = text;
+    return;
+  }
+  const pics = el('div', 'pics');
+  for (const src of pictures) {
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = 'Attached image';
+    img.loading = 'lazy';
+    pics.append(img);
+  }
+  body.replaceChildren(pics, document.createTextNode(text));
 }
 
 function addBubble(role: 'user' | 'assistant'): HTMLDivElement {
@@ -348,10 +366,10 @@ interface Turn {
   toolCards: HTMLElement[];
 }
 
-function beginTurn(run: ActiveRun, showUserBubble: boolean): Turn {
+function beginTurn(run: ActiveRun, showUserBubble: boolean, pictures: string[] = []): Turn {
   const message = run.message;
   logEl.querySelector('.hint')?.remove();
-  if (showUserBubble) addBubble('user').textContent = message;
+  if (showUserBubble) fillUserBubble(addBubble('user'), message, pictures);
   const reply = addBubble('assistant');
   reply.classList.add('streaming');
   return { run, reply, streamed: '', toolCards: [] };
@@ -469,11 +487,13 @@ async function followRun(run: ActiveRun, turn: Turn) {
   loadSessions();
 }
 
-async function send(message: string) {
+async function send(message: string, pictures: string[] = []) {
   // Several conversations may answer at once, up to a limit (each one is watched from here and the sidebar).
   const running = loadActiveRuns(localStorage).filter((r) => r.sessionId !== sessionId);
   if (running.length >= MAX_ACTIVE_RUNS) {
     input.value = message;
+    for (const src of pictures) attachments.push(src);
+    renderAttachments();
     setStatus(`${MAX_ACTIVE_RUNS} chats are answering already. Wait for one to finish, or stop one.`);
     toast(`${MAX_ACTIVE_RUNS} chats are answering already`, 'info');
     return;
@@ -482,15 +502,15 @@ async function send(message: string) {
     const created = await api('sessions', { method: 'POST', body: '{}' });
     sessionId = idOf(created?.session ?? created);
     if (!sessionId) throw new Error('Could not create a session');
-    titleEl.textContent = titleFromMessage(message);
+    titleEl.textContent = message.trim() ? titleFromMessage(message) : 'Image';
     syncTitleControls();
   }
   const placeholder: ActiveRun = { runId: '', sessionId, message, lastSeq: -1, startedAt: Date.now() };
-  const turn = beginTurn(placeholder, true);
+  const turn = beginTurn(placeholder, true, pictures);
   setBusy(true);
   setStatus('');
   try {
-    const started = await api('runs', { method: 'POST', body: JSON.stringify({ input: message, session_id: sessionId }) });
+    const started = await api('runs', { method: 'POST', body: JSON.stringify({ input: message, images: pictures, session_id: sessionId }) });
     const run: ActiveRun = { ...placeholder, runId: started.run_id };
     turn.run = run;
     saveActiveRun(localStorage, run);
@@ -592,14 +612,140 @@ function showApproval(ev: any) {
   scrollDown();
 }
 
+// ---- pictures: paste, drop or pick; shrunk in the browser, sent with the message -------------
+
+const attachments: string[] = []; // data URLs waiting to be sent
+
+function renderAttachments() {
+  attachmentsEl.replaceChildren();
+  attachments.forEach((src, i) => {
+    const li = el('li');
+    const img = document.createElement('img');
+    img.src = src;
+    img.alt = `Attached image ${i + 1}`;
+    const remove = el('button', '', '×');
+    remove.type = 'button';
+    remove.setAttribute('aria-label', `Remove image ${i + 1}`);
+    remove.addEventListener('click', () => {
+      attachments.splice(i, 1);
+      renderAttachments();
+      input.focus();
+    });
+    li.append(img, remove);
+    attachmentsEl.append(li);
+  });
+  attachmentsEl.hidden = attachments.length === 0;
+}
+
+const readAsDataUrl = (file: Blob) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('Could not read the image'));
+    reader.readAsDataURL(file);
+  });
+
+/** Shrink to at most 1568 px on the long side (what vision models use anyway) and keep the upload small. */
+async function prepareImage(file: File): Promise<string> {
+  if (file.type === 'image/gif' && file.size <= 2_000_000) return readAsDataUrl(file); // keeps the animation
+  const bitmap = await createImageBitmap(file);
+  try {
+    for (const [edge, quality] of [[1568, 0.88], [1568, 0.7], [1200, 0.7], [800, 0.6]] as const) {
+      const { width, height } = fitWithin(bitmap.width, bitmap.height, edge);
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('Could not process the image');
+      ctx.fillStyle = '#fff'; // transparent PNGs become white instead of black
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+      if (!blob) throw new Error('Could not process the image');
+      const url = await readAsDataUrl(blob);
+      if (url.length <= MAX_IMAGE_DATA_URL_CHARS) return url;
+    }
+  } finally {
+    bitmap.close();
+  }
+  throw new Error('That image is too large');
+}
+
+async function addImages(files: File[]) {
+  const images = files.filter((f) => /^image\/(png|jpeg|webp|gif)$/.test(f.type));
+  if (images.length === 0) {
+    if (files.length) toast('Only PNG, JPEG, WebP or GIF images are supported', 'info');
+    return;
+  }
+  for (const file of images) {
+    if (attachments.length >= MAX_IMAGES) {
+      toast(`At most ${MAX_IMAGES} images per message`, 'info');
+      break;
+    }
+    try {
+      attachments.push(await prepareImage(file));
+      renderAttachments();
+    } catch (e) {
+      toast((e as Error).message, 'info');
+    }
+  }
+}
+
+input.addEventListener('paste', (e) => {
+  const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+  if (files.length === 0) return; // plain text paste: leave it alone
+  e.preventDefault();
+  void addImages(files);
+});
+
+attachBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+  void addImages([...(fileInput.files ?? [])]);
+  fileInput.value = '';
+});
+
+form.addEventListener('dragover', (e) => {
+  if (![...(e.dataTransfer?.types ?? [])].includes('Files')) return;
+  e.preventDefault();
+  form.classList.add('dragging');
+});
+form.addEventListener('dragleave', () => form.classList.remove('dragging'));
+form.addEventListener('drop', (e) => {
+  form.classList.remove('dragging');
+  const files = [...(e.dataTransfer?.files ?? [])];
+  if (files.length === 0) return;
+  e.preventDefault();
+  void addImages(files);
+});
+
+// Click a picture in the conversation to see it large.
+logEl.addEventListener('click', (e) => {
+  const img = e.target instanceof HTMLImageElement && e.target.closest('.pics') ? e.target : null;
+  if (!img) return;
+  const overlay = el('div', 'lightbox');
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.85);display:grid;place-items:center;cursor:zoom-out;padding:24px';
+  const big = document.createElement('img');
+  big.src = img.src;
+  big.alt = img.alt;
+  big.style.cssText = 'max-width:100%;max-height:100%;object-fit:contain';
+  overlay.append(big);
+  const close = () => (overlay.remove(), document.removeEventListener('keydown', onKey));
+  const onKey = (ev: KeyboardEvent) => ev.key === 'Escape' && close();
+  overlay.addEventListener('click', close);
+  document.addEventListener('keydown', onKey);
+  document.body.append(overlay);
+});
+
 // ---- wiring --------------------------------------------------------------
 
 form.addEventListener('submit', (e) => {
   e.preventDefault();
   const message = input.value.trim();
-  if (!message || controller) return;
+  if ((!message && attachments.length === 0) || controller) return;
+  const pictures = attachments.splice(0);
+  renderAttachments();
   input.value = '';
-  send(message).catch((err) => setStatus(err.message));
+  send(message, pictures).catch((err) => setStatus(err.message));
 });
 
 input.addEventListener('keydown', (e) => {
