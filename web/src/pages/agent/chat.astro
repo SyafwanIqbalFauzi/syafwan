@@ -316,6 +316,16 @@ export const prerender = false;
     list-style: revert;
   }
 
+  .msg.assistant .body img {
+    display: block;
+    max-width: min(100%, 720px);
+    height: auto;
+    margin-top: 0.7em;
+    border: 1px solid var(--te-grey-200);
+    background: var(--te-white);
+    cursor: zoom-in;
+  }
+
   .msg .body a {
     color: var(--te-blue);
     overflow-wrap: anywhere;
