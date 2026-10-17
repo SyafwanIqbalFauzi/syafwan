@@ -86,12 +86,36 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
 const scrollDown = () => logEl.scrollTo({ top: logEl.scrollHeight });
 const setStatus = (text: string) => (statusEl.textContent = text);
 
+// A phone's keyboard pops up whenever the box is focused from code, and then covers the screen. Only a
+// mouse-and-keyboard device gets the automatic focus; on a touch screen the person taps the box.
+// The long placeholder (with keyboard shortcuts) does not fit the narrow box on a phone.
+if (window.matchMedia('(pointer: coarse)').matches) input.placeholder = 'Message Hermes';
+
+const autoFocus = () => {
+  if (window.matchMedia('(pointer: fine)').matches) input.focus();
+};
+
 function setBusy(busy: boolean) {
   sendBtn.hidden = busy;
   stopBtn.hidden = !busy;
   input.disabled = busy;
   attachBtn.disabled = busy;
-  if (!busy) input.focus();
+  if (!busy) autoFocus();
+}
+
+// Keep the page exactly as tall as what is visible. When the on-screen keyboard opens, iPhones shrink only
+// the visual viewport (not dvh), which would leave the composer behind the keyboard.
+const viewport = window.visualViewport;
+if (viewport) {
+  const fit = () => {
+    const keyboard = window.innerHeight - viewport.height > 120;
+    document.documentElement.style.setProperty('--app-h', keyboard ? `${Math.round(viewport.height)}px` : '');
+    document.documentElement.toggleAttribute('data-keyboard', keyboard);
+    if (keyboard) window.scrollTo(0, 0); // iOS pans the page up to the focused box; the layout already fits
+  };
+  viewport.addEventListener('resize', fit);
+  viewport.addEventListener('scroll', fit);
+  fit();
 }
 
 // ---- "Hermes is working" indicator ----------------------------------------
@@ -306,7 +330,7 @@ function newChat() {
   syncTitleControls();
   titleEl.textContent = 'New chat';
   logEl.replaceChildren(el('p', 'hint', 'Ask Hermes anything. It can run commands on the server, so approvals will appear here.'));
-  input.focus();
+  autoFocus();
 }
 
 async function openSession(id: string, title: string, opts: { skipResume?: boolean } = {}) {
