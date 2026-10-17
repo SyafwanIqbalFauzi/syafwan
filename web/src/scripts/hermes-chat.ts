@@ -23,6 +23,8 @@ const fileInput = $<HTMLInputElement>('#file');
 const attachmentsEl = $<HTMLUListElement>('#attachments');
 const newBtn = $<HTMLButtonElement>('#new-chat');
 const statusEl = $<HTMLElement>('#status');
+const chatEl = $<HTMLElement>('.chat');
+const chatsToggle = $<HTMLButtonElement>('#chats-toggle');
 
 let sessionId: string | null = null;
 let runId: string | null = null;
@@ -289,7 +291,15 @@ function beginTitleEdit() {
   field.addEventListener('blur', () => void finish(true));
 }
 
+/** Phone only: swap the conversation for the list of conversations (and back). On a wide screen both are always shown. */
+function showSessionList(show: boolean) {
+  chatEl.classList.toggle('show-sessions', show);
+  chatsToggle.setAttribute('aria-expanded', String(show));
+  chatsToggle.textContent = show ? 'back' : 'chats';
+}
+
 function newChat() {
+  showSessionList(false);
   detachFromRun(); // a run in progress keeps going in the background
   sessionId = null;
   runId = null;
@@ -300,6 +310,7 @@ function newChat() {
 }
 
 async function openSession(id: string, title: string, opts: { skipResume?: boolean } = {}) {
+  showSessionList(false);
   detachFromRun(); // a run in progress elsewhere keeps going; we just stop watching it from here
   sessionId = id;
   syncTitleControls();
@@ -766,6 +777,8 @@ input.addEventListener('keydown', (e) => {
     form.requestSubmit();
   }
 });
+
+chatsToggle.addEventListener('click', () => showSessionList(!chatEl.classList.contains('show-sessions')));
 
 titleEl.addEventListener('click', beginTitleEdit);
 titleEl.addEventListener('keydown', (e) => {
