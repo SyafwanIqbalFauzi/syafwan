@@ -2,6 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
   ACTIVE_RUNS_KEY,
+  approvalKey,
+  pendingApproval,
+  pollRun,
   clearActiveRun,
   LEGACY_RUN_KEY,
   loadActiveRun,
@@ -214,4 +217,68 @@ test('watchRun: starts from the position it is given', async () => {
 test('watchRun: failed and cancelled runs end the watch too', async () => {
   assert.equal((await watch([[frame(0, 'run.failed', { error: 'x' })]])).result, 'terminal');
   assert.equal((await watch([[frame(0, 'run.cancelled')]])).result, 'terminal');
+});
+
+// ---- pendingApproval / approvalKey / pollRun -------------------------------------------------
+
+test('pendingApproval: only a run that is waiting for approval has one', () => {
+  const approval = { event: 'approval.request', run_id: 'run_abc', command: 'rm x', choices: ['once', 'deny'] };
+  assert.deepEqual(pendingApproval({ status: 'waiting_for_approval', approval }), approval);
+  assert.equal(pendingApproval({ status: 'running', approval }), null);
+  assert.equal(pendingApproval({ status: 'waiting_for_approval' }), null);
+  assert.equal(pendingApproval({ status: 'waiting_for_approval', approval: [] as any }), null);
+  assert.equal(pendingApproval(null), null);
+});
+
+test('approvalKey: same request -> same key, a later request in the same run -> another key', () => {
+  assert.equal(approvalKey('r', { timestamp: 1 }), approvalKey('r', { timestamp: 1, command: 'x' }));
+  assert.notEqual(approvalKey('r', { timestamp: 1 }), approvalKey('r', { timestamp: 2 }));
+  assert.notEqual(approvalKey('r', { request_id: 'a' }), approvalKey('r', { request_id: 'b' }));
+  assert.notEqual(approvalKey('r1', { timestamp: 1 }), approvalKey('r2', { timestamp: 1 }));
+});
+
+/** A fetch answering each call with the next scripted status (number = HTTP error, 'net' = network error). */
+function scriptedStatus(responses: (RunStatusLike | number | 'net')[]) {
+  let calls = 0;
+  const fetchImpl = (async () => {
+    calls++;
+    const next = responses.shift();
+    if (next === undefined) throw new Error('no more scripted responses');
+    if (next === 'net') throw new TypeError('network down');
+    if (typeof next === 'number') return { ok: next < 400, status: next, json: async () => ({}) } as unknown as Response;
+    return { ok: true, status: 200, json: async () => next } as unknown as Response;
+  }) as unknown as typeof fetch;
+  return { fetchImpl, calls: () => calls };
+}
+type RunStatusLike = Record<string, unknown>;
+const noSleep = async () => {};
+
+test('pollRun: reports every status and stops at the end of the run', async () => {
+  const seen: (string | undefined)[] = [];
+  const { fetchImpl } = scriptedStatus([{ status: 'running' }, { status: 'waiting_for_approval', approval: { command: 'x' } }, { status: 'running' }, { status: 'completed' }]);
+  const result = await pollRun({ fetchImpl, runId: 'run_abc', signal: new AbortController().signal, onStatus: (s) => seen.push(s.status), sleep: noSleep });
+  assert.equal(result, 'terminal');
+  assert.deepEqual(seen, ['running', 'waiting_for_approval', 'running', 'completed']);
+});
+
+test('pollRun: 404 = gone, 401 = signed out', async () => {
+  const gone = scriptedStatus([404]);
+  assert.equal(await pollRun({ fetchImpl: gone.fetchImpl, runId: 'r', signal: new AbortController().signal, onStatus: () => {}, sleep: noSleep }), 'gone');
+  const out = scriptedStatus([401]);
+  assert.equal(await pollRun({ fetchImpl: out.fetchImpl, runId: 'r', signal: new AbortController().signal, onStatus: () => {}, sleep: noSleep }), 'signed-out');
+});
+
+test('pollRun: a few network failures are survived, too many mean gone', async () => {
+  const flaky = scriptedStatus(['net', 500, { status: 'completed' }]);
+  assert.equal(await pollRun({ fetchImpl: flaky.fetchImpl, runId: 'r', signal: new AbortController().signal, onStatus: () => {}, sleep: noSleep }), 'terminal');
+  const dead = scriptedStatus(['net', 'net', 'net']);
+  assert.equal(await pollRun({ fetchImpl: dead.fetchImpl, runId: 'r', signal: new AbortController().signal, onStatus: () => {}, sleep: noSleep, maxFailures: 2 }), 'gone');
+});
+
+test('pollRun: aborting stops it without another request', async () => {
+  const ctrl = new AbortController();
+  const { fetchImpl, calls } = scriptedStatus([{ status: 'running' }, { status: 'running' }]);
+  const result = await pollRun({ fetchImpl, runId: 'r', signal: ctrl.signal, onStatus: () => ctrl.abort(), sleep: noSleep });
+  assert.equal(result, 'aborted');
+  assert.equal(calls(), 1);
 });
