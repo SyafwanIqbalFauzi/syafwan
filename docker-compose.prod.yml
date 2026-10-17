@@ -48,6 +48,13 @@ services:
     container_name: syafwan-web
     restart: unless-stopped
     mem_limit: 160m
+    # Same user as the VPS account, so the web app can read the agent's picture folders below
+    # (they are private to that user). The app writes nothing to disk.
+    user: "${WEB_UID:-1001}:${WEB_GID:-1001}"
+    volumes:
+      # Pictures the agent mentions in a chat reply (MEDIA:/path). Read-only; see web/src/lib/chat-media.ts.
+      - ${HERMES_HOME:-/home/syafwan/.hermes}/cache/scratch:/media/scratch:ro
+      - ${HERMES_HOME:-/home/syafwan/.hermes}/cache/images:/media/images:ro
     depends_on:
       - syafwan-directus
     environment:

@@ -767,7 +767,7 @@ form.addEventListener('drop', (e) => {
 
 // Click a picture in the conversation to see it large.
 logEl.addEventListener('click', (e) => {
-  const img = e.target instanceof HTMLImageElement && e.target.closest('.pics') ? e.target : null;
+  const img = e.target instanceof HTMLImageElement && e.target.closest('.pics, .msg.assistant .body') ? e.target : null;
   if (!img) return;
   const overlay = el('div', 'lightbox');
   overlay.style.cssText = 'position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.85);display:grid;place-items:center;cursor:zoom-out;padding:24px';

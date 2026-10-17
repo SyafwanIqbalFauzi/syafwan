@@ -5,6 +5,7 @@ import type { APIRoute } from 'astro';
 import { audit } from '../../../lib/auth';
 import { callHermes, forwardedQuery, isConfigured, MAX_BODY_BYTES, resolveHermesRoute } from '../../../lib/hermes';
 import { renderMarkdown } from '../../../lib/markdown';
+import { inlineMediaTags } from '../../../lib/chat-media';
 
 export const prerender = false;
 
@@ -16,7 +17,7 @@ function withRenderedMarkdown(data: unknown): unknown {
   const list = Array.isArray(data) ? data : (data as any)?.messages ?? (data as any)?.data;
   if (!Array.isArray(list)) return data;
   for (const message of list) {
-    if (message?.role === 'assistant' && typeof message.content === 'string') message.html = renderMarkdown(message.content);
+    if (message?.role === 'assistant' && typeof message.content === 'string') message.html = renderMarkdown(inlineMediaTags(message.content));
   }
   return data;
 }
@@ -38,7 +39,7 @@ const handler: APIRoute = async ({ request, params, url, locals }) => {
     const body = await request.json().catch(() => null);
     const text = typeof body?.text === 'string' ? body.text : '';
     if (text.length > 200_000) return json(413, { error: 'Request too large' });
-    return json(200, { html: renderMarkdown(text) });
+    return json(200, { html: renderMarkdown(inlineMediaTags(text)) });
   }
 
   const route = resolveHermesRoute(request.method, path);
