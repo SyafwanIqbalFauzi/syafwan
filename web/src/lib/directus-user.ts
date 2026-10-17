@@ -106,6 +106,7 @@ export interface FinanceCategory {
   jenis: 'pemasukan' | 'pengeluaran';
   aktif: boolean;
   sort: number | null;
+  kata_kunci?: string[] | null;
 }
 
 export interface FinanceBudget {
@@ -148,7 +149,7 @@ export async function readItem<T>(token: string, collection: ReadableCollection,
 }
 
 /** PATCH one item with the signed-in user's token (e.g. the agent group). */
-export async function updateItem(token: string, collection: 'agent_jobs' | 'finance_budgets' | 'finance_transactions', id: number, data: Record<string, unknown>): Promise<void> {
+export async function updateItem(token: string, collection: 'agent_jobs' | 'finance_budgets' | 'finance_transactions' | 'finance_categories', id: number, data: Record<string, unknown>): Promise<void> {
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}/${id}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -159,7 +160,7 @@ export async function updateItem(token: string, collection: 'agent_jobs' | 'fina
 }
 
 /** Create one item with the signed-in user's token (skill change requests). */
-export async function createItem<T>(token: string, collection: 'skill_changes' | 'finance_budgets' | 'finance_transactions', data: Record<string, unknown> | Record<string, unknown>[]): Promise<T> {
+export async function createItem<T>(token: string, collection: 'skill_changes' | 'finance_budgets' | 'finance_transactions' | 'finance_categories', data: Record<string, unknown> | Record<string, unknown>[]): Promise<T> {
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -170,8 +171,8 @@ export async function createItem<T>(token: string, collection: 'skill_changes' |
   return ((await res.json()) as { data: T }).data;
 }
 
-/** Delete one item with the signed-in user's token (a budget line). */
-export async function deleteItem(token: string, collection: 'finance_budgets', id: number): Promise<void> {
+/** Delete one item with the signed-in user's token (a budget line, an unused category). */
+export async function deleteItem(token: string, collection: 'finance_budgets' | 'finance_categories', id: number): Promise<void> {
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}/${id}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },

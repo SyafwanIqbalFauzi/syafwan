@@ -152,10 +152,10 @@ const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-
           <select name="kategori" required>
             <option value="">Choose…</option>
             <optgroup label="Spending">
-              {categories.filter((c) => c.jenis === 'pengeluaran').map((c) => <option value={c.id} data-jenis="pengeluaran">{c.nama}</option>)}
+              {categories.filter((c) => c.jenis === 'pengeluaran').map((c) => <option value={c.id} data-jenis="pengeluaran" data-inactive={c.aktif ? undefined : ''} disabled={!c.aktif} hidden={!c.aktif}>{c.nama}</option>)}
             </optgroup>
             <optgroup label="Income">
-              {categories.filter((c) => c.jenis === 'pemasukan').map((c) => <option value={c.id} data-jenis="pemasukan">{c.nama}</option>)}
+              {categories.filter((c) => c.jenis === 'pemasukan').map((c) => <option value={c.id} data-jenis="pemasukan" data-inactive={c.aktif ? undefined : ''} disabled={!c.aktif} hidden={!c.aktif}>{c.nama}</option>)}
             </optgroup>
           </select>
         </label>

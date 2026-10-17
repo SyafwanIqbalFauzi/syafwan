@@ -153,10 +153,10 @@ const loaded = budgetResult !== null && catResult !== null;
           <select name="kategori" required>
             <option value="">Choose…</option>
             <optgroup label="Spending">
-              {categories.filter((c) => c.jenis === 'pengeluaran').map((c) => <option value={c.id}>{c.nama}</option>)}
+              {categories.filter((c) => c.jenis === 'pengeluaran').map((c) => <option value={c.id} data-inactive={c.aktif ? undefined : ''} disabled={!c.aktif} hidden={!c.aktif}>{c.nama}</option>)}
             </optgroup>
             <optgroup label="Income">
-              {categories.filter((c) => c.jenis === 'pemasukan').map((c) => <option value={c.id}>{c.nama}</option>)}
+              {categories.filter((c) => c.jenis === 'pemasukan').map((c) => <option value={c.id} data-inactive={c.aktif ? undefined : ''} disabled={!c.aktif} hidden={!c.aktif}>{c.nama}</option>)}
             </optgroup>
           </select>
         </label>

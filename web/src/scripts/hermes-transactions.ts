@@ -1,5 +1,6 @@
 // The transaction list: add / edit in a dialog, delete with a confirmation. Every change goes to
 // /api/finance/transactions*, which checks everything again; the page then reloads.
+import { showCurrentCategory } from './category-options';
 import { askConfirm } from './dialog';
 import { flash, toast } from './toast';
 import { parseTransactionFields } from '../lib/transaction-input';
@@ -47,6 +48,7 @@ function openDialog(line?: Line) {
   dialog.querySelector('#trx-dialog-title')!.textContent = line ? 'Edit transaction' : 'Add a transaction';
   field('tanggal').value = line?.tanggal ?? today;
   field('jenis').value = line?.jenis ?? 'pengeluaran';
+  showCurrentCategory(field('kategori') as HTMLSelectElement, line?.kategori ?? '');
   field('kategori').value = line?.kategori ?? '';
   field('deskripsi').value = line?.deskripsi ?? '';
   field('nominal').value = line ? money(line.nominal) : '';

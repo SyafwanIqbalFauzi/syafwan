@@ -1,0 +1,211 @@
+---
+import HermesShell from '../../layouts/HermesShell.astro';
+import { readItems, type FinanceCategory } from '../../lib/directus-user';
+import { usageByCategory } from '../../lib/category-usage';
+import { isUnused, type Usage } from '../../lib/category-input';
+
+export const prerender = false;
+
+const token = Astro.locals.hermesToken!;
+
+const [catResult, usageResult] = await Promise.all([
+  readItems<FinanceCategory>(token, 'finance_categories', { limit: -1, sort: 'sort,id' }).catch(() => null),
+  usageByCategory(token).catch(() => null),
+]);
+
+const loaded = catResult !== null && usageResult !== null;
+const categories = catResult?.data ?? [];
+const usageOf = (id: number): Usage => usageResult?.get(id) ?? { transactions: 0, budgets: 0 };
+
+const groups = [
+  { jenis: 'pengeluaran', title: 'Spending', rows: categories.filter((c) => c.jenis === 'pengeluaran') },
+  { jenis: 'pemasukan', title: 'Income', rows: categories.filter((c) => c.jenis === 'pemasukan') },
+];
+const activeCount = categories.filter((c) => c.aktif).length;
+const unusedCount = categories.filter((c) => isUnused(usageOf(c.id))).length;
+---
+
+<HermesShell title="Categories" current="categories" area="finance">
+  <div class="container page" data-categories>
+    <div class="page-head">
+      <h1 class="h1">Categories</h1>
+      <p class="label muted">the list used by transactions and budgets</p>
+    </div>
+
+    {!loaded && <p class="notice error" role="alert">Could not read the categories.</p>}
+    <p class="notice" data-category-banner hidden role="status"></p>
+
+    <section class="block">
+      <div class="figures figures-money">
+        <div class="figure"><p class="value">{categories.length}</p><p class="label">categories</p></div>
+        <div class="figure"><p class="value">{activeCount}</p><p class="label">active</p></div>
+        <div class="figure"><p class="value">{categories.length - activeCount}</p><p class="label">turned off</p></div>
+        <div class="figure"><p class="value">{unusedCount}</p><p class="label">not used anywhere</p></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head">
+        <h2>All categories</h2>
+        <span class="budget-actions">
+          <button type="button" class="btn btn-solid" data-add>Add a category</button>
+        </span>
+      </div>
+
+      {
+        categories.length ? (
+          <div class="budget-groups">
+            {groups.map((g) => (
+              <div class="budget-group">
+                <div class="budget-group-head">
+                  <span class="name" style="font-size: var(--text-body)">{g.title}</span>
+                  <span class="tag">{g.jenis === 'pemasukan' ? 'income' : 'spending'}</span>
+                  <span class="num">{g.rows.length} {g.rows.length === 1 ? 'category' : 'categories'}</span>
+                </div>
+                {g.rows.length ? (
+                  <div class="ruled" data-group data-jenis={g.jenis}>
+                    {g.rows.map((c) => {
+                      const u = usageOf(c.id);
+                      const keywords = (c.kata_kunci ?? []).join(', ');
+                      return (
+                        <div class="row row-category" data-row data-id={c.id} data-inactive={c.aktif ? undefined : ''}>
+                          <button type="button" class="drag-handle" data-handle aria-label={`Move ${c.nama}. Drag, or press the up and down arrow keys.`} title="Drag to reorder">⠿</button>
+                          <span>
+                            {c.nama}
+                            {!c.aktif && <span class="tag tag-idle"> off</span>}
+                            {keywords && <span class="sub category-keywords"> · {keywords}</span>}
+                          </span>
+                          <span class="num sub">{u.transactions} transaction{u.transactions === 1 ? '' : 's'}</span>
+                          <span class="num sub">{u.budgets} budget line{u.budgets === 1 ? '' : 's'}</span>
+                          <span class="row-actions">
+                            <button type="button" class="arrow-link" data-edit data-id={c.id} data-name={c.nama} data-jenis={c.jenis} data-aktif={c.aktif ? 'true' : 'false'} data-keywords={keywords} data-used={isUnused(u) ? 'false' : 'true'}>edit</button>
+                            {isUnused(u) ? (
+                              <button type="button" class="arrow-link danger" data-delete data-id={c.id} data-name={c.nama}>delete</button>
+                            ) : (
+                              <span class="sub" title="Used by transactions or budgets. Turn it off in edit instead.">in use</span>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p class="empty">No {g.title.toLowerCase()} categories yet.</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="empty">{loaded ? 'No categories yet. Add the first one.' : 'The categories are unavailable.'}</p>
+        )
+      }
+    </section>
+
+    <p class="label muted">
+      Drag a row by its handle (⠿) to change the order inside Spending or Income; the order is also used on Budgets.
+      A category that is used by a transaction or a budget line cannot be deleted or change its type. Turn it off instead: it disappears from the pickers, and old records keep it.
+      Keywords are hints for the assistant when it files a message, for example “kopi, nasi”.
+    </p>
+
+    <dialog class="dlg" id="category-dialog" aria-labelledby="category-dialog-title">
+      <form method="dialog" data-category-form novalidate>
+        <h2 id="category-dialog-title">Add a category</h2>
+        <label class="dlg-field">
+          <span class="label muted">Name</span>
+          <input name="nama" type="text" maxlength="60" autocomplete="off" placeholder="e.g. Makan & Minum" required />
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Type</span>
+          <select name="jenis" required>
+            <option value="pengeluaran">Spending</option>
+            <option value="pemasukan">Income</option>
+          </select>
+        </label>
+        <label class="dlg-field">
+          <span class="label muted">Keywords (optional, separated by commas)</span>
+          <input name="kata_kunci" type="text" autocomplete="off" placeholder="e.g. kopi, nasi, warung" />
+        </label>
+        <label class="dlg-field dlg-check">
+          <input name="aktif" type="checkbox" checked />
+          <span>Active (shown in the pickers)</span>
+        </label>
+        <p class="sub" data-jenis-locked hidden>The type is locked because this category is already used.</p>
+        <p class="dlg-error" data-category-error role="alert"></p>
+        <div class="dlg-actions">
+          <button type="button" class="btn" data-cancel>Cancel</button>
+          <button type="submit" class="btn btn-solid" data-save>Save</button>
+        </div>
+      </form>
+    </dialog>
+  </div>
+</HermesShell>
+
+<script>
+  import '../../scripts/hermes-categories';
+</script>
+
+<style is:global>
+  .row-category {
+    grid-template-columns: 28px minmax(160px, 3fr) minmax(110px, 1fr) minmax(110px, 1fr) 130px;
+    padding-block: 10px;
+    align-items: baseline;
+  }
+
+  .row-category .row-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--s-15);
+  }
+
+  .row-category[data-inactive] > span:nth-child(2) {
+    color: var(--muted, #888);
+  }
+
+  .category-keywords {
+    font-size: var(--text-caption);
+  }
+
+  .drag-handle {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    cursor: grab;
+    color: inherit;
+    opacity: 0.45;
+    touch-action: none;
+  }
+
+  .drag-handle:hover,
+  .drag-handle:focus-visible {
+    opacity: 1;
+  }
+
+  .row-category.dragging {
+    opacity: 0.4;
+  }
+
+  .row-category.drop-before {
+    box-shadow: 0 -2px 0 0 var(--te-orange);
+  }
+
+  .row-category.drop-after {
+    box-shadow: 0 2px 0 0 var(--te-orange);
+  }
+
+  .dlg-check {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--s-15);
+  }
+
+  @media (max-width: 720px) {
+    .row-category {
+      grid-template-columns: 28px 1fr auto;
+    }
+
+    .row-category > .sub:not(.row-actions) {
+      display: none;
+    }
+  }
+</style>
