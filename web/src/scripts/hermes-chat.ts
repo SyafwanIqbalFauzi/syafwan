@@ -28,6 +28,9 @@ let controller: AbortController | null = null;
 // every few seconds and announces the result as an 'agent:runs' event; this page only paints it.
 let runStates = new Map<string, RunState>(Object.entries((window as any).__agentRunStates ?? {}) as [string, RunState][]);
 
+/** Tell the sidebar that the remembered runs changed, so its badge and the list markers are refreshed now. */
+const runsChanged = () => window.dispatchEvent(new Event('agent:run-saved'));
+
 function paintMarkers() {
   sessionsEl.querySelectorAll<HTMLElement>('li[data-session]').forEach((li) => {
     const state = runStates.get(li.dataset.session ?? '');
@@ -185,7 +188,11 @@ async function loadSessions() {
             toast(e.message, 'error');
             return false;
           });
-          if (deleted) toast(`Chat “${label}” deleted`);
+          if (deleted) {
+            toast(`Chat “${label}” deleted`);
+            clearActiveRun(localStorage, id);
+            runsChanged();
+          }
           if (id === sessionId) newChat();
           loadSessions();
         });
@@ -458,6 +465,7 @@ async function followRun(run: ActiveRun, turn: Turn) {
   }
   if (result === 'aborted') return;
   clearActiveRun(localStorage, run.sessionId);
+  runsChanged();
   runId = null;
   if (result === 'lost') {
     // The server no longer has the live view of this run; whatever Hermes saved is in the conversation.
@@ -494,7 +502,7 @@ async function send(message: string) {
     const run: ActiveRun = { ...placeholder, runId: started.run_id };
     turn.run = run;
     saveActiveRun(localStorage, run);
-    window.dispatchEvent(new Event('agent:run-saved')); // the sidebar starts checking on it
+    runsChanged(); // the sidebar starts checking on it
     void followRun(run, turn);
   } catch (e) {
     turn.reply.classList.remove('streaming');
@@ -515,11 +523,15 @@ async function resumeIfRunning(id: string) {
     location.href = '/agent/login';
     return;
   }
-  if (res.status === 404) return clearActiveRun(localStorage, id);
+  if (res.status === 404) {
+    clearActiveRun(localStorage, id);
+    return runsChanged();
+  }
   const status = res.ok ? await res.json().catch(() => null) : null;
   if (!status) return;
   if (['completed', 'failed', 'cancelled', 'interrupted'].includes(status.status)) {
     clearActiveRun(localStorage, id); // finished while we were away: it is already in the conversation
+    runsChanged();
     return;
   }
 
