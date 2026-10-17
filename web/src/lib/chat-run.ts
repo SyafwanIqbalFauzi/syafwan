@@ -24,47 +24,83 @@ export interface KeyValueStore {
   removeItem(key: string): void;
 }
 
-export const ACTIVE_RUN_KEY = 'agent.activeRun';
+/** Where the runs are kept: one entry per conversation (session id -> ActiveRun). */
+export const ACTIVE_RUNS_KEY = 'agent.activeRuns';
+/** The old single-run key. Read once and moved into ACTIVE_RUNS_KEY, so a run started before an update is not lost. */
+export const LEGACY_RUN_KEY = 'agent.activeRun';
 /** A remembered run older than this is forgotten (a turn never legitimately takes this long). */
 export const MAX_RUN_AGE_MS = 6 * 3600 * 1000;
+/** Conversations that may be answering at the same time from one browser. */
+export const MAX_ACTIVE_RUNS = 5;
 
 const RUN_ID = /^[A-Za-z0-9_.:-]{1,128}$/;
 
-export function loadActiveRun(store: KeyValueStore, now = Date.now()): ActiveRun | null {
+function validRun(run: Partial<ActiveRun> | null | undefined, now: number): run is ActiveRun {
+  return (
+    !!run &&
+    typeof run.runId === 'string' && RUN_ID.test(run.runId) &&
+    typeof run.sessionId === 'string' && RUN_ID.test(run.sessionId) &&
+    typeof run.message === 'string' &&
+    typeof run.lastSeq === 'number' && Number.isFinite(run.lastSeq) &&
+    typeof run.startedAt === 'number' && now - run.startedAt <= MAX_RUN_AGE_MS
+  );
+}
+
+function write(store: KeyValueStore, runs: ActiveRun[]): void {
   try {
-    const raw = store.getItem(ACTIVE_RUN_KEY);
-    if (!raw) return null;
-    const run = JSON.parse(raw) as Partial<ActiveRun>;
-    if (
-      typeof run.runId !== 'string' || !RUN_ID.test(run.runId) ||
-      typeof run.sessionId !== 'string' || !RUN_ID.test(run.sessionId) ||
-      typeof run.message !== 'string' ||
-      typeof run.lastSeq !== 'number' || !Number.isFinite(run.lastSeq) ||
-      typeof run.startedAt !== 'number' || now - run.startedAt > MAX_RUN_AGE_MS
-    ) {
-      store.removeItem(ACTIVE_RUN_KEY);
-      return null;
+    if (runs.length === 0) store.removeItem(ACTIVE_RUNS_KEY);
+    else store.setItem(ACTIVE_RUNS_KEY, JSON.stringify(Object.fromEntries(runs.map((r) => [r.sessionId, r]))));
+  } catch {
+    /* private mode / quota: the runs still work, they just cannot be re-attached after a reload */
+  }
+}
+
+/** Every remembered run, newest first. Stale or malformed entries are dropped; the old single-run entry is migrated. */
+export function loadActiveRuns(store: KeyValueStore, now = Date.now()): ActiveRun[] {
+  let changed = false;
+  const runs = new Map<string, ActiveRun>();
+  try {
+    const parsed: unknown = JSON.parse(store.getItem(ACTIVE_RUNS_KEY) ?? '{}');
+    const entries = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? Object.values(parsed) : [];
+    for (const entry of entries) {
+      if (validRun(entry as Partial<ActiveRun>, now)) runs.set((entry as ActiveRun).sessionId, entry as ActiveRun);
+      else changed = true;
     }
-    return run as ActiveRun;
   } catch {
-    return null;
+    changed = true;
   }
+  try {
+    const legacy = store.getItem(LEGACY_RUN_KEY);
+    if (legacy !== null) {
+      const old = JSON.parse(legacy) as Partial<ActiveRun>;
+      if (validRun(old, now) && !runs.has(old.sessionId)) runs.set(old.sessionId, old);
+      store.removeItem(LEGACY_RUN_KEY);
+      changed = true;
+    }
+  } catch {
+    try {
+      store.removeItem(LEGACY_RUN_KEY);
+    } catch {
+      /* ignore */
+    }
+  }
+  const list = [...runs.values()].sort((a, b) => b.startedAt - a.startedAt);
+  if (changed) write(store, list);
+  return list;
 }
 
-export function saveActiveRun(store: KeyValueStore, run: ActiveRun): void {
-  try {
-    store.setItem(ACTIVE_RUN_KEY, JSON.stringify(run));
-  } catch {
-    /* private mode / quota: the run still works, it just cannot be re-attached after a reload */
-  }
+export function loadActiveRun(store: KeyValueStore, sessionId: string, now = Date.now()): ActiveRun | null {
+  return loadActiveRuns(store, now).find((r) => r.sessionId === sessionId) ?? null;
 }
 
-export function clearActiveRun(store: KeyValueStore): void {
-  try {
-    store.removeItem(ACTIVE_RUN_KEY);
-  } catch {
-    /* ignore */
-  }
+/** Remember (or update) the run of one conversation. Keeps at most MAX_ACTIVE_RUNS: the oldest entries go first. */
+export function saveActiveRun(store: KeyValueStore, run: ActiveRun, now = Date.now()): void {
+  const others = loadActiveRuns(store, now).filter((r) => r.sessionId !== run.sessionId);
+  write(store, [run, ...others].slice(0, MAX_ACTIVE_RUNS));
+}
+
+export function clearActiveRun(store: KeyValueStore, sessionId: string, now = Date.now()): void {
+  write(store, loadActiveRuns(store, now).filter((r) => r.sessionId !== sessionId));
 }
 
 export interface RunEvent {
