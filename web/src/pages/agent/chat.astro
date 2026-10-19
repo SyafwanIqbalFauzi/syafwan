@@ -22,6 +22,7 @@ export const prerender = false;
       <div id="log" aria-live="polite"></div>
       <form id="composer">
         <label class="visually-hidden" for="input">Message Hermes</label>
+        <div id="grip" class="grip" role="separator" aria-orientation="horizontal" aria-label="Message box height: drag, or use the up and down arrow keys" tabindex="0" title="Drag to change the height (double-click to reset)"></div>
         <ul id="attachments" class="attachments" aria-label="Attached images" hidden></ul>
         <textarea id="input" rows="2" placeholder="Message Hermes (Enter to send, Shift+Enter for a new line, Ctrl+V to paste an image)"></textarea>
         <input id="file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden />
@@ -420,10 +421,38 @@ export const prerender = false;
     font: inherit;
     font-size: var(--text-body);
     resize: none;
+    overflow-y: auto;
     background: var(--te-white);
     border: 1px solid var(--te-grey-200);
     border-radius: 0;
     padding: 10px 12px;
+  }
+
+  /* Handle on the top edge of the composer: pull up for a taller message box (works with touch too). */
+  .grip {
+    flex-basis: 100%;
+    height: 16px;
+    margin: calc(var(--s-15) * -1) 0 -4px;
+    cursor: ns-resize;
+    touch-action: none;
+    position: relative;
+  }
+
+  .grip::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 6px;
+    width: 40px;
+    height: 4px;
+    margin-left: -20px;
+    background: var(--te-grey-200);
+  }
+
+  .grip:hover::after,
+  .grip:focus-visible::after,
+  .grip.dragging::after {
+    background: var(--te-black);
   }
 
   #composer.dragging textarea {
@@ -581,6 +610,7 @@ export const prerender = false;
       display: grid;
       grid-template-columns: auto minmax(0, 1fr) auto;
       grid-template-areas:
+        'grip grip grip'
         'files files files'
         'pic text go';
       align-items: end;
@@ -590,6 +620,16 @@ export const prerender = false;
 
     #composer .attachments {
       grid-area: files;
+    }
+
+    #composer .grip {
+      grid-area: grip;
+      height: 24px;
+      margin-bottom: 0;
+    }
+
+    #composer .grip::after {
+      top: 10px;
     }
 
     #composer textarea {
