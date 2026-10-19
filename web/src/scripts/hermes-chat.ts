@@ -461,7 +461,7 @@ function applyRunEvent(ev: RunEvent, turn: Turn) {
       break;
     case 'approval.responded':
       // Answered (here or from another tab): make sure no stale buttons are left.
-      logEl.querySelectorAll('.approval .choices').forEach((row) => row.replaceWith(el('p', 'hint', `Answered: ${String(data.choice ?? 'done')}.`)));
+      logEl.querySelectorAll<HTMLElement>('.approval:not(.done)').forEach((box) => settleApproval(box, String(data.choice ?? '')));
       break;
     case 'replay.truncated':
       logEl.insertBefore(el('p', 'hint', 'Part of the live view was no longer available; the full answer appears when Hermes finishes.'), turn.reply.parentElement);
@@ -646,12 +646,23 @@ const APPROVAL_LABELS: Record<string, { label: string; hint: string }> = {
 // same one, and an answered one must not come back from a late status poll.
 const shownApprovals = new Set<string>();
 
+/** Collapse an answered request to one line, so it no longer takes room in the conversation. */
+function settleApproval(box: HTMLElement, choice: string) {
+  if (box.classList.contains('done')) return;
+  const answer = APPROVAL_LABELS[choice]?.label ?? (choice || 'Answered');
+  const command = box.dataset.command ?? '';
+  box.classList.add('done');
+  box.removeAttribute('role');
+  box.replaceChildren(el('span', '', command ? `${answer}: ${command}` : answer));
+}
+
 function showApproval(ev: any) {
   const key = approvalKey(String(ev.run_id ?? runId ?? ''), ev);
   if (shownApprovals.has(key)) return;
   shownApprovals.add(key);
   const box = el('div', 'approval');
   box.setAttribute('role', 'alertdialog');
+  box.dataset.command = String(ev.command ?? ev.description ?? '').replace(/\s+/g, ' ').trim().slice(0, 120);
   box.append(el('strong', '', 'Hermes needs your permission'));
   if (ev.description) box.append(el('p', '', `Reason: ${String(ev.description)}`));
   if (ev.command) box.append(el('pre', '', String(ev.command)));
@@ -679,7 +690,7 @@ function showApproval(ev: any) {
           method: 'POST',
           body: JSON.stringify({ choice, ...(ev.request_id ? { request_id: ev.request_id } : {}) }),
         });
-        row.replaceWith(el('p', 'hint', `Answered: ${info.label.toLowerCase()}.`));
+        settleApproval(box, choice);
         onActivityEvent('approval.answered');
       } catch (e) {
         box.append(el('p', 'hint', (e as Error).message));
@@ -690,7 +701,10 @@ function showApproval(ev: any) {
   }
   box.append(row);
   box.append(el('p', 'hint', 'You can leave this page: Hermes keeps waiting for your answer and the request is here when you come back.'));
-  logEl.append(box);
+  // Above the reply bubble (like the tool cards), so the answer that follows stays the last thing on screen.
+  const reply = [...logEl.querySelectorAll('.msg.assistant')].at(-1);
+  if (reply) logEl.insertBefore(box, reply);
+  else logEl.append(box);
   keepIndicatorLast();
   scrollDown();
 }
