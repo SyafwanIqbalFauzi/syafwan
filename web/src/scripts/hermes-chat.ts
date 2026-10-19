@@ -8,6 +8,7 @@ import { toast } from './toast';
 import { approvalKey, clearActiveRun, loadActiveRun, loadActiveRuns, MAX_ACTIVE_RUNS, pendingApproval, pollRun, saveActiveRun, watchRun, type ActiveRun, type RunEvent, type WatchResult } from '../lib/chat-run';
 import { markerText, type RunState } from '../lib/run-badge';
 import { fitWithin, imageSourcesOf, MAX_IMAGES, MAX_IMAGE_DATA_URL_CHARS, textOfContent } from '../lib/chat-images';
+import { clampManual, COMPOSER_KEY, composerHeight, heightAfterKey } from '../lib/composer-height';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
 const sessionsEl = $<HTMLUListElement>('#sessions');
@@ -25,6 +26,67 @@ const newBtn = $<HTMLButtonElement>('#new-chat');
 const statusEl = $<HTMLElement>('#status');
 const chatEl = $<HTMLElement>('.chat');
 const chatsToggle = $<HTMLButtonElement>('#chats-toggle');
+const grip = $<HTMLElement>('#grip');
+
+// ---- message box height: grows with the text, and can be pulled taller by hand ---------------
+
+const visibleHeight = () => window.visualViewport?.height ?? window.innerHeight;
+let manualHeight = 0; // px set with the handle; 0 = follow the text only
+try {
+  manualHeight = clampManual(localStorage.getItem(COMPOSER_KEY), visibleHeight());
+} catch {
+  /* storage blocked: the height just is not remembered */
+}
+
+function fitInput() {
+  input.style.height = 'auto'; // measure the text at its natural height
+  const borders = input.offsetHeight - input.clientHeight;
+  input.style.height = `${composerHeight(input.scrollHeight + borders, manualHeight, visibleHeight())}px`;
+}
+
+function setManualHeight(px: number, remember: boolean) {
+  manualHeight = clampManual(px, visibleHeight());
+  if (remember) {
+    try {
+      if (manualHeight) localStorage.setItem(COMPOSER_KEY, String(manualHeight));
+      else localStorage.removeItem(COMPOSER_KEY);
+    } catch {
+      /* not remembered */
+    }
+  }
+  fitInput();
+}
+
+input.addEventListener('input', fitInput);
+window.addEventListener('resize', fitInput);
+window.visualViewport?.addEventListener('resize', fitInput);
+
+grip.addEventListener('pointerdown', (e) => {
+  e.preventDefault();
+  const startY = e.clientY;
+  const startH = input.offsetHeight;
+  grip.setPointerCapture(e.pointerId);
+  grip.classList.add('dragging');
+  const move = (ev: PointerEvent) => setManualHeight(startH + (startY - ev.clientY), false);
+  const stop = () => {
+    grip.classList.remove('dragging');
+    grip.removeEventListener('pointermove', move);
+    grip.removeEventListener('pointerup', stop);
+    grip.removeEventListener('pointercancel', stop);
+    setManualHeight(manualHeight, true);
+  };
+  grip.addEventListener('pointermove', move);
+  grip.addEventListener('pointerup', stop);
+  grip.addEventListener('pointercancel', stop);
+});
+grip.addEventListener('keydown', (e) => {
+  const next = heightAfterKey(e.key, Math.max(manualHeight, input.offsetHeight), visibleHeight());
+  if (next === null) return;
+  e.preventDefault();
+  setManualHeight(next, true);
+});
+grip.addEventListener('dblclick', () => setManualHeight(0, true));
+fitInput();
 
 let sessionId: string | null = null;
 let runId: string | null = null;
@@ -560,6 +622,7 @@ async function send(message: string, pictures: string[] = []) {
   const running = loadActiveRuns(localStorage).filter((r) => r.sessionId !== sessionId);
   if (running.length >= MAX_ACTIVE_RUNS) {
     input.value = message;
+    fitInput();
     for (const src of pictures) attachments.push(src);
     renderAttachments();
     setStatus(`${MAX_ACTIVE_RUNS} chats are answering already. Wait for one to finish, or stop one.`);
@@ -828,6 +891,7 @@ form.addEventListener('submit', (e) => {
   const pictures = attachments.splice(0);
   renderAttachments();
   input.value = '';
+  fitInput();
   send(message, pictures).catch((err) => setStatus(err.message));
 });
 
