@@ -280,7 +280,7 @@ const collections = [
       sort(),
       string('slug', { required: true, unique: true, width: 'half' }),
       string('title', { required: true, width: 'half' }),
-      dropdown('type', [['product', 'Product'], ['project', 'Project']], { required: true, defaultValue: 'project' }),
+      dropdown('type', [['product', 'Product'], ['project', 'Project'], ['side_project', 'Side project']], { required: true, defaultValue: 'project' }),
       string('client', { width: 'half' }),
       integer('year_start'),
       integer('year_end', { note: 'Kosong kalau satu tahun atau masih berjalan' }),

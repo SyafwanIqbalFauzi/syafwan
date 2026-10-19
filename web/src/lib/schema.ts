@@ -57,7 +57,7 @@ export interface Project extends Translated<ProjectTranslation> {
   id: number;
   slug: string;
   title: string;
-  type: 'product' | 'project';
+  type: 'product' | 'project' | 'side_project';
   client: string | null;
   year_start: number | null;
   year_end: number | null;

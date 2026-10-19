@@ -11,7 +11,7 @@ export const getProfile = () =>
 
 const PROJECT_FIELDS = `id,slug,title,type,client,year_start,year_end,is_ongoing,featured,platforms,roles,url,sort,translations.languages_code,translations.summary,cover.${FILE.replaceAll(',', ',cover.')}`;
 
-export function getProjects(options: { featured?: boolean; type?: 'product' | 'project'; limit?: number } = {}) {
+export function getProjects(options: { featured?: boolean; type?: 'product' | 'project' | 'side_project'; limit?: number } = {}) {
   const filter: Record<string, unknown> = { status: { _eq: 'published' } };
   if (options.featured) filter.featured = { _eq: true };
   if (options.type) filter.type = { _eq: options.type };
