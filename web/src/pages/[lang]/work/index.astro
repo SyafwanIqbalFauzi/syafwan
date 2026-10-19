@@ -9,7 +9,8 @@ if (!isLocale(lang)) return Astro.rewrite('/404');
 const locale = lang;
 
 const typeParam = Astro.url.searchParams.get('type');
-const type = typeParam === 'product' || typeParam === 'project' ? typeParam : undefined;
+const type =
+  typeParam === 'product' || typeParam === 'project' || typeParam === 'side_project' ? typeParam : undefined;
 const all = await getProjects();
 const projects = type ? all.filter((p) => p.type === type) : all;
 
@@ -17,6 +18,7 @@ const filters = [
   { value: undefined, label: t(locale, 'common.all'), count: all.length },
   { value: 'product', label: t(locale, 'common.product'), count: all.filter((p) => p.type === 'product').length },
   { value: 'project', label: t(locale, 'common.project'), count: all.filter((p) => p.type === 'project').length },
+  { value: 'side_project', label: t(locale, 'common.side_project'), count: all.filter((p) => p.type === 'side_project').length },
 ] as const;
 ---
 
