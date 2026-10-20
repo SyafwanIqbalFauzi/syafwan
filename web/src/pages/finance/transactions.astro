@@ -10,7 +10,7 @@ const token = Astro.locals.hermesToken!;
 const url = Astro.url;
 const PAGE_SIZE = 50;
 
-const type = ['pemasukan', 'pengeluaran'].includes(url.searchParams.get('type') ?? '') ? url.searchParams.get('type')! : null;
+const type = ['pemasukan', 'pengeluaran', 'tabungan'].includes(url.searchParams.get('type') ?? '') ? url.searchParams.get('type')! : null;
 const search = (url.searchParams.get('q') ?? '').trim().slice(0, 80);
 const SORTS = { '-tanggal': 'Newest first', tanggal: 'Oldest first', '-nominal': 'Largest first', nominal: 'Smallest first' } as const;
 const sortAsked = url.searchParams.get('sort');
@@ -55,6 +55,7 @@ const memberName = new Map(members.map((m) => [m.id, m.nama_panggilan]));
 const sumOf = (jenis: string) => Number(sumResult?.data.find((r) => r.jenis === jenis)?.sum?.nominal ?? 0);
 const income = sumOf('pemasukan');
 const expense = sumOf('pengeluaran');
+const savings = sumOf('tabungan');
 
 // Page links keep every filter.
 const linkTo = (target: number) => {
@@ -81,7 +82,7 @@ const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-
       dateRange={{ from: bounds.from ?? bounds.to ?? todayWib(), to: bounds.to ?? todayWib(), custom: bounds.custom }}
       search={{ name: 'q', value: search, placeholder: 'Search descriptions' }}
       selects={[
-                { name: 'type', label: 'Type', value: type, all: 'Income and expense', options: [{ value: 'pemasukan', label: 'Income' }, { value: 'pengeluaran', label: 'Expense' }] },
+                { name: 'type', label: 'Type', value: type, all: 'All types', options: [{ value: 'pemasukan', label: 'Income' }, { value: 'pengeluaran', label: 'Expense' }, { value: 'tabungan', label: 'Savings' }] },
         { name: 'category', label: 'Category', value: categoryId ? String(categoryId) : null, all: 'All categories', options: categories.map((c) => ({ value: String(c.id), label: c.nama })) },
         { name: 'member', label: 'Person', value: memberId ? String(memberId) : null, all: 'Everyone', options: members.map((m) => ({ value: String(m.id), label: m.nama_panggilan })) },
         { name: 'sort', label: 'Sort', value: sort === '-tanggal' ? null : sort, all: SORTS['-tanggal'], options: Object.entries(SORTS).filter(([k]) => k !== '-tanggal').map(([value, label]) => ({ value, label })) },
@@ -93,7 +94,8 @@ const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-
         <div class="figure"><p class="value">{total}</p><p class="label">transactions</p></div>
         <div class="figure"><p class="value">{rupiah(income)}</p><p class="label">income</p></div>
         <div class="figure"><p class="value">{rupiah(expense)}</p><p class="label">expense</p></div>
-        <div class="figure"><p class="value">{rupiah(income - expense)}</p><p class="label">net</p></div>
+        <div class="figure"><p class="value">{rupiah(savings)}</p><p class="label">savings</p></div>
+        <div class="figure"><p class="value">{rupiah(income - expense - savings)}</p><p class="label">net</p></div>
       </div>
     </section>
 
@@ -145,6 +147,7 @@ const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-
           <select name="jenis" required>
             <option value="pengeluaran">Expense</option>
             <option value="pemasukan">Income</option>
+            <option value="tabungan">Savings</option>
           </select>
         </label>
         <label class="dlg-field">
@@ -156,6 +159,9 @@ const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-
             </optgroup>
             <optgroup label="Income">
               {categories.filter((c) => c.jenis === 'pemasukan').map((c) => <option value={c.id} data-jenis="pemasukan" data-inactive={c.aktif ? undefined : ''} disabled={!c.aktif} hidden={!c.aktif}>{c.nama}</option>)}
+            </optgroup>
+            <optgroup label="Savings">
+              {categories.filter((c) => c.jenis === 'tabungan').map((c) => <option value={c.id} data-jenis="tabungan" data-inactive={c.aktif ? undefined : ''} disabled={!c.aktif} hidden={!c.aktif}>{c.nama}</option>)}
             </optgroup>
           </select>
         </label>

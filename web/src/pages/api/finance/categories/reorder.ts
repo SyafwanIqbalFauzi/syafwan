@@ -1,5 +1,5 @@
-// Saves the order after a drag and drop. The browser sends the ids of one group (income or
-// spending) top to bottom; every id must exist and share one type.
+// Saves the order after a drag and drop. The browser sends the ids of one group (income,
+// spending or savings) top to bottom; every id must exist and share one type.
 import type { APIRoute } from 'astro';
 import { audit } from '../../../../lib/auth';
 import { parseOrder, sortValues } from '../../../../lib/category-input';

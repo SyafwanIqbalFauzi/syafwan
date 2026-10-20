@@ -5,7 +5,7 @@ import { addDays, parseDate } from './finance.ts';
 
 export const MAX_DESCRIPTION = 200;
 export const EARLIEST_DATE = '2000-01-01';
-export const JENIS = ['pemasukan', 'pengeluaran'] as const;
+export const JENIS = ['pemasukan', 'pengeluaran', 'tabungan'] as const;
 export type Jenis = (typeof JENIS)[number];
 
 export interface TransactionInput {
@@ -35,7 +35,7 @@ export function parseTransactionFields(body: unknown, today: string): Parsed<Tra
   if (tanggal < EARLIEST_DATE) return { ok: false, error: 'That date is too far back' };
   if (tanggal > addDays(today, 1)) return { ok: false, error: 'The date is in the future' };
   const jenis = JENIS.find((j) => j === b.jenis);
-  if (!jenis) return { ok: false, error: 'Choose income or expense' };
+  if (!jenis) return { ok: false, error: 'Choose income, expense or savings' };
   const kategori = parseId(b.kategori);
   if (!kategori) return { ok: false, error: 'Choose a category' };
   const nominal = parseAmount(b.nominal);

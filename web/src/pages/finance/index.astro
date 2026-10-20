@@ -126,6 +126,11 @@ const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
           <p class="delta" data-fig="expense-delta" data-good={figures.expense.good}>{figures.expense.delta}</p>
         </div>
         <div class="figure">
+          <p class="value" data-fig="savings-value">{figures.savings.value}</p>
+          <p class="label">savings</p>
+          <p class="delta" data-fig="savings-delta" data-good={figures.savings.good}>{figures.savings.delta}</p>
+        </div>
+        <div class="figure">
           <p class="value" data-fig="net-value">{figures.net.value}</p>
           <p class="label" data-fig="net-label">{figures.net.label}</p>
           <p class="delta" data-fig="net-sub">{figures.net.sub}</p>
@@ -149,7 +154,7 @@ const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
     </section>
 
     <section class="block">
-      <div class="block-head"><h2>Running net</h2><p class="label muted">income minus expense since {win.start}</p></div>
+      <div class="block-head"><h2>Running net</h2><p class="label muted">income minus expense and savings since {win.start}</p></div>
       <div class="chart-box" style="height: 220px"><canvas data-chart="net" role="img" aria-label="Running net over the period"></canvas></div>
     </section>
 
@@ -174,7 +179,7 @@ const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
         <p class="label muted">{thisMonth.from.slice(0, 7)} · everyone together</p>
       </div>
       {
-        budgets.expenses.length || budgets.income.length ? (
+        budgets.expenses.length || budgets.income.length || budgets.savings.length ? (
           <>
             <div class="budget-grid">
               {budgets.expenses.map((b) => (
@@ -205,6 +210,26 @@ const payloadJson = JSON.stringify(payload).replace(/</g, '\\u003c');
                         <span style={`width: ${Math.min(100, Math.max(1, b.ratio * 100))}%`}></span>
                       </div>
                       <p class="sub">{rupiah(b.actual)} received of {rupiah(b.planned)} expected</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            {budgets.savings.length > 0 && (
+              <>
+                <div class="block-head" style="margin-top: var(--s-33)"><h2>Planned savings</h2><p class="label muted">a target, not a limit</p></div>
+                <div class="budget-grid">
+                  {budgets.savings.map((b) => (
+                    <div class="budget" data-level="normal">
+                      <div class="budget-head">
+                        <span class="name" style="font-size: var(--text-body)">{b.name}</span>
+                        <span class="num">{percent(b.ratio)}</span>
+                      </div>
+                      <div class="bar" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={Math.min(100, Math.round(b.ratio * 100))} aria-label={`${b.name} saved`}>
+                        <span style={`width: ${Math.min(100, Math.max(1, b.ratio * 100))}%`}></span>
+                      </div>
+                      <p class="sub">{rupiah(b.actual)} saved of {rupiah(b.planned)} planned</p>
+                      <p class="sub">{b.items.join(', ')}</p>
                     </div>
                   ))}
                 </div>

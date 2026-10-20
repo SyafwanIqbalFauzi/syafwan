@@ -42,6 +42,7 @@ export const isRange = (value: unknown): value is RangeKey => RANGES.some((r) =>
 
 const INCOME = 'pemasukan';
 const EXPENSE = 'pengeluaran';
+const SAVINGS = 'tabungan';
 const amount = (t: Pick<Trx, 'nominal'>) => Number(t.nominal) || 0;
 
 // ---- dates ------------------------------------------------------------------------------------
@@ -163,24 +164,29 @@ export function bucketLabel(key: string, bucket: Bucket): string {
 export interface Totals {
   income: number;
   expense: number;
+  /** Money put aside (jenis = 'tabungan'). Not part of `expense`. */
+  savings: number;
+  /** income - expense - savings: what stays in the wallet */
   net: number;
   count: number;
-  /** Share of income that was kept, or null when there was no income */
+  /** Share of income that was put into savings, or null when there was no income */
   savingsRate: number | null;
 }
 
 export function summarize(trx: Trx[], from: string, to: string): Totals {
   let income = 0;
   let expense = 0;
+  let savings = 0;
   let count = 0;
   for (const t of trx) {
     if (t.tanggal < from || t.tanggal > to) continue;
     count++;
     if (t.jenis === INCOME) income += amount(t);
     else if (t.jenis === EXPENSE) expense += amount(t);
+    else if (t.jenis === SAVINGS) savings += amount(t);
   }
-  const net = income - expense;
-  return { income, expense, net, count, savingsRate: income > 0 ? net / income : null };
+  const net = income - expense - savings;
+  return { income, expense, savings, net, count, savingsRate: income > 0 ? savings / income : null };
 }
 
 /** Relative change from `previous` to `current`, or null when there is nothing to compare with. */
@@ -193,29 +199,33 @@ export interface CashflowPoint {
   label: string;
   income: number;
   expense: number;
+  savings: number;
   net: number;
   /** Running total of net from the start of the window */
   cumulative: number;
   /** The bucket is not over yet (today falls inside it) */
   partial: boolean;
   /** Who recorded it: member id as text, or 'none'. Only buckets with activity have entries. */
-  people: Record<string, { income: number; expense: number }>;
+  people: Record<string, { income: number; expense: number; savings: number }>;
 }
 
 export const NO_PERSON = 'none';
 
 export function cashflow(trx: Trx[], win: Pick<Window, 'start' | 'end' | 'bucket'>): CashflowPoint[] {
   const keys = bucketKeys(win.start, win.end, win.bucket);
-  const points = new Map(keys.map((key) => [key, { key, label: bucketLabel(key, win.bucket), income: 0, expense: 0, net: 0, cumulative: 0, partial: false, people: {} as CashflowPoint['people'] }]));
+  const points = new Map(keys.map((key) => [key, { key, label: bucketLabel(key, win.bucket), income: 0, expense: 0, savings: 0, net: 0, cumulative: 0, partial: false, people: {} as CashflowPoint['people'] }]));
   for (const t of trx) {
     if (t.tanggal < win.start || t.tanggal > win.end) continue;
     const point = points.get(bucketStart(t.tanggal, win.bucket));
     if (!point) continue;
-    if (t.jenis !== INCOME && t.jenis !== EXPENSE) continue;
-    const who = (point.people[t.member == null ? NO_PERSON : String(t.member)] ??= { income: 0, expense: 0 });
+    if (t.jenis !== INCOME && t.jenis !== EXPENSE && t.jenis !== SAVINGS) continue;
+    const who = (point.people[t.member == null ? NO_PERSON : String(t.member)] ??= { income: 0, expense: 0, savings: 0 });
     if (t.jenis === INCOME) {
       point.income += amount(t);
       who.income += amount(t);
+    } else if (t.jenis === SAVINGS) {
+      point.savings += amount(t);
+      who.savings += amount(t);
     } else {
       point.expense += amount(t);
       who.expense += amount(t);
@@ -224,7 +234,7 @@ export function cashflow(trx: Trx[], win: Pick<Window, 'start' | 'end' | 'bucket
   let running = 0;
   const list = [...points.values()];
   for (const point of list) {
-    point.net = point.income - point.expense;
+    point.net = point.income - point.expense - point.savings;
     running += point.net;
     point.cumulative = running;
   }
@@ -303,6 +313,8 @@ export interface BudgetReport {
   expenses: BudgetLine[];
   /** Budget lines on income categories (e.g. the salary): an expected income, not a spending limit */
   income: BudgetLine[];
+  /** Budget lines on savings categories: an amount to put aside, not a limit */
+  savings: BudgetLine[];
   plannedExpense: number;
   actualOnBudgeted: number;
 }
@@ -326,19 +338,23 @@ export function budgetReport(budgets: Budget[], categories: Category[], trx: Trx
 
   const expenses: BudgetLine[] = [];
   const income: BudgetLine[] = [];
+  const savings: BudgetLine[] = [];
   for (const [kategori, row] of planned) {
     const category = names.get(kategori);
     const isIncome = category?.jenis === INCOME;
-    const actual = actualBy(kategori, isIncome ? INCOME : EXPENSE);
+    const isSavings = category?.jenis === SAVINGS;
+    const actual = actualBy(kategori, isIncome ? INCOME : isSavings ? SAVINGS : EXPENSE);
     const ratio = row.total > 0 ? actual / row.total : 0;
-    const line: BudgetLine = { kategori, name: category?.nama ?? `Category ${kategori}`, planned: row.total, actual, ratio, level: isIncome ? 'normal' : levelFor(ratio), items: row.items };
-    (isIncome ? income : expenses).push(line);
+    const line: BudgetLine = { kategori, name: category?.nama ?? `Category ${kategori}`, planned: row.total, actual, ratio, level: isIncome || isSavings ? 'normal' : levelFor(ratio), items: row.items };
+    (isIncome ? income : isSavings ? savings : expenses).push(line);
   }
   expenses.sort((a, b) => b.ratio - a.ratio || a.name.localeCompare(b.name));
   income.sort((a, b) => a.name.localeCompare(b.name));
+  savings.sort((a, b) => a.name.localeCompare(b.name));
   return {
     expenses,
     income,
+    savings,
     plannedExpense: expenses.reduce((a, l) => a + l.planned, 0),
     actualOnBudgeted: expenses.reduce((a, l) => a + l.actual, 0),
   };
@@ -443,6 +459,7 @@ export function withoutPeople<T extends { member?: number | null }>(trx: T[], hi
 export interface Figures {
   income: { value: string; delta: string; good: boolean };
   expense: { value: string; delta: string; good: boolean };
+  savings: { value: string; delta: string; good: boolean };
   net: { value: string; label: string; sub: string };
   average: { value: string; sub: string };
 }
@@ -455,9 +472,10 @@ export function dashboardFigures(now: Totals, before: Totals, days: number): Fig
   return {
     income: { value: rupiahShort(now.income), ...delta(now.income, before.income, true) },
     expense: { value: rupiahShort(now.expense), ...delta(now.expense, before.expense, false) },
+    savings: { value: rupiahShort(now.savings), ...delta(now.savings, before.savings, true) },
     net: {
       value: rupiahShort(now.net),
-      label: `net · ${now.savingsRate === null ? 'no income' : `${percent(now.savingsRate)} of income kept`}`,
+      label: `net · ${now.savingsRate === null ? 'no income' : `${percent(now.savingsRate)} of income saved`}`,
       sub: `previous: ${rupiahShort(before.net)}`,
     },
     average: { value: rupiahShort(now.expense / Math.max(1, days)), sub: `${now.count} transactions` },

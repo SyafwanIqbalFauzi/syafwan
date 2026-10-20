@@ -124,7 +124,7 @@ collections.append(collection(C, 'category', 'Kategori transaksi. Kata kunci dip
 fields += [
     pk(C),
     field(C, 'nama', 'string', required=True, unique=True),
-    dropdown(C, 'jenis', ['pemasukan', 'pengeluaran'], required=True),
+    dropdown(C, 'jenis', ['pemasukan', 'pengeluaran', 'tabungan'], required=True),
     field(C, 'kata_kunci', 'json', interface='tags', special=['cast-json'],
           note='Array JSON berisi kata kunci, mis. ["kopi","nasi"].'),
     field(C, 'aktif', 'boolean', interface='boolean', special=['cast-boolean'], default='true', nullable=False,
@@ -139,7 +139,7 @@ fields += [pk(C)]
 fields += [
     field(C, 'waktu', 'timestamp', interface='datetime', required=True, note='Saat dicatat/terjadi (disimpan UTC, tampil WIB).', display='datetime'),
     field(C, 'tanggal', 'date', interface='datetime', required=True, indexed=True, note='Tanggal WIB kejadian; dipisah dari waktu supaya agregasi harian tidak geser zona.'),
-    dropdown(C, 'jenis', ['pemasukan', 'pengeluaran'], required=True),
+    dropdown(C, 'jenis', ['pemasukan', 'pengeluaran', 'tabungan'], required=True),
 ]
 f, r = m2o(C, 'kategori', 'finance_categories', note='Kategori transaksi.')
 fields.append(f); relations.append(r)
