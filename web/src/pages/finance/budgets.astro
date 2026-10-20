@@ -4,6 +4,8 @@ import FilterBar from '../../components/FilterBar.astro';
 import { readItems, type FinanceBudget, type FinanceCategory } from '../../lib/directus-user';
 import { percent, rupiah, todayWib } from '../../lib/finance';
 import { parseYear } from '../../lib/budget-input';
+import { parseTypeTab, showsUnder, tabCounts } from '../../lib/type-tabs';
+import TypeTabs from '../../components/TypeTabs.astro';
 
 export const prerender = false;
 
@@ -41,15 +43,17 @@ const incomeLines = budgets.filter((b) => jenisOf.get(b.kategori) === 'pemasukan
 const savingsLines = budgets.filter((b) => jenisOf.get(b.kategori) === 'tabungan');
 // Fixed "Income" and "Savings" groups on top (whatever category a line belongs to), then one group per spending category.
 const groups = [
-  ...(incomeLines.length ? [{ title: 'Income', income: true, savings: false, lines: incomeLines, total: incomePlan }] : []),
-  ...(savingsLines.length ? [{ title: 'Savings', income: false, savings: true, lines: savingsLines, total: savingsPlan }] : []),
+  ...(incomeLines.length ? [{ title: 'Income', jenis: 'pemasukan', income: true, savings: false, lines: incomeLines, total: incomePlan }] : []),
+  ...(savingsLines.length ? [{ title: 'Savings', jenis: 'tabungan', income: false, savings: true, lines: savingsLines, total: savingsPlan }] : []),
   ...categories
     .filter((c) => c.jenis === 'pengeluaran' && budgeted.has(c.id))
     .map((c) => {
       const lines = budgets.filter((b) => b.kategori === c.id);
-      return { title: c.nama, income: false, savings: false, lines, total: lines.reduce((sum, b) => sum + amountOf(b), 0) };
+      return { title: c.nama, jenis: 'pengeluaran', income: false, savings: false, lines, total: lines.reduce((sum, b) => sum + amountOf(b), 0) };
     }),
 ];
+const tab = parseTypeTab(Astro.url.searchParams.get('type'));
+const counts = tabCounts(budgets.map((b) => jenisOf.get(b.kategori) ?? 'pengeluaran'));
 const loaded = budgetResult !== null && catResult !== null;
 ---
 
@@ -65,6 +69,7 @@ const loaded = budgetResult !== null && catResult !== null;
 
     <FilterBar
       resetHref={Astro.url.pathname}
+      keep={{ type: tab === 'all' ? '' : tab }}
       selects={[{ name: 'year', label: 'Year', value: year === thisYear ? null : String(year), all: String(thisYear), options: years.filter((y) => y !== thisYear).map((y) => ({ value: String(y), label: String(y) })) }]}
     />
 
@@ -103,11 +108,12 @@ const loaded = budgetResult !== null && catResult !== null;
           <button type="button" class="btn btn-solid" data-add>Add a line</button>
         </span>
       </div>
+      {groups.length > 0 && <TypeTabs active={tab} counts={counts} noun="budget lines" />}
       {
         groups.length ? (
           <div class="budget-groups">
             {groups.map((g) => (
-              <div class="budget-group">
+              <div class="budget-group" data-type-item={g.jenis} hidden={!showsUnder(tab, g.jenis)}>
                 <div class="budget-group-head">
                   <span class="name" style="font-size: var(--text-body)">{g.title}</span>
                   <span class="tag">{g.income ? 'income' : g.savings ? 'savings' : 'spending'}</span>
@@ -128,6 +134,7 @@ const loaded = budgetResult !== null && catResult !== null;
                 </div>
               </div>
             ))}
+            <p class="empty" data-type-empty hidden data-template={`No {type} budget lines for ${year}.`}></p>
           </div>
         ) : (
           <p class="empty">
@@ -190,28 +197,6 @@ const loaded = budgetResult !== null && catResult !== null;
 </script>
 
 <style is:global>
-  .budget-actions {
-    display: inline-flex;
-    gap: var(--s-15);
-    flex-wrap: wrap;
-  }
-
-  .budget-groups {
-    display: grid;
-    gap: var(--s-33);
-  }
-
-  .budget-group-head {
-    display: flex;
-    align-items: baseline;
-    gap: var(--s-15);
-    flex-wrap: wrap;
-  }
-
-  .budget-group-head .num {
-    margin-left: auto;
-  }
-
   .row-budget {
     grid-template-columns: minmax(160px, 3fr) minmax(120px, 1.2fr) minmax(90px, 1fr) 130px;
     padding-block: 10px;
@@ -246,24 +231,5 @@ const loaded = budgetResult !== null && catResult !== null;
       grid-column: 2;
       grid-row: 2 / span 2;
     }
-
-    .budget-group-head .num {
-      margin-left: 0;
-      flex-basis: 100%;
-      text-align: left;
-    }
-  }
-
-  .arrow-link.danger {
-    color: var(--te-orange);
-  }
-
-  .row-actions button {
-    background: none;
-    border: 0;
-    padding: 0;
-    font: inherit;
-    font-size: var(--text-caption);
-    cursor: pointer;
   }
 </style>

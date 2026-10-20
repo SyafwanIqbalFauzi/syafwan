@@ -1034,3 +1034,117 @@ a.row:hover {
     display: none;
   }
 }
+
+/* ---- finance: grouped lists shared by Budgets and Categories ---- */
+.budget-actions {
+  display: inline-flex;
+  gap: var(--s-15);
+  flex-wrap: wrap;
+}
+
+.budget-groups {
+  display: grid;
+  gap: var(--s-33);
+}
+
+.budget-group-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-15);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-8);
+}
+
+.budget-group-head .num {
+  margin-left: auto;
+}
+
+@media (max-width: 720px) {
+  .budget-group-head .num {
+    margin-left: 0;
+    flex-basis: 100%;
+    text-align: left;
+  }
+}
+
+.arrow-link.danger {
+  color: var(--te-orange);
+}
+
+.row-actions button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+/* Notes under the last block of a page: they get room above, and two notes in a row stay close together */
+.page > .block + p.label {
+  margin-top: var(--s-22);
+}
+
+.page > p.label + p.label {
+  margin-top: var(--s-8);
+}
+
+/* ---- tabs that filter a page by type (All / Income / Spending / Savings) ---- */
+.type-tabs {
+  display: flex;
+  gap: var(--s-8);
+  margin-bottom: var(--s-22);
+  border-bottom: 1px solid var(--te-grey-100);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.type-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 44px;
+  padding: 10px var(--s-15);
+  margin-bottom: -1px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--w-light);
+  color: var(--te-grey-600);
+  cursor: pointer;
+}
+
+.type-tab:hover {
+  color: var(--te-black);
+}
+
+.type-tab:focus-visible {
+  outline: 1px solid var(--te-black);
+  outline-offset: -3px;
+}
+
+.type-tab[aria-selected='true'] {
+  color: var(--te-black);
+  font-weight: var(--w-regular);
+  border-bottom-color: var(--te-black);
+}
+
+.type-tab-count {
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+}
+
+/* On a phone all four tabs fit without sideways scrolling */
+@media (max-width: 480px) {
+  .type-tabs {
+    gap: 0;
+  }
+
+  .type-tab {
+    padding-inline: 8px;
+    gap: 4px;
+  }
+}
