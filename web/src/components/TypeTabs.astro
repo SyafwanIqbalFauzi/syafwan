@@ -1,0 +1,28 @@
+---
+// Tabs that filter a page by type (All / Income / Spending / Savings). The server draws the
+// chosen tab so there is no flash; scripts/type-tabs.ts then switches tabs without a reload.
+import { TYPE_TABS, type TypeTab } from '../lib/type-tabs';
+
+interface Props {
+  active: TypeTab;
+  counts: Record<TypeTab, number>;
+  /** What the counts count, for the screen reader: "categories", "budget lines" */
+  noun: string;
+}
+const { active, counts, noun } = Astro.props;
+---
+
+<div class="type-tabs" role="tablist" aria-label={`Show ${noun} by type`} data-type-tabs>
+  {
+    TYPE_TABS.map((tab) => (
+      <button type="button" role="tab" class="type-tab" data-tab={tab.key} aria-selected={tab.key === active ? 'true' : 'false'} tabindex={tab.key === active ? 0 : -1} aria-label={`${tab.label}, ${counts[tab.key]} ${noun}`}>
+        {tab.label}
+        <span class="type-tab-count">{counts[tab.key]}</span>
+      </button>
+    ))
+  }
+</div>
+
+<script>
+  import '../scripts/type-tabs';
+</script>

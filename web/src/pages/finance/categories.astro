@@ -3,6 +3,8 @@ import HermesShell from '../../layouts/HermesShell.astro';
 import { readItems, type FinanceCategory } from '../../lib/directus-user';
 import { usageByCategory } from '../../lib/category-usage';
 import { isUnused, type Usage } from '../../lib/category-input';
+import { parseTypeTab, showsUnder, tabCounts } from '../../lib/type-tabs';
+import TypeTabs from '../../components/TypeTabs.astro';
 
 export const prerender = false;
 
@@ -24,6 +26,8 @@ const groups = [
 ];
 const activeCount = categories.filter((c) => c.aktif).length;
 const unusedCount = categories.filter((c) => isUnused(usageOf(c.id))).length;
+const tab = parseTypeTab(Astro.url.searchParams.get('type'));
+const counts = tabCounts(categories.map((c) => c.jenis));
 ---
 
 <HermesShell title="Categories" current="categories" area="finance">
@@ -53,11 +57,13 @@ const unusedCount = categories.filter((c) => isUnused(usageOf(c.id))).length;
         </span>
       </div>
 
+      {categories.length > 0 && <TypeTabs active={tab} counts={counts} noun="categories" />}
+
       {
         categories.length ? (
           <div class="budget-groups">
             {groups.map((g) => (
-              <div class="budget-group">
+              <div class="budget-group" data-type-item={g.jenis} hidden={!showsUnder(tab, g.jenis)}>
                 <div class="budget-group-head">
                   <span class="name" style="font-size: var(--text-body)">{g.title}</span>
                   <span class="tag">{g.tag}</span>

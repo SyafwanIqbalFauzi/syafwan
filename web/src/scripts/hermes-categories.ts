@@ -39,12 +39,18 @@ async function call(method: string, url: string, body?: unknown): Promise<any> {
 
 const field = (name: string) => form!.elements.namedItem(name) as HTMLInputElement & HTMLSelectElement;
 
+// A new category starts with the type of the tab that is open (spending when the tab is "All").
+function defaultJenis(): string {
+  const tab = document.querySelector<HTMLElement>('[data-type-tabs] [aria-selected="true"]')?.dataset.tab;
+  return tab && tab !== 'all' ? tab : 'pengeluaran';
+}
+
 function openDialog(line?: { id: number; name: string; jenis: string; aktif: boolean; keywords: string; used: boolean }) {
   if (!dialog || !form) return;
   editingId = line?.id ?? null;
   dialog.querySelector('#category-dialog-title')!.textContent = line ? 'Edit category' : 'Add a category';
   field('nama').value = line?.name ?? '';
-  field('jenis').value = line?.jenis ?? 'pengeluaran';
+  field('jenis').value = line?.jenis ?? defaultJenis();
   field('jenis').disabled = !!line?.used;
   field('kata_kunci').value = line?.keywords ?? '';
   field('aktif').checked = line?.aktif ?? true;
