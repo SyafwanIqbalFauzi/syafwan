@@ -18,8 +18,9 @@ const categories = catResult?.data ?? [];
 const usageOf = (id: number): Usage => usageResult?.get(id) ?? { transactions: 0, budgets: 0 };
 
 const groups = [
-  { jenis: 'pengeluaran', title: 'Spending', rows: categories.filter((c) => c.jenis === 'pengeluaran') },
-  { jenis: 'pemasukan', title: 'Income', rows: categories.filter((c) => c.jenis === 'pemasukan') },
+  { jenis: 'pemasukan', title: 'Income', tag: 'income', rows: categories.filter((c) => c.jenis === 'pemasukan') },
+  { jenis: 'pengeluaran', title: 'Spending', tag: 'spending', rows: categories.filter((c) => c.jenis === 'pengeluaran') },
+  { jenis: 'tabungan', title: 'Savings', tag: 'savings', rows: categories.filter((c) => c.jenis === 'tabungan') },
 ];
 const activeCount = categories.filter((c) => c.aktif).length;
 const unusedCount = categories.filter((c) => isUnused(usageOf(c.id))).length;
@@ -59,7 +60,7 @@ const unusedCount = categories.filter((c) => isUnused(usageOf(c.id))).length;
               <div class="budget-group">
                 <div class="budget-group-head">
                   <span class="name" style="font-size: var(--text-body)">{g.title}</span>
-                  <span class="tag">{g.jenis === 'pemasukan' ? 'income' : 'spending'}</span>
+                  <span class="tag">{g.tag}</span>
                   <span class="num">{g.rows.length} {g.rows.length === 1 ? 'category' : 'categories'}</span>
                 </div>
                 {g.rows.length ? (
@@ -102,7 +103,7 @@ const unusedCount = categories.filter((c) => isUnused(usageOf(c.id))).length;
     </section>
 
     <p class="label muted">
-      Drag a row by its handle (⠿) to change the order inside Spending or Income; the order is also used on Budgets.
+      Drag a row by its handle (⠿) to change the order inside Income, Spending or Savings; the order is also used on Budgets.
       A category that is used by a transaction or a budget line cannot be deleted or change its type. Turn it off instead: it disappears from the pickers, and old records keep it.
       Keywords are hints for the assistant when it files a message, for example “kopi, nasi”.
     </p>
@@ -117,8 +118,9 @@ const unusedCount = categories.filter((c) => isUnused(usageOf(c.id))).length;
         <label class="dlg-field">
           <span class="label muted">Type</span>
           <select name="jenis" required>
-            <option value="pengeluaran">Spending</option>
             <option value="pemasukan">Income</option>
+            <option value="pengeluaran">Spending</option>
+            <option value="tabungan">Savings</option>
           </select>
         </label>
         <label class="dlg-field">

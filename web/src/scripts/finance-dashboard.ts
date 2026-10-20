@@ -235,7 +235,7 @@ function start(data: Payload) {
     const holder = $<HTMLElement>('[data-cashflow-table]')!;
     const table = document.createElement('table');
     const head = table.createTHead().insertRow();
-    for (const [text, num] of [[bucketName, false], ['Income', true], ['Expense', true], ['Net', true], ...(stacked ? [['Expense by person', false] as [string, boolean]] : [])] as [string, boolean][]) {
+    for (const [text, num] of [[bucketName, false], ['Income', true], ['Expense', true], ['Savings', true], ['Net', true], ...(stacked ? [['Expense by person', false] as [string, boolean]] : [])] as [string, boolean][]) {
       const th = document.createElement('th');
       th.textContent = text;
       if (num) th.className = 'num';
@@ -244,7 +244,7 @@ function start(data: Payload) {
     const body = table.createTBody();
     for (const p of points) {
       const row = body.insertRow();
-      [p.label, money(p.income), money(p.expense), money(p.net)].forEach((text, i) => {
+      [p.label, money(p.income), money(p.expense), money(p.savings), money(p.net)].forEach((text, i) => {
         const cell = row.insertCell();
         cell.textContent = text;
         if (i) cell.className = 'num';
@@ -374,6 +374,8 @@ function start(data: Payload) {
     setText('income-delta', f.income.delta);
     setText('expense-value', f.expense.value);
     setText('expense-delta', f.expense.delta);
+    setText('savings-value', f.savings.value);
+    setText('savings-delta', f.savings.delta);
     setText('net-value', f.net.value);
     setText('net-label', f.net.label);
     setText('net-sub', f.net.sub);
@@ -381,6 +383,7 @@ function start(data: Payload) {
     setText('average-sub', f.average.sub);
     $<HTMLElement>('[data-fig="income-delta"]')?.setAttribute('data-good', String(f.income.good));
     $<HTMLElement>('[data-fig="expense-delta"]')?.setAttribute('data-good', String(f.expense.good));
+    $<HTMLElement>('[data-fig="savings-delta"]')?.setAttribute('data-good', String(f.savings.good));
 
     cashflowChart.data.labels = points.map((p) => p.label);
     const sets = barSets();

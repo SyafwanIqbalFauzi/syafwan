@@ -26,6 +26,8 @@ test('parseCategoryFields: needs a name and a type; active defaults to true', ()
   assert.deepEqual(parseCategoryFields({ nama: ' Kopi ', jenis: 'pengeluaran' }), { ok: true, value: { nama: 'Kopi', jenis: 'pengeluaran', aktif: true, kata_kunci: [] } });
   const off = parseCategoryFields({ nama: 'Gaji', jenis: 'pemasukan', aktif: false, kata_kunci: 'gaji, bonus' });
   assert.deepEqual(off, { ok: true, value: { nama: 'Gaji', jenis: 'pemasukan', aktif: false, kata_kunci: ['gaji', 'bonus'] } });
+  const saving = parseCategoryFields({ nama: 'Tabungan', jenis: 'tabungan' });
+  assert.deepEqual(saving, { ok: true, value: { nama: 'Tabungan', jenis: 'tabungan', aktif: true, kata_kunci: [] } });
   assert.equal(parseCategoryFields({ nama: '', jenis: 'pengeluaran' }).ok, false);
   assert.equal(parseCategoryFields({ nama: 'X', jenis: 'lain' }).ok, false);
   assert.equal(parseCategoryFields(null).ok, false);

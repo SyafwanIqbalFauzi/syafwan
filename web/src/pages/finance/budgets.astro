@@ -25,26 +25,29 @@ const previousYearLines = allBudgets.filter((b) => b.tahun === year - 1).length;
 
 const jenisOf = new Map(categories.map((c) => [c.id, c.jenis]));
 const amountOf = (b: FinanceBudget) => Number(b.jumlah) || 0;
-const spendingPlan = budgets.filter((b) => jenisOf.get(b.kategori) !== 'pemasukan').reduce((a, b) => a + amountOf(b), 0);
+const spendingPlan = budgets.filter((b) => jenisOf.get(b.kategori) !== 'pemasukan' && jenisOf.get(b.kategori) !== 'tabungan').reduce((a, b) => a + amountOf(b), 0);
 const incomePlan = budgets.filter((b) => jenisOf.get(b.kategori) === 'pemasukan').reduce((a, b) => a + amountOf(b), 0);
+const savingsPlan = budgets.filter((b) => jenisOf.get(b.kategori) === 'tabungan').reduce((a, b) => a + amountOf(b), 0);
 // How much of the expected income the spending plan takes. Null when no income is planned.
 const shareOfIncome = (amount: number) => (incomePlan > 0 ? amount / incomePlan : null);
 const spendShare = shareOfIncome(spendingPlan);
-const leftShare = shareOfIncome(incomePlan - spendingPlan);
+const leftShare = shareOfIncome(incomePlan - spendingPlan - savingsPlan);
 const budgeted = new Set(budgets.map((b) => b.kategori));
 const unbudgeted = categories.filter((c) => c.aktif && c.jenis === 'pengeluaran' && !budgeted.has(c.id));
 
 // Groups: income always on top, then the spending categories, each in the order of the category list.
 const categoryName = new Map(categories.map((c) => [c.id, c.nama]));
 const incomeLines = budgets.filter((b) => jenisOf.get(b.kategori) === 'pemasukan');
-// One fixed "Income" group on top (whatever income category a line belongs to), then one group per spending category.
+const savingsLines = budgets.filter((b) => jenisOf.get(b.kategori) === 'tabungan');
+// Fixed "Income" and "Savings" groups on top (whatever category a line belongs to), then one group per spending category.
 const groups = [
-  ...(incomeLines.length ? [{ title: 'Income', income: true, lines: incomeLines, total: incomePlan }] : []),
+  ...(incomeLines.length ? [{ title: 'Income', income: true, savings: false, lines: incomeLines, total: incomePlan }] : []),
+  ...(savingsLines.length ? [{ title: 'Savings', income: false, savings: true, lines: savingsLines, total: savingsPlan }] : []),
   ...categories
-    .filter((c) => c.jenis !== 'pemasukan' && budgeted.has(c.id))
+    .filter((c) => c.jenis === 'pengeluaran' && budgeted.has(c.id))
     .map((c) => {
       const lines = budgets.filter((b) => b.kategori === c.id);
-      return { title: c.nama, income: false, lines, total: lines.reduce((sum, b) => sum + amountOf(b), 0) };
+      return { title: c.nama, income: false, savings: false, lines, total: lines.reduce((sum, b) => sum + amountOf(b), 0) };
     }),
 ];
 const loaded = budgetResult !== null && catResult !== null;
@@ -69,7 +72,8 @@ const loaded = budgetResult !== null && catResult !== null;
       <div class="figures figures-money">
         <div class="figure"><p class="value">{rupiah(spendingPlan)}</p><p class="label">planned spending per month</p><p class="delta">{spendShare === null ? 'no expected income set' : `${percent(spendShare, 1)} of expected income`}</p></div>
         <div class="figure"><p class="value">{rupiah(incomePlan)}</p><p class="label">expected income per month</p></div>
-        <div class="figure"><p class="value">{rupiah(incomePlan - spendingPlan)}</p><p class="label">left over per month, if all goes to plan</p><p class="delta">{leftShare === null ? '' : `${percent(leftShare, 1)} of expected income`}</p></div>
+        <div class="figure"><p class="value">{rupiah(savingsPlan)}</p><p class="label">planned savings per month</p><p class="delta">{shareOfIncome(savingsPlan) === null ? '' : `${percent(shareOfIncome(savingsPlan)!, 1)} of expected income`}</p></div>
+        <div class="figure"><p class="value">{rupiah(incomePlan - spendingPlan - savingsPlan)}</p><p class="label">left over per month, if all goes to plan</p><p class="delta">{leftShare === null ? '' : `${percent(leftShare, 1)} of expected income`}</p></div>
         <div class="figure"><p class="value">{budgets.length}</p><p class="label">budget lines</p></div>
       </div>
     </section>
@@ -106,8 +110,8 @@ const loaded = budgetResult !== null && catResult !== null;
               <div class="budget-group">
                 <div class="budget-group-head">
                   <span class="name" style="font-size: var(--text-body)">{g.title}</span>
-                  <span class="tag">{g.income ? 'income' : 'spending'}</span>
-                  <span class="num">{rupiah(g.total)} / month{!g.income && spendShare !== null ? ` · ${percent(shareOfIncome(g.total)!, 1)} of income` : ''}</span>
+                  <span class="tag">{g.income ? 'income' : g.savings ? 'savings' : 'spending'}</span>
+                  <span class="num">{rupiah(g.total)} / month{!g.income && !g.savings && spendShare !== null ? ` · ${percent(shareOfIncome(g.total)!, 1)} of income` : ''}</span>
                 </div>
                 <div class="ruled">
                   {g.lines.map((b) => (
@@ -142,7 +146,7 @@ const loaded = budgetResult !== null && catResult !== null;
     }
     <p class="label muted">
       A budget is an amount per month. Several lines can share a category (for example Internet and Electricity under Bills); the dashboard compares their sum with what was spent in that category.
-      A line on an income category, such as salary, is an expected income, not a limit.
+      A line on an income category, such as salary, is an expected income, not a limit. A line on a savings category is an amount to put aside each month.
     </p>
 
     <dialog class="dlg" id="budget-dialog" aria-labelledby="budget-dialog-title">
@@ -157,6 +161,9 @@ const loaded = budgetResult !== null && catResult !== null;
             </optgroup>
             <optgroup label="Income">
               {categories.filter((c) => c.jenis === 'pemasukan').map((c) => <option value={c.id} data-inactive={c.aktif ? undefined : ''} disabled={!c.aktif} hidden={!c.aktif}>{c.nama}</option>)}
+            </optgroup>
+            <optgroup label="Savings">
+              {categories.filter((c) => c.jenis === 'tabungan').map((c) => <option value={c.id} data-inactive={c.aktif ? undefined : ''} disabled={!c.aktif} hidden={!c.aktif}>{c.nama}</option>)}
             </optgroup>
           </select>
         </label>

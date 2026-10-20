@@ -90,7 +90,7 @@ export type ReadableCollection =
 export interface FinanceTransaction {
   id: number;
   tanggal: string;
-  jenis: 'pemasukan' | 'pengeluaran';
+  jenis: 'pemasukan' | 'pengeluaran' | 'tabungan';
   kategori: number | null;
   deskripsi: string | null;
   nominal: string | number;
@@ -103,7 +103,7 @@ export interface FinanceTransaction {
 export interface FinanceCategory {
   id: number;
   nama: string;
-  jenis: 'pemasukan' | 'pengeluaran';
+  jenis: 'pemasukan' | 'pengeluaran' | 'tabungan';
   aktif: boolean;
   sort: number | null;
   kata_kunci?: string[] | null;

@@ -2,7 +2,7 @@
 // routes (which never trust the browser). Pure, so it is unit tested.
 import { parseId, type Parsed } from './budget-input.ts';
 
-export const JENIS = ['pemasukan', 'pengeluaran'] as const;
+export const JENIS = ['pemasukan', 'pengeluaran', 'tabungan'] as const;
 export type Jenis = (typeof JENIS)[number];
 
 export const MAX_NAME = 60;
@@ -55,7 +55,7 @@ export function parseCategoryFields(body: unknown): Parsed<CategoryInput> {
   const b = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>;
   const nama = normalizeCategoryName(b.nama);
   if (!nama) return { ok: false, error: `Give the category a name of 1–${MAX_NAME} characters, without < or >` };
-  if (!isJenis(b.jenis)) return { ok: false, error: 'Choose income or spending' };
+  if (!isJenis(b.jenis)) return { ok: false, error: 'Choose income, spending or savings' };
   const kata_kunci = parseKeywords(b.kata_kunci);
   if (!kata_kunci) return { ok: false, error: `Keywords: up to ${MAX_KEYWORDS}, each up to ${MAX_KEYWORD} characters, separated by commas` };
   const aktif = b.aktif === undefined ? true : b.aktif === true || b.aktif === 'true' || b.aktif === 'on';

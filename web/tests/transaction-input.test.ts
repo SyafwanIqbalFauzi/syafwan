@@ -25,7 +25,8 @@ test('each broken field gets its own message', () => {
   assert.match(error({ tanggal: '' }), /date/i);
   assert.match(error({ tanggal: '1999-12-31' }), /far back/i);
   assert.match(error({ tanggal: '2026-10-17' }), /future/i);
-  assert.match(error({ jenis: 'transfer' }), /income or expense/i);
+  assert.match(error({ jenis: 'transfer' }), /income, expense or savings/i);
+  assert.equal(parseTransactionFields({ ...valid, jenis: 'tabungan' }, TODAY).ok, true);
   assert.match(error({ kategori: '' }), /category/i);
   assert.match(error({ nominal: '0' }), /amount/i);
   assert.match(error({ nominal: 'banyak' }), /amount/i);

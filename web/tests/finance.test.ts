@@ -68,9 +68,10 @@ test('windowFor: 3 months = 13 weeks, 6 months and a year are whole calendar mon
   assert.equal(bucketKeys(w12.start, w12.end, 'month').length, 12);
 });
 
-test('summarize: income, expense, net and savings rate inside the dates only', () => {
-  const rows = [t('2026-10-01', 'pemasukan', 1000, 1), t('2026-10-02', 'pengeluaran', 400), t('2026-10-03', 'pengeluaran', 100), t('2026-09-30', 'pengeluaran', 999), t('2026-10-10', 'pengeluaran', 999)];
-  assert.deepEqual(summarize(rows, '2026-10-01', '2026-10-05'), { income: 1000, expense: 500, net: 500, count: 3, savingsRate: 0.5 });
+test('summarize: income, expense, savings, net and savings rate inside the dates only', () => {
+  const rows = [t('2026-10-01', 'pemasukan', 1000, 1), t('2026-10-02', 'pengeluaran', 400), t('2026-10-03', 'pengeluaran', 100), t('2026-10-04', 'tabungan', 200), t('2026-09-30', 'pengeluaran', 999), t('2026-10-10', 'pengeluaran', 999)];
+  // Savings is its own bucket: it never counts as expense, and it comes off the net.
+  assert.deepEqual(summarize(rows, '2026-10-01', '2026-10-05'), { income: 1000, expense: 500, savings: 200, net: 300, count: 4, savingsRate: 0.2 });
   assert.equal(summarize([], '2026-10-01', '2026-10-05').savingsRate, null);
   assert.equal(summarize([t('2026-10-02', 'pengeluaran', 5)], '2026-10-01', '2026-10-05').savingsRate, null);
 });
@@ -99,6 +100,12 @@ test('cashflow: every day appears, empty ones are zero, cumulative net runs on',
   assert.equal(points.some((p) => p.partial), false); // days are never partial
 });
 
+test('cashflow: savings is tracked apart from expense and comes off the running net', () => {
+  const rows = [t('2026-10-13', 'pemasukan', 1000, 1), t('2026-10-13', 'pengeluaran', 300), t('2026-10-14', 'tabungan', 200)];
+  const points = cashflow(rows, { start: '2026-10-13', end: '2026-10-14', bucket: 'day' });
+  assert.deepEqual(points.map((p) => [p.expense, p.savings, p.net, p.cumulative]), [[300, 0, 700, 700], [0, 200, -200, 500]]);
+});
+
 test('cashflow: weekly and monthly buckets add up, the running bucket is partial', () => {
   const rows = [t('2026-10-05', 'pengeluaran', 100), t('2026-10-11', 'pengeluaran', 50), t('2026-10-12', 'pengeluaran', 25), t('2026-09-30', 'pengeluaran', 7)];
   const weeks = cashflow(rows, { start: '2026-09-28', end: '2026-10-15', bucket: 'week' });
@@ -117,6 +124,19 @@ test('byCategory: biggest first, shares add up, long tails collapse into "Other"
   assert.equal(folded.length, 5);
   assert.equal(folded.at(-1)!.name, 'Other (8)');
   assert.equal(Math.round(folded.reduce((a, c) => a + c.share, 0) * 1000), 1000);
+});
+
+test('budgetReport: savings lines are targets of their own, not spending', () => {
+  const budgets: Budget[] = [
+    { tahun: 2026, kategori: 21, nama_pos: 'Tabungan Khafa', jumlah: '250000' },
+    { tahun: 2026, kategori: 6, nama_pos: 'Internet', jumlah: '300000' },
+  ];
+  const cats2 = [...cats, { id: 21, nama: 'Tabungan', jenis: 'tabungan' }];
+  const rows = [t('2026-10-02', 'tabungan', 100_000, 21), t('2026-10-03', 'pengeluaran', 100_000, 6)];
+  const report = budgetReport(budgets, cats2, rows, 2026, '2026-10-01', '2026-10-31');
+  assert.deepEqual([report.savings[0].name, report.savings[0].planned, report.savings[0].actual, report.savings[0].level], ['Tabungan', 250_000, 100_000, 'normal']);
+  assert.equal(report.expenses.length, 1);
+  assert.equal(report.plannedExpense, 300_000);
 });
 
 test('budgetReport: spending is compared per category; income lines are targets, not limits', () => {
@@ -217,8 +237,8 @@ test('cashflow: each bucket remembers who recorded what', async () => {
     { tanggal: '2026-10-14', jenis: 'pengeluaran', kategori: 4, nominal: 7, member: null },
   ];
   const [a, b] = cashflow(rows, { start: '2026-10-13', end: '2026-10-14', bucket: 'day' });
-  assert.deepEqual(a.people, { '1': { income: 900, expense: 100 }, '2': { income: 0, expense: 50 } });
-  assert.deepEqual(b.people, { [NO_PERSON]: { income: 0, expense: 7 } });
+  assert.deepEqual(a.people, { '1': { income: 900, expense: 100, savings: 0 }, '2': { income: 0, expense: 50, savings: 0 } });
+  assert.deepEqual(b.people, { [NO_PERSON]: { income: 0, expense: 7, savings: 0 } });
   assert.equal(a.expense, 150); // the people always add up to the bucket
 });
 
@@ -267,16 +287,18 @@ test('hiding people: parse, toggle (never the last one) and filter', async () =>
 
 test('dashboardFigures: the texts shown on the four figures', async () => {
   const { dashboardFigures, daysIn } = await import('../src/lib/finance.ts');
-  const now = { income: 16_233_000, expense: 13_173_981, net: 3_059_019, count: 126, savingsRate: 3_059_019 / 16_233_000 };
-  const before = { income: 12_385_000, expense: 11_199_000, net: 1_186_000, count: 100, savingsRate: 0.09 };
+  const now = { income: 16_233_000, expense: 13_173_981, savings: 1_000_000, net: 2_059_019, count: 126, savingsRate: 1_000_000 / 16_233_000 };
+  const before = { income: 12_385_000, expense: 11_199_000, savings: 500_000, net: 686_000, count: 100, savingsRate: 0.04 };
   const f = dashboardFigures(now, before, 30);
   assert.equal(f.income.value, 'Rp 16,2 jt');
   assert.deepEqual([f.income.delta, f.income.good], ['+31% vs the period before', true]);
   assert.deepEqual([f.expense.delta, f.expense.good], ['+18% vs the period before', false]); // spending more is not "good"
-  assert.equal(f.net.label, 'net · 19% of income kept');
-  assert.equal(f.net.sub, 'previous: Rp 1,2 jt');
+  assert.deepEqual([f.savings.value, f.savings.delta, f.savings.good], ['Rp 1 jt', '+100% vs the period before', true]); // saving more is good
+  assert.equal(f.net.label, 'net · 6% of income saved');
+  assert.equal(f.net.sub, 'previous: Rp 686 rb');
   assert.deepEqual(f.average, { value: 'Rp 439,1 rb', sub: '126 transactions' });
-  const none = dashboardFigures({ income: 0, expense: 0, net: 0, count: 0, savingsRate: null }, { income: 0, expense: 0, net: 0, count: 0, savingsRate: null }, 7);
+  const zero = { income: 0, expense: 0, savings: 0, net: 0, count: 0, savingsRate: null };
+  const none = dashboardFigures(zero, zero, 7);
   assert.equal(none.income.delta, 'no earlier period to compare');
   assert.equal(none.net.label, 'net · no income');
   assert.equal(daysIn({ start: '2026-10-01', end: '2026-10-10' }), 10);
