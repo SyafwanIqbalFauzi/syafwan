@@ -28,6 +28,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(`/agent${pathname.slice('/hermes'.length)}${context.url.search}`, 308);
   }
 
+  // The Autoplay Blocker extension links to /autoplay-blocker (its manifest homepage); the page lives under work.
+  // Also short links to its privacy policy and report form (the form is a GET page; its POST goes to the long URL).
+  const abShort = pathname.replace(/\/$/, '').match(/^\/autoplay-blocker(\/(privacy|report))?$/);
+  if (abShort) {
+    return context.redirect(`/en/work/autoplay-blocker${abShort[1] ?? ''}${context.url.search}`, 308);
+  }
+
   // Finance used to be a part of the agent area; it is its own area now.
   if (pathname === '/agent/finance' || pathname.startsWith('/agent/finance/')) {
     return context.redirect(`/finance${pathname.slice('/agent/finance'.length)}${context.url.search}`, 308);

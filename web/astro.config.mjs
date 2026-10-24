@@ -20,6 +20,8 @@ export default defineConfig({
     schema: {
       DIRECTUS_INTERNAL_URL: envField.string({ context: 'server', access: 'secret', default: 'http://localhost:8055' }),
       DIRECTUS_TOKEN: envField.string({ context: 'server', access: 'secret' }),
+      // Create-only token for the Autoplay Blocker report form (cms/autoplay-reports-setup.mjs). Unset = form shows "unavailable".
+      DIRECTUS_REPORT_TOKEN: envField.string({ context: 'server', access: 'secret', optional: true }),
       // Read at runtime: a "public" field would be inlined at build time with the localhost default.
       PUBLIC_CMS_URL: envField.string({ context: 'server', access: 'secret', default: 'http://localhost:8055' }),
       // Hermes API server on the VPS host (see src/lib/hermes.ts). The key never reaches the browser.
