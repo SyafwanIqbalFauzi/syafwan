@@ -1,0 +1,252 @@
+---
+// Report form for the Autoplay Blocker extension (the popup's "Report a broken site" opens this with ?site=&v=).
+// A plain HTML form: this page handles the POST itself (like /agent/login), no script needed.
+import Layout from '../../../../layouts/Layout.astro';
+import { autoplayBlockerLegal } from '../../../../lib/autoplay-blocker-legal';
+import { isLocale } from '../../../../lib/i18n';
+import { RateLimiter } from '../../../../lib/ratelimit';
+import { parseReport, REPORT_KINDS } from '../../../../lib/report-input';
+import { reportsAvailable, saveReport } from '../../../../lib/report-store';
+
+export const prerender = false;
+
+const { lang } = Astro.params;
+if (!isLocale(lang)) return Astro.rewrite('/404');
+const locale = lang;
+const r = autoplayBlockerLegal[locale].report;
+
+// 3 messages per 5 minutes per visitor. Behind the host gateway visitors may share an address, which only makes it stricter.
+const limiter = ((globalThis as any).__autoplayReportLimiter ??= new RateLimiter(3, 5 * 60_000)) as RateLimiter;
+
+Astro.response.headers.set('Cache-Control', 'private, no-store');
+
+const query = Astro.url.searchParams;
+const first = (name: string) => (query.get(name) ?? '').slice(0, 300);
+let values: { kind: string; site: string; version: string; message: string; email: string } = {
+  kind: REPORT_KINDS.find((k) => k === query.get('kind')) ?? (query.get('site') ? 'site_bug' : 'question'),
+  site: first('site'),
+  version: first('v'),
+  message: '',
+  email: '',
+};
+let error = '';
+const sent = query.get('sent') === '1';
+const available = reportsAvailable();
+
+if (Astro.request.method === 'POST') {
+  const form = Object.fromEntries((await Astro.request.formData()).entries()) as Record<string, string>;
+  values = {
+    kind: form.kind ?? values.kind,
+    site: (form.site ?? '').slice(0, 300),
+    version: (form.version ?? '').slice(0, 20),
+    message: (form.message ?? '').slice(0, 4000),
+    email: (form.email ?? '').slice(0, 300),
+  };
+  const ip = Astro.request.headers.get('x-forwarded-for')?.split(',').pop()?.trim() || Astro.clientAddress || 'unknown';
+  const parsed = parseReport({ ...form, lang: locale });
+
+  if (!parsed.ok && 'bot' in parsed) {
+    // Pretend it worked so a bot learns nothing.
+    return Astro.redirect(`${Astro.url.pathname}?sent=1`, 303);
+  } else if (!available) {
+    Astro.response.status = 503;
+    error = r.unavailable;
+  } else if (!limiter.take(ip)) {
+    Astro.response.status = 429;
+    error = r.throttled;
+  } else if (!parsed.ok) {
+    Astro.response.status = 400;
+    error = parsed.error;
+  } else if (await saveReport(parsed.value)) {
+    return Astro.redirect(`${Astro.url.pathname}?sent=1`, 303);
+  } else {
+    Astro.response.status = 502;
+    error = r.failed;
+  }
+}
+---
+
+<Layout locale={locale} title={r.seoTitle} description={r.lead}>
+  <section class="container head">
+    <p class="label crumbs">
+      <a href={`/${locale}/work/autoplay-blocker`}>Autoplay Blocker</a>
+      <span class="muted">/</span>
+      <span class="muted">{r.title}</span>
+    </p>
+    <h1 class="h1">{r.title}</h1>
+    <p class="lead">{r.lead}</p>
+  </section>
+
+  <section class="container body">
+    {
+      sent ? (
+        <div class="done" role="status">
+          <p class="done-title">{r.sent}</p>
+          <p class="muted">{r.sentNote}</p>
+          <p class="links">
+            <a class="arrow-link" href={Astro.url.pathname}>{r.again} →</a>
+            <a class="arrow-link" href={`/${locale}/work/autoplay-blocker`}>← {r.back}</a>
+          </p>
+        </div>
+      ) : !available && Astro.request.method !== 'POST' ? (
+        <p class="notice" role="status">{r.unavailable}</p>
+      ) : (
+        <form method="post" class="form" novalidate>
+          {error && <p class="notice error" role="alert">{error}</p>}
+
+          <label class="field">
+            <span class="label">{r.kindLabel}</span>
+            <select name="kind" required>
+              {REPORT_KINDS.map((k) => (
+                <option value={k} selected={values.kind === k}>{r.kinds[k]}</option>
+              ))}
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="label">{r.siteLabel}</span>
+            <input name="site" type="text" value={values.site} maxlength="300" autocomplete="off" spellcheck="false" placeholder="news.example" />
+            <span class="label muted">{r.siteHint}</span>
+          </label>
+
+          <label class="field">
+            <span class="label">{r.versionLabel}</span>
+            <input name="version" type="text" value={values.version} maxlength="20" autocomplete="off" spellcheck="false" placeholder="0.1.0" />
+          </label>
+
+          <label class="field">
+            <span class="label">{r.messageLabel}</span>
+            <textarea name="message" rows="6" required maxlength="2000">{values.message}</textarea>
+            <span class="label muted">{r.messageHint}</span>
+          </label>
+
+          <label class="field">
+            <span class="label">{r.emailLabel}</span>
+            <input name="email" type="email" value={values.email} maxlength="254" autocomplete="email" />
+            <span class="label muted">{r.emailHint}</span>
+          </label>
+
+          <div class="trap" aria-hidden="true">
+            <label>Website <input name="website" type="text" tabindex="-1" autocomplete="off" /></label>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-solid" type="submit">{r.submit}</button>
+            <p class="label muted">
+              {r.privacyNote}{' '}
+              <a class="link" href={`/${locale}/work/autoplay-blocker/privacy`}>{r.privacyLink}</a>
+            </p>
+          </div>
+        </form>
+      )
+    }
+  </section>
+</Layout>
+
+<style>
+  .head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-15);
+    padding-block: var(--s-66) var(--s-33);
+  }
+
+  .crumbs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .lead {
+    font-size: var(--text-sub);
+    font-weight: var(--w-light);
+    max-width: 36em;
+  }
+
+  .body {
+    padding-bottom: var(--s-66);
+    max-width: 640px;
+  }
+
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-22);
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+    font-size: 16px;
+    padding: 10px 12px;
+    border: 1px solid var(--te-grey-200);
+    background: var(--te-paper);
+    color: var(--te-black);
+    border-radius: 0;
+    width: 100%;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: 2px solid var(--te-blue);
+    outline-offset: 1px;
+  }
+
+  textarea {
+    resize: vertical;
+  }
+
+  /* Honeypot: people never see or fill this. */
+  .trap {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-15);
+  }
+
+  .notice {
+    padding: 12px 14px;
+    border: 1px solid var(--te-grey-200);
+    background: var(--te-white);
+  }
+
+  .notice.error {
+    border-color: var(--te-orange);
+  }
+
+  .done {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-8);
+    padding: var(--s-22);
+    border: 1px solid var(--te-grey-100);
+    background: var(--te-white);
+  }
+
+  .done-title {
+    font-size: var(--text-sub);
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-22);
+    margin-top: var(--s-15);
+  }
+</style>

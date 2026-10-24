@@ -1,0 +1,482 @@
+---
+// Landing page for the Autoplay Blocker Chrome extension. A fixed route beats work/[slug].astro,
+// so the CMS entry (slug "autoplay-blocker", type side_project) feeds the work grid and this
+// page supplies the presentation. Copy lives in lib/autoplay-blocker-content.ts.
+import Layout from '../../../layouts/Layout.astro';
+import { getProject } from '../../../lib/content';
+import { autoplayBlockerContent, AUTOPLAY_BLOCKER_VERSION } from '../../../lib/autoplay-blocker-content';
+import { isLocale, pick, t } from '../../../lib/i18n';
+import { assetUrl } from '../../../lib/assets';
+
+const { lang } = Astro.params;
+if (!isLocale(lang)) return Astro.rewrite('/404');
+const locale = lang;
+const c = autoplayBlockerContent[locale];
+
+const project = await getProject('autoplay-blocker').catch(() => null);
+const summary = (project && pick(project.translations, locale).value?.summary) || c.hero.sub;
+const site = Astro.site ?? new URL(Astro.url.origin);
+const heroImage = project?.cover ? assetUrl(project.cover, 1200, 'jpg') : new URL('/autoplay-blocker/hero.png', site).href;
+
+// Set when the Polar product exists (Tahap 3). While null, the buy button stays "coming soon".
+const proUrl: string | null = null;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Autoplay Blocker',
+  applicationCategory: 'BrowserApplication',
+  operatingSystem: 'Chrome',
+  softwareVersion: AUTOPLAY_BLOCKER_VERSION,
+  description: summary,
+  image: heroImage,
+  author: { '@type': 'Person', name: 'Syafwan Iqbal Fauzi', url: site.href },
+  offers: [
+    { '@type': 'Offer', name: 'Free', price: '0', priceCurrency: 'USD' },
+    { '@type': 'Offer', name: 'Pro', price: '15', priceCurrency: 'USD' },
+  ],
+};
+---
+
+<Layout locale={locale} title={c.seoTitle} description={summary} image={heroImage} type="website" jsonLd={jsonLd}>
+  <section class="band-dark hero">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="label muted crumbs">
+          <a href={`/${locale}/work`}>{t(locale, 'nav.work')}</a> <span>/</span> <span>Autoplay Blocker</span>
+        </p>
+        <p class="label muted">{c.hero.kicker}</p>
+        <h1 class="display">{c.hero.headline}</h1>
+        <p class="sub">{c.hero.sub}</p>
+        <div class="actions">
+          <span class="btn btn-solid disabled" role="link" aria-disabled="true">
+            {c.hero.install}
+            <span class="tag tag-amber">{c.hero.installNote}</span>
+          </span>
+          <a class="arrow-link" href="#how">{c.hero.how} →</a>
+        </div>
+        <ul class="tags">
+          <li class="tag">v{AUTOPLAY_BLOCKER_VERSION}</li>
+          {c.hero.tags.map((tag) => <li class="tag">{tag}</li>)}
+        </ul>
+      </div>
+      <div class="hero-shot">
+        <img src="/autoplay-blocker/hero.png" alt="Autoplay Blocker popup over a news page with its video held back" width="1600" height="1000" fetchpriority="high" />
+      </div>
+    </div>
+  </section>
+
+  <section class="container section problem">
+    <div class="section-head"><h2>{c.problem.title}</h2></div>
+    <p class="lead">{c.problem.lead}</p>
+    <ul class="cols ruled-cols">
+      {
+        c.problem.points.map((p) => (
+          <li>
+            <h3>{p.title}</h3>
+            <p class="muted">{p.text}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="section demo-wrap">
+    <div class="container">
+      <div class="section-head"><h2>{c.demo.title}</h2></div>
+      <div class="demo">
+        <figure>
+          <figcaption class="label"><span class="tag">{c.demo.without}</span></figcaption>
+          <img src="/autoplay-blocker/demo-without.png" alt={c.demo.withoutCaption} width="1280" height="800" loading="lazy" />
+          <p class="label muted">{c.demo.withoutCaption}</p>
+        </figure>
+        <figure>
+          <figcaption class="label"><span class="tag tag-amber">{c.demo.withIt}</span></figcaption>
+          <img src="/autoplay-blocker/demo-with.png" alt={c.demo.withCaption} width="1280" height="800" loading="lazy" />
+          <p class="label muted">{c.demo.withCaption}</p>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="container section">
+    <div class="section-head"><h2>{c.features.title}</h2></div>
+    <ul class="features">
+      {
+        c.features.items.map((f) => (
+          <li>
+            <h3>{f.title}</h3>
+            <p class="muted">{f.text}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </section>
+
+  <section class="container section" id="plans">
+    <div class="section-head"><h2>{c.plans.title}</h2></div>
+    <p class="lead">{c.plans.lead}</p>
+    <div class="plans">
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th scope="col"><span class="visually-hidden">Feature</span></th>
+            <th scope="col" class="label">{c.plans.free}</th>
+            <th scope="col" class="label">{c.plans.pro}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {
+            c.plans.rows.map((r) => (
+              <tr>
+                <td>{r.label}</td>
+                <td class="mark">{r.free ? <span aria-label="yes">●</span> : <span class="muted" aria-label="no">–</span>}</td>
+                <td class="mark">{r.pro ? <span aria-label="yes">●</span> : <span class="muted" aria-label="no">–</span>}</td>
+              </tr>
+            ))
+          }
+        </tbody>
+      </table>
+      <aside class="buy">
+        <p class="label muted"><span class="tag tag-amber">PRO</span></p>
+        <p class="price">{c.plans.price}</p>
+        <p class="label muted">{c.plans.priceNote}</p>
+        <p class="label bonus">{c.plans.bonus}</p>
+        {
+          proUrl ? (
+            <a class="btn btn-solid" href={proUrl} rel="noopener">{c.plans.buy}</a>
+          ) : (
+            <span class="btn disabled" role="link" aria-disabled="true">
+              {c.plans.buy} <span class="tag tag-amber">{c.plans.buySoon}</span>
+            </span>
+          )
+        }
+      </aside>
+    </div>
+  </section>
+
+  <section class="container section" id="how">
+    <div class="section-head"><h2>{c.how.title}</h2></div>
+    <ol class="steps">
+      {
+        c.how.steps.map((s, i) => (
+          <li>
+            <span class="label muted">0{i + 1}</span>
+            <h3>{s.title}</h3>
+            <p class="muted">{s.text}</p>
+          </li>
+        ))
+      }
+    </ol>
+  </section>
+
+  <section class="container section">
+    <div class="section-head"><h2>{c.privacy.title}</h2></div>
+    <p class="lead">{c.privacy.lead}</p>
+    <dl class="perms ruled">
+      {
+        c.privacy.permissions.map((p) => (
+          <div>
+            <dt class="label">{p.name}</dt>
+            <dd class="muted">{p.why}</dd>
+          </div>
+        ))
+      }
+    </dl>
+    <p class="doc-links">
+      <a class="arrow-link link" href={`/${locale}/work/autoplay-blocker/privacy`}>{c.privacy.policy} →</a>
+      <a class="arrow-link link" href={`/${locale}/work/autoplay-blocker/report`}>{c.privacy.report} →</a>
+    </p>
+  </section>
+
+  <section class="container section">
+    <div class="section-head"><h2>{c.limits.title}</h2></div>
+    <ul class="limits ruled">
+      {c.limits.items.map((item) => <li class="muted">{item}</li>)}
+    </ul>
+  </section>
+
+  <section class="container section">
+    <div class="section-head"><h2>{c.faq.title}</h2></div>
+    <div class="faq ruled">
+      {
+        c.faq.items.map((f) => (
+          <details>
+            <summary>{f.q}</summary>
+            <p class="muted">{f.a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </section>
+
+  <section class="band-dark closing">
+    <div class="container closing-inner">
+      <h2 class="display-sm">{c.closing.title}</h2>
+      <p class="muted">{c.closing.text}</p>
+      <span class="btn btn-solid disabled" role="link" aria-disabled="true">
+        {c.hero.install} <span class="tag tag-amber">{c.hero.installNote}</span>
+      </span>
+      <p class="label muted">{c.closing.share}</p>
+      <p class="label doc-links">
+        <a class="arrow-link" href={`/${locale}/work/autoplay-blocker/privacy`}>{c.privacy.policy}</a>
+        <a class="arrow-link" href={`/${locale}/work/autoplay-blocker/report`}>{c.privacy.report}</a>
+      </p>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .hero {
+    padding-block: var(--s-66);
+  }
+
+  .hero-grid {
+    display: grid;
+    gap: var(--s-33);
+    align-items: center;
+  }
+
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-15);
+  }
+
+  .crumbs a:hover {
+    text-decoration: underline;
+  }
+
+  .display {
+    font-size: clamp(32px, 6vw, var(--text-display));
+    font-weight: var(--w-light);
+    line-height: 1.08;
+    letter-spacing: -0.015em;
+  }
+
+  .sub {
+    font-size: var(--text-sub);
+    font-weight: var(--w-light);
+    color: var(--te-grey-300);
+    max-width: 34em;
+  }
+
+  .actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--s-22);
+    margin-top: var(--s-8);
+  }
+
+  .arrow-link {
+    color: var(--te-white);
+  }
+
+  .disabled {
+    cursor: not-allowed;
+    opacity: 0.85;
+  }
+
+  .disabled:hover {
+    background: inherit;
+    color: inherit;
+  }
+
+  .band-dark .btn-solid.disabled:hover {
+    background: var(--te-white);
+    color: var(--te-black);
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-8);
+    margin-top: var(--s-8);
+    color: var(--te-grey-300);
+  }
+
+  .hero-shot img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .lead {
+    font-size: var(--text-sub);
+    font-weight: var(--w-light);
+    max-width: 38em;
+    margin-bottom: var(--s-33);
+  }
+
+  h3 {
+    font-size: 19px;
+    font-weight: var(--w-regular);
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+
+  .cols,
+  .features {
+    display: grid;
+    gap: var(--s-33) var(--s-22);
+  }
+
+  .features li,
+  .cols li {
+    padding-top: var(--s-15);
+    border-top: 1px solid var(--te-grey-100);
+  }
+
+  .demo-wrap {
+    background: var(--te-white);
+  }
+
+  .demo {
+    display: grid;
+    gap: var(--s-22);
+  }
+
+  .demo figure {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-8);
+  }
+
+  .demo img {
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--te-grey-100);
+    background: var(--te-paper);
+  }
+
+  .plans {
+    display: grid;
+    gap: var(--s-33);
+  }
+
+  .matrix {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .matrix th,
+  .matrix td {
+    padding: 12px 8px;
+    border-top: 1px solid var(--te-grey-100);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .matrix tr:last-child td {
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+
+  .matrix th.label,
+  .matrix td.mark {
+    width: 64px;
+    text-align: center;
+  }
+
+  .buy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-8);
+    padding: var(--s-22);
+    background: var(--te-white);
+    border: 1px solid var(--te-grey-100);
+    align-self: start;
+  }
+
+  .price {
+    font-size: var(--text-display);
+    font-weight: var(--w-thin);
+    line-height: 1;
+  }
+
+  .bonus {
+    margin: var(--s-8) 0;
+  }
+
+  .steps {
+    display: grid;
+    gap: var(--s-33) var(--s-22);
+  }
+
+  .steps li {
+    padding-top: var(--s-15);
+    border-top: 1px solid var(--te-black);
+  }
+
+  .perms > div {
+    display: grid;
+    gap: 4px;
+    padding-block: 14px;
+  }
+
+  .doc-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s-22);
+    margin-top: var(--s-22);
+  }
+
+  .limits li {
+    padding-block: 14px;
+  }
+
+  .faq details {
+    padding-block: 14px;
+  }
+
+  .faq summary {
+    cursor: pointer;
+    font-size: var(--text-body);
+  }
+
+  .faq details p {
+    margin-top: 8px;
+    max-width: 44em;
+  }
+
+  .closing {
+    padding-block: var(--s-66);
+  }
+
+  .closing-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--s-15);
+  }
+
+  .display-sm {
+    font-size: clamp(26px, 5vw, 40px);
+    font-weight: var(--w-light);
+    line-height: 1.1;
+  }
+
+  @media (min-width: 760px) {
+    .cols,
+    .features,
+    .steps {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .demo {
+      grid-template-columns: 1fr 1fr;
+    }
+
+    .plans {
+      grid-template-columns: 1fr 280px;
+      align-items: start;
+    }
+  }
+
+  @media (min-width: 960px) {
+    .hero-grid {
+      grid-template-columns: 1fr 1.1fr;
+    }
+  }
+</style>

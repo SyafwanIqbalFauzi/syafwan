@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <!-- Carbon plate (as syafwan.com's monogram), a play triangle in the off-white, and one
+       orange stroke across it: the single accent. Flat ends, no radius, no shadow. -->
+  <rect width="128" height="128" fill="#0f0e12"/>
+  <path d="M44 32 L98 64 L44 96 Z" fill="#f6f8f7"/>
+  <path d="M26 104 L102 24" stroke="#f05a24" stroke-width="12" stroke-linecap="butt" fill="none"/>
+</svg>
