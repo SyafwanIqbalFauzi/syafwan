@@ -183,8 +183,8 @@ const jsonLd = {
         ))
       }
     </dl>
-    <p class="doc-links">
-      <a class="arrow-link link" href={`/${locale}/work/autoplay-blocker/privacy`}>{c.privacy.policy} →</a>
+    <p class="doc-links doc-actions">
+      <a class="btn btn-solid" href={`/${locale}/work/autoplay-blocker/privacy`}>{c.privacy.policy} →</a>
       <a class="arrow-link link" href={`/${locale}/work/autoplay-blocker/report`}>{c.privacy.report} →</a>
     </p>
   </section>
@@ -269,7 +269,8 @@ const jsonLd = {
     margin-top: var(--s-8);
   }
 
-  .arrow-link {
+  /* White only on the dark bands; on the light sections the global blue stays. */
+  .band-dark .arrow-link {
     color: var(--te-white);
   }
 
@@ -420,6 +421,10 @@ const jsonLd = {
     flex-wrap: wrap;
     gap: var(--s-22);
     margin-top: var(--s-22);
+  }
+
+  .doc-actions {
+    align-items: center;
   }
 
   .limits li {
