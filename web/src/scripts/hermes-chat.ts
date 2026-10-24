@@ -909,12 +909,7 @@ form.addEventListener('submit', (e) => {
   send(message, pictures).catch((err) => setStatus(err.message));
 });
 
-input.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-    e.preventDefault();
-    form.requestSubmit();
-  }
-});
+// Enter never sends: it always adds a new line. Sending is only via the Send button.
 
 chatsToggle.addEventListener('click', () => showSessionList(!chatEl.classList.contains('show-sessions')));
 
