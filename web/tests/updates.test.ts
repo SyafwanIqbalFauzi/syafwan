@@ -84,14 +84,12 @@ test('feedView sorts newest first, counts per category and filters', () => {
 
 test('statusCells reads the job own last result', () => {
   const cells = statusCells([
-    { name: 'watchdog-web-persib-cheap', last_status: 'ok', last_run_at: 'a' },
+    { name: 'watchdog-web-persib-cheap', last_status: 'error', last_run_at: 'a' },
     { name: 'check-deploy-status', last_status: 'error', last_run_at: 'b' },
   ]);
-  assert.deepEqual(cells.map((c) => [c.label, c.tone, c.text]), [
-    ['Website', 'ok', 'healthy'],
-    ['Deploy', 'fail', 'needs a look'],
-    ['Anthropic login', 'idle', 'no data'],
-  ]);
+  // only the website is watched here: Deploy and Anthropic login have no card
+  assert.deepEqual(cells.map((c) => [c.label, c.tone, c.text]), [['Website', 'fail', 'needs a look']]);
+  assert.deepEqual(statusCells([]).map((c) => [c.label, c.tone, c.text]), [['Website', 'idle', 'no data']]);
 });
 
 test('dedupeRuns drops the file: copy of a run stored twice, keeps unique ones', () => {
