@@ -3,7 +3,7 @@
 // header (pinwheel, store bag, frame, finder): flat shapes, no strokes to speak of.
 // Cut-outs use the page colour so they read as negative space.
 interface Props {
-  name: 'work' | 'about' | 'writing' | 'overview' | 'agents' | 'chat' | 'sessions' | 'usage' | 'skills' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts' | 'updates' | 'persib' | 'feedback';
+  name: 'work' | 'about' | 'writing' | 'overview' | 'agents' | 'chat' | 'sessions' | 'usage' | 'skills' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts' | 'updates' | 'persib' | 'feedback' | 'design';
   size?: number;
 }
 const { name, size = 56 } = Astro.props;
@@ -107,6 +107,16 @@ const { name, size = 56 } = Astro.props;
         <line x1="31.5" y1="30.9" x2="35.6" y2="36.5" class="fillline" />
         <line x1="24.5" y1="30.9" x2="20.4" y2="36.5" class="fillline" />
         <line x1="22.3" y1="24.1" x2="15.6" y2="22" class="fillline" />
+      </>
+    )
+  }
+  {
+    name === 'design' && (
+      <>
+        <rect x="4" y="4" width="20" height="20" class="fill" />
+        <rect x="32" y="4" width="20" height="20" class="cut" />
+        <rect x="4" y="32" width="20" height="20" class="cut" />
+        <rect x="32" y="32" width="20" height="20" class="fill" />
       </>
     )
   }

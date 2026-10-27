@@ -2,7 +2,7 @@
 // Ctrl+K palette, and "last page visited per area" so switching area returns to where you were.
 // Pure functions; storage is injected, so it is unit-tested without a browser.
 
-export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts' | 'updates' | 'feedback';
+export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts' | 'updates' | 'feedback' | 'design';
 export type Area = 'agent' | 'finance' | 'accounts' | 'persib';
 
 export interface NavItem {
@@ -43,6 +43,10 @@ export const AREAS: Record<Area, { label: string; home: string; groups: NavGroup
           { section: 'sessions', href: '/agent/sessions', label: 'Sessions' },
           { section: 'usage', href: '/agent/usage', label: 'Usage' },
         ],
+      },
+      {
+        label: 'System',
+        items: [{ section: 'design', href: '/agent/design', label: 'Design' }],
       },
     ],
   },

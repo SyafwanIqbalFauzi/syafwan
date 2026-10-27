@@ -9,7 +9,7 @@ const memory = () => {
 
 test('allItems covers all areas', () => {
   const items = allItems();
-  assert.equal(items.filter((i) => i.area === 'agent').length, 6);
+  assert.equal(items.filter((i) => i.area === 'agent').length, 7);
   assert.equal(items.filter((i) => i.area === 'finance').length, 4);
   assert.equal(items.filter((i) => i.area === 'accounts').length, 1);
   assert.equal(items.filter((i) => i.area === 'persib').length, 2);
