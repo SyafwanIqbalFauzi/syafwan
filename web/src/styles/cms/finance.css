@@ -1,0 +1,325 @@
+/* ---- finance: charts ---- */
+.chart {
+  margin: 0;
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.chart .grid {
+  stroke: var(--te-grey-100);
+  stroke-width: 1;
+}
+
+.chart .base {
+  stroke: var(--te-black);
+  stroke-width: 1;
+}
+
+.chart .axis {
+  fill: var(--te-grey-600);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart .in,
+.swatch.in {
+  fill: var(--te-blue);
+  background: var(--te-blue);
+}
+
+.chart .out,
+.swatch.out {
+  fill: var(--te-black);
+  background: var(--te-black);
+}
+
+.chart .partial {
+  opacity: 0.45;
+}
+
+.chart .hit {
+  fill: transparent;
+}
+
+.chart .hit:hover {
+  fill: rgba(0, 0, 0, 0.04);
+}
+
+.chart .area {
+  fill: var(--te-blue);
+  opacity: 0.1;
+}
+
+.chart .trend {
+  fill: none;
+  stroke: var(--te-blue);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart .dot {
+  fill: var(--te-blue);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4) var(--s-22);
+  margin-top: var(--s-8);
+  font-size: var(--text-caption);
+}
+
+.swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--s-4);
+}
+
+.chart-table {
+  margin-top: var(--s-15);
+  font-size: var(--text-caption);
+}
+
+.chart-table summary {
+  cursor: pointer;
+  color: var(--te-grey-600);
+}
+
+.chart-table table {
+  width: 100%;
+  margin-top: var(--s-8);
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-table th,
+.chart-table td {
+  padding: var(--s-4) var(--s-8) var(--s-4) 0;
+  text-align: left;
+  border-bottom: 1px solid var(--te-grey-100);
+}
+
+.chart-table .num {
+  text-align: right;
+}
+
+/* ---- finance: figures with a change line, shares, budgets ---- */
+.figure .delta {
+  margin-top: 2px;
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+}
+
+.figure .delta[data-good='true'] {
+  color: var(--te-blue);
+}
+
+.share-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.3fr) 2fr minmax(150px, 1fr);
+  gap: var(--s-15);
+  align-items: center;
+  padding-block: var(--s-8);
+  font-size: var(--text-caption);
+}
+
+.share-row .bar {
+  height: 10px;
+}
+
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: var(--s-22);
+}
+
+.budget[data-level='warning'] .bar > span {
+  background: var(--te-amber);
+}
+
+.budget[data-level='critical'] .bar > span {
+  background: var(--te-orange);
+}
+
+.budget .bar {
+  height: 12px;
+}
+
+.budget-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s-15);
+  margin-bottom: var(--s-4);
+}
+
+.two-col {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--s-33);
+}
+
+@media (max-width: 600px) {
+  .share-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .share-row .bar {
+    grid-column: 1 / -1;
+    order: 3;
+  }
+}
+
+/* ---- finance: transaction list ---- */
+.row-trx {
+  grid-template-columns: 110px minmax(160px, 3fr) minmax(120px, 1.4fr) 90px 140px 110px;
+  padding-block: var(--s-11);
+  align-items: baseline;
+}
+
+.row-trx .amount {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.row-trx .amount[data-kind='in'] {
+  color: var(--te-blue);
+}
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: var(--s-22);
+  font-size: var(--text-caption);
+}
+
+@media (max-width: 900px) {
+  .row-trx {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .row-trx > :nth-child(2) {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+}
+
+/* Long rupiah amounts in key figures stay on one line */
+.figures-money .figure .value {
+  font-size: var(--text-h3);
+  white-space: nowrap;
+}
+
+.dlg .dlg-field select {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-body);
+  background: var(--te-white);
+  border: 1px solid var(--te-grey-200);
+  border-radius: 0;
+  padding: var(--s-11) var(--s-11);
+}
+
+.dlg .dlg-field select:focus-visible {
+  outline: 1px solid var(--te-black);
+  outline-offset: 0;
+}
+
+.dlg .dlg-field + .dlg-field {
+  margin-top: var(--s-15);
+}
+
+.row-trx .row-actions button,
+.row-budget .row-actions button {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  font-size: var(--text-caption);
+  cursor: pointer;
+}
+
+.row-trx .row-actions .danger {
+  color: var(--te-orange);
+}
+
+.dlg .dlg-field input[type='date'] {
+  min-height: 44px;
+}
+
+.dlg form > .dlg-field + .dlg-field {
+  margin-top: var(--s-15);
+}
+
+/* A bar made of several coloured pieces (one per person) */
+.bar > .stack-fill {
+  display: flex;
+  background: none;
+}
+
+.bar > .stack-fill > span {
+  display: block;
+  height: 100%;
+  min-width: 1px;
+}
+
+.legend + .ruled,
+.block-head + .legend {
+  margin-bottom: var(--s-4);
+}
+
+/* Chart.js canvases and their clickable legends */
+.chart-box {
+  position: relative;
+  width: 100%;
+}
+
+.chart-box[hidden] {
+  display: none;
+}
+
+.legend .legend-item {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.legend .legend-item:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legend .legend-item[aria-pressed='false'] {
+  color: var(--te-grey-600);
+  text-decoration: line-through;
+}
+
+.legend .legend-item[aria-disabled='true'] {
+  cursor: default;
+  text-decoration: none;
+}
+
+.legend .legend-label {
+  font-weight: var(--w-regular);
+}
+
+.legend .swatch {
+  transition: background 0.2s ease;
+}
+
+[data-hidden-note] .arrow-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}

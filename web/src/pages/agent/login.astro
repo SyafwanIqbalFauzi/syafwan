@@ -100,7 +100,7 @@ if (Astro.request.method === 'POST') {
   }
   .signin label {
     display: grid;
-    gap: 6px;
+    gap: var(--s-4);
   }
   .signin input {
     font: inherit;
@@ -109,7 +109,7 @@ if (Astro.request.method === 'POST') {
     background: var(--te-white);
     border: 1px solid var(--te-grey-200);
     border-radius: 0;
-    padding: 12px;
+    padding: var(--s-11);
   }
   .signin input:focus-visible {
     outline: 1px solid var(--te-black);
@@ -117,6 +117,6 @@ if (Astro.request.method === 'POST') {
   }
   .signin .btn {
     justify-content: center;
-    padding: 13px 16px;
+    padding: var(--s-11) var(--s-15);
   }
 </style>

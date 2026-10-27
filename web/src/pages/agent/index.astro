@@ -84,7 +84,7 @@ const counts = {
       resetHref={Astro.url.pathname}
       selects={[{ name: 'group', label: 'Group', value: groupFilter, all: 'All groups', options: groups.map((g) => ({ value: g, label: g })) }]}
     />
-    <p class="label muted" style="margin: -4px 0 var(--s-22)">The group filter applies to failures, upcoming and latest results. Health always covers everything.</p>
+    <p class="label muted note-lead">The group filter applies to failures, upcoming and latest results. Health always covers everything.</p>
 
     <section class="block" id="health">
       <div class="block-head"><h2>Health</h2></div>
@@ -96,7 +96,7 @@ const counts = {
       </div>
       {
         platforms.length > 0 && (
-          <p class="chips" style="margin-top: 15px">
+          <p class="chips" style="margin-top: var(--s-15)">
             {platforms.map(([name, state]) => <StatusTag status={state} label={`${name}: ${state}`} />)}
           </p>
         )

@@ -211,8 +211,8 @@ if (token) {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 4px;
-    padding: var(--s-22) 6px;
+    gap: var(--s-4);
+    padding: var(--s-22) var(--s-4);
     background: var(--te-white);
     border-right: 1px solid var(--te-grey-100);
   }
@@ -222,8 +222,8 @@ if (token) {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
-    padding: 10px 2px 8px;
+    gap: var(--s-4);
+    padding: var(--s-11) 2px var(--s-8);
     font-size: 11px;
     line-height: 1.2;
     border-left: 2px solid transparent;
@@ -253,7 +253,7 @@ if (token) {
     top: 4px;
     right: 6px;
     min-width: 16px;
-    padding: 0 4px;
+    padding: 0 var(--s-4);
     font-size: 10px;
     line-height: 16px;
     text-align: center;
@@ -275,7 +275,7 @@ if (token) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 8px var(--s-22);
+    padding: 0 var(--s-8) var(--s-22);
   }
 
   .brand {
@@ -293,7 +293,7 @@ if (token) {
     display: none;
     font-size: var(--text-caption);
     border: 1px solid currentColor;
-    padding: 6px 12px;
+    padding: var(--s-4) var(--s-11);
   }
 
   .side-nav {
@@ -304,7 +304,7 @@ if (token) {
   }
 
   .group-label {
-    padding: 0 8px 6px;
+    padding: 0 var(--s-8) var(--s-4);
     font-size: 12px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -314,8 +314,8 @@ if (token) {
   .entry {
     display: flex;
     align-items: center;
-    gap: 10px;
-    padding: 9px 8px;
+    gap: var(--s-11);
+    padding: var(--s-8) var(--s-8);
     font-size: var(--text-body);
     font-weight: var(--w-light);
     border-left: 2px solid transparent;
@@ -327,7 +327,7 @@ if (token) {
 
   .work-badge {
     margin-left: auto;
-    padding: 2px 6px;
+    padding: 2px var(--s-4);
     font-size: 11px;
     line-height: 1.2;
     border: 1px solid var(--te-amber);
@@ -369,8 +369,8 @@ if (token) {
 
   .side-foot {
     display: grid;
-    gap: 4px;
-    padding: var(--s-15) 8px 0;
+    gap: var(--s-4);
+    padding: var(--s-15) var(--s-8) 0;
     border-top: 1px solid var(--te-grey-100);
     font-size: var(--text-caption);
   }
@@ -394,7 +394,7 @@ if (token) {
 
   .signout {
     justify-self: start;
-    margin-top: 6px;
+    margin-top: var(--s-4);
     font-weight: var(--w-regular);
   }
 
@@ -442,7 +442,7 @@ if (token) {
     .rail-link {
       flex: 1;
       min-height: 0;
-      padding-block: 4px;
+      padding-block: var(--s-4);
       justify-content: center;
       border-left: 0;
       border-top: 2px solid transparent;
@@ -460,11 +460,11 @@ if (token) {
     .menu-btn {
       display: inline-block;
       min-height: 44px;
-      padding-inline: 16px;
+      padding-inline: var(--s-15);
     }
 
     .side-nav a {
-      padding-block: 12px;
+      padding-block: var(--s-11);
     }
 
     .side-top {

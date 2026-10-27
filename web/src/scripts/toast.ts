@@ -1,6 +1,6 @@
 // Small pop-up messages ("Budget line added") in the corner of the page. `toast` shows one now;
 // `flash` remembers one for the page that loads next (most changes end with a reload) and
-// `showFlash` (called once per page by the layout) shows it. Look: ".toast" in styles/hermes.css.
+// `showFlash` (called once per page by the layout) shows it. Look: ".toast" in styles/cms/dialog.css.
 import { saveFlash, takeFlash, type FlashKind } from '../lib/flash';
 
 export type ToastKind = FlashKind;

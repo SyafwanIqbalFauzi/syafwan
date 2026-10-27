@@ -1,6 +1,6 @@
 // Ctrl+K (Cmd+K on a Mac) or the Search button: a box to jump to any page of /agent and /finance.
 // Built on the native <dialog>, like the other dialogs (focus trap, Escape and backdrop from the browser).
-// Look: see ".palette" in styles/hermes.css.
+// Look: see ".palette" in styles/cms/palette.css.
 import { allItems, AREAS, searchItems, type NavItem } from '../lib/nav';
 
 let dialog: HTMLDialogElement | null = null;

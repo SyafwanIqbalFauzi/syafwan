@@ -64,8 +64,8 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
 
 <HermesShell title={name} current="agents">
   <div class="container page">
-    <p class="label muted"><a class="link" href="/agent/agents">← agents</a></p>
-    <div class="page-head" style="margin-top: 12px">
+    <p class="label muted crumb"><a class="link" href="/agent/agents">← agents</a></p>
+    <div class="page-head">
       <h1 class="h1">{name}</h1>
       <div class="actions" data-job={id}>
         {
@@ -182,7 +182,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
               <span class="muted">prompt</span>
               <details>
                 <summary class="act">show</summary>
-                <pre class="errorbox" style="margin-top: 8px">{job.prompt}</pre>
+                <pre class="errorbox" style="margin-top: var(--s-8)">{job.prompt}</pre>
               </details>
             </div>
           )
@@ -211,7 +211,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
       {!runs.length && !problem && <p class="empty">No saved runs yet. History appears within five minutes of the next run.</p>}
       {
         pages > 1 && (
-          <p class="label" style="margin-top: 15px; display: flex; gap: 22px">
+          <p class="label" style="margin-top: var(--s-15); display: flex; gap: var(--s-22)">
             {page > 1 && <a class="arrow-link" href={pageHref(page - 1)}>newer</a>}
             <span class="muted">page {page} / {pages}</span>
             {page < pages && <a class="arrow-link" href={pageHref(page + 1)}>older</a>}
@@ -233,7 +233,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
             <span>sent to {(selected.delivery?.targets ?? ['local']).join(', ')}</span>
             {selected.delivery?.outcome && <span>delivery: {selected.delivery.outcome}</span>}
           </p>
-          {selected.error && <pre class="errorbox" style="margin-bottom: 22px">{selected.error}</pre>}
+          {selected.error && <pre class="errorbox" style="margin-bottom: var(--s-22)">{selected.error}</pre>}
           {selected.response_md ? <div class="prose prose-compact" set:html={renderMarkdown(selected.response_md)} /> : !selected.error && <p class="empty">This run produced no output.</p>}
         </section>
       )
@@ -251,7 +251,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
     margin-bottom: var(--s-22);
     border: 1px solid var(--te-grey-100);
     background: var(--te-white);
-    padding: 10px var(--s-15);
+    padding: var(--s-11) var(--s-15);
   }
   .edit-box[open] {
     padding-bottom: var(--s-15);
@@ -264,7 +264,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
   }
   .sf-field {
     display: grid;
-    gap: 4px;
+    gap: var(--s-4);
   }
   .sf-wide {
     grid-column: 1 / -1;
@@ -279,7 +279,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
     background: var(--te-page);
     border: 1px solid var(--te-grey-200);
     border-radius: 0;
-    padding: 8px 10px;
+    padding: var(--s-8) var(--s-11);
     min-height: 38px;
   }
   .settings-form input:focus-visible,
@@ -289,7 +289,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
   }
   .sf-preview {
     font-size: var(--text-caption);
-    padding: 8px 12px;
+    padding: var(--s-8) var(--s-11);
     border-left: 3px solid var(--te-black);
     background: var(--te-page);
   }
@@ -314,7 +314,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
     background: var(--te-white);
     border: 1px solid var(--te-grey-200);
     border-radius: 0;
-    padding: 6px 10px;
+    padding: var(--s-4) var(--s-11);
     min-width: 240px;
   }
   .group-form input:focus-visible {

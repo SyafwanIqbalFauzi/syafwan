@@ -128,7 +128,7 @@ const active = selects.some((s) => s.value) || Boolean(dateRange?.custom) || Boo
 
   .fb-field {
     display: grid;
-    gap: 4px;
+    gap: var(--s-4);
     min-width: 160px;
   }
 
@@ -150,7 +150,7 @@ const active = selects.some((s) => s.value) || Boolean(dateRange?.custom) || Boo
     background: var(--te-page);
     border: 1px solid var(--te-grey-200);
     border-radius: 0;
-    padding: 8px 10px;
+    padding: var(--s-8) var(--s-11);
     min-height: 36px;
   }
 
@@ -217,7 +217,7 @@ const active = selects.some((s) => s.value) || Boolean(dateRange?.custom) || Boo
     align-self: center;
     font-size: var(--text-caption);
     color: var(--te-blue);
-    padding-top: 16px;
+    padding-top: var(--s-15);
   }
 
   .fb-reset:hover {

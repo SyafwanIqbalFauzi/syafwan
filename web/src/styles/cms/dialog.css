@@ -1,0 +1,163 @@
+/* =====================================================================
+ * Modal dialogs (scripts/dialog.ts): the native <dialog>, in the site's look
+ * ===================================================================== */
+.dlg {
+  /* The site-wide reset removes the dialog's automatic margins; put them back to centre it. */
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  width: min(440px, calc(100vw - 32px));
+  padding: var(--s-22);
+  border: 1px solid var(--te-black);
+  border-radius: 0;
+  background: var(--te-page);
+  color: var(--te-black);
+  box-shadow: none;
+}
+
+.dlg:not([open]) {
+  display: none;
+}
+
+.dlg::backdrop {
+  background: rgb(15 14 18 / 0.45);
+}
+
+.dlg h2 {
+  margin-bottom: var(--s-8);
+  font-size: 22px;
+  font-weight: var(--w-thin);
+  line-height: 1.2;
+}
+
+.dlg .dlg-message {
+  margin-bottom: var(--s-15);
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.dlg .dlg-field {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.dlg .dlg-field input {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-body);
+  background: var(--te-white);
+  border: 1px solid var(--te-grey-200);
+  border-radius: 0;
+  padding: var(--s-11) var(--s-11);
+}
+
+.dlg .dlg-field input:focus-visible {
+  outline: 1px solid var(--te-black);
+  outline-offset: 0;
+}
+
+.dlg .dlg-error {
+  min-height: 1.2em;
+  font-size: 12px;
+  color: var(--te-orange);
+}
+
+.dlg .dlg-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-15);
+  margin-top: var(--s-15);
+}
+
+.dlg .btn-danger {
+  background: var(--te-orange);
+  border-color: var(--te-orange);
+  color: var(--te-white);
+}
+
+.dlg .btn-danger:hover {
+  background: var(--te-black);
+  border-color: var(--te-black);
+}
+
+/* Pop-up messages in the corner: "Budget line added", alerts from Hermes (scripts/toast.ts) */
+.toasts {
+  position: fixed;
+  right: var(--gutter);
+  bottom: var(--gutter);
+  z-index: 80;
+  display: grid;
+  gap: var(--s-8);
+  width: min(380px, calc(100vw - 2 * var(--gutter)));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: grid;
+  gap: var(--s-4);
+  padding: var(--s-15);
+  background: var(--te-black);
+  color: var(--te-white);
+  border-left: 4px solid var(--te-blue);
+  font-size: var(--text-caption);
+  cursor: default;
+  animation: toast-in 0.2s ease-out;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast-success {
+  border-left-color: var(--te-blue);
+}
+
+.toast-error {
+  border-left-color: var(--te-orange);
+}
+
+.toast-info {
+  border-left-color: var(--te-amber);
+}
+
+.toast.leaving {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.toast strong {
+  font-weight: var(--w-regular);
+  font-size: var(--text-body);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+.dlg .dlg-field textarea {
+  width: 100%;
+  font: inherit;
+  font-size: var(--text-body);
+  background: var(--te-white);
+  border: 1px solid var(--te-grey-200);
+  border-radius: 0;
+  padding: var(--s-11) var(--s-11);
+  resize: vertical;
+  overflow-wrap: anywhere;
+}
+
+.dlg .dlg-field textarea:focus-visible {
+  outline: 1px solid var(--te-black);
+  outline-offset: 0;
+}

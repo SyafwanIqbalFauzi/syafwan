@@ -96,7 +96,7 @@ const sections = [
                 <a class="row row-skill row-link" href={`/agent/skills/${encodeURIComponent(skill.name)}`}>
                   <div>
                     <p class="name">{skill.name}</p>
-                    <div class="chips" style="margin-top: 6px">
+                    <div class="chips" style="margin-top: var(--s-8)">
                       {skill.enabled === false && <StatusTag status="paused" label="disabled" />}
                       {skill.version && <span class="tag tag-idle">v{skill.version}</span>}
                     </div>

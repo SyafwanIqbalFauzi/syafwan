@@ -115,12 +115,12 @@ const syncedAt = jobs.map((j) => j.synced_at).filter(Boolean).sort().at(-1);
                 <a class="row row-agent row-link" href={`/agent/agents/${job.job_id}`}>
                   <div>
                     <p class="name">{job.name}</p>
-                    <div class="chips" style="margin-top: 6px">
+                    <div class="chips" style="margin-top: var(--s-8)">
                       <span class="tag">{job.kind === 'script' ? 'script' : 'ai'}</span>
                       {s !== 'active' && <StatusTag status={s === 'done' ? 'completed' : 'paused'} label={s === 'done' ? 'done' : 'paused'} />}
                       {job.kind === 'agent' && <span class="tag tag-idle">{modelLabel(job.model)}</span>}
                     </div>
-                    {(job.skills ?? []).length > 0 && <p class="sub" style="margin-top: 6px">{(job.skills ?? []).join(', ')}</p>}
+                    {(job.skills ?? []).length > 0 && <p class="sub" style="margin-top: var(--s-8)">{(job.skills ?? []).join(', ')}</p>}
                   </div>
                   <div>
                     <p>{humanizeSchedule(job.schedule_display)}</p>
@@ -129,7 +129,7 @@ const syncedAt = jobs.map((j) => j.synced_at).filter(Boolean).sort().at(-1);
                   </div>
                   <div>
                     {lastStatusOf(job) ? <StatusTag status={lastStatusOf(job)} /> : <span class="tag tag-idle">no history</span>}
-                    {lastTimeOf(job) && <p class="sub" style="margin-top: 6px">{formatWhen(lastTimeOf(job))} · {relative(lastTimeOf(job))}</p>}
+                    {lastTimeOf(job) && <p class="sub" style="margin-top: var(--s-8)">{formatWhen(lastTimeOf(job))} · {relative(lastTimeOf(job))}</p>}
                   </div>
                   <p class="snippet">{last?.summary ?? ''}</p>
                 </a>

@@ -1,0 +1,92 @@
+/* =====================================================================
+ * CMS layout (sidebar + content). Same colours, Inter and tokens as the public site,
+ * but sizes are scaled down to a working-tool density and content is left-aligned.
+ * ===================================================================== */
+.cms-main .container {
+  max-width: 1280px;
+  margin-inline: 0;
+  padding-inline: var(--s-33);
+}
+
+.cms-main .page {
+  padding-block: var(--s-33) var(--s-66);
+}
+
+.cms-main .page-head {
+  margin-bottom: 0; /* the gap below the head comes from the rhythm rules in cms-layout.css */
+  padding-bottom: var(--s-15);
+  border-bottom: 1px solid var(--te-grey-100);
+}
+
+.cms-main .h1 {
+  font-size: 28px;
+  line-height: 1.15;
+  font-weight: var(--w-light);
+}
+
+.cms-main .block-head h2 {
+  font-size: 19px;
+  font-weight: var(--w-regular);
+}
+
+.cms-main .name {
+  font-size: var(--text-body);
+  font-weight: var(--w-regular);
+}
+
+.cms-main .figure .value {
+  font-size: 30px;
+  font-weight: var(--w-light);
+}
+
+/* Lists read as tables: tinted header row, padded cells, row hover */
+.cms-main .ruled {
+  border: 1px solid var(--te-grey-100);
+}
+
+.cms-main .ruled > * {
+  border-top: 1px solid var(--te-grey-100);
+}
+
+.cms-main .ruled > *:first-child {
+  border-top: 0;
+}
+
+.cms-main .ruled > *:last-child {
+  border-bottom: 0;
+}
+
+.cms-main .row {
+  padding: var(--s-11) var(--s-15);
+}
+
+.cms-main .row-head {
+  background: var(--te-white);
+  padding-block: var(--s-8);
+  font-weight: var(--w-regular);
+}
+
+.cms-main .row-kv {
+  padding: var(--s-11) var(--s-15);
+}
+
+.cms-main .filters {
+  padding: var(--s-11) var(--s-15);
+  margin-bottom: var(--s-15);
+  background: var(--te-white);
+  align-items: center;
+}
+
+.cms-main .figures {
+  border-radius: 0;
+}
+
+.cms-main .empty {
+  padding: var(--s-22) var(--s-15);
+}
+
+@media (max-width: 899px) {
+  .cms-main .container {
+    padding-inline: var(--gutter);
+  }
+}

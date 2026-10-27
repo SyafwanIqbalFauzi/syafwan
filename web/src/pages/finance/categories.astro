@@ -155,15 +155,10 @@ const counts = tabCounts(categories.map((c) => c.jenis));
 <style is:global>
   .row-category {
     grid-template-columns: 28px minmax(160px, 3fr) minmax(110px, 1fr) minmax(110px, 1fr) 130px;
-    padding-block: 10px;
+    padding-block: var(--s-11);
     align-items: baseline;
   }
 
-  .row-category .row-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--s-15);
-  }
 
   .row-category[data-inactive] > span:nth-child(2) {
     color: var(--muted, #888);

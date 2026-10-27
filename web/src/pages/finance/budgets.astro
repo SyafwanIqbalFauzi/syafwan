@@ -199,15 +199,10 @@ const loaded = budgetResult !== null && catResult !== null;
 <style is:global>
   .row-budget {
     grid-template-columns: minmax(160px, 3fr) minmax(120px, 1.2fr) minmax(90px, 1fr) 130px;
-    padding-block: 10px;
+    padding-block: var(--s-11);
     align-items: baseline;
   }
 
-  .row-budget .row-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--s-15);
-  }
 
   @media (max-width: 720px) {
     .row-budget {

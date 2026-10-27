@@ -5,7 +5,8 @@
 import '@fontsource-variable/inter';
 import interWoff2 from '@fontsource-variable/inter/files/inter-latin-wght-normal.woff2?url';
 import '../styles/global.css';
-import '../styles/hermes.css';
+import '../styles/cms/index.css';
+import '../styles/cms-layout.css';
 import HermesSidebar, { type Area, type Section } from '../components/HermesSidebar.astro';
 
 interface Props {
@@ -69,7 +70,7 @@ const email = Astro.locals.hermesUser?.email;
     top: 8px;
     background: var(--te-black);
     color: var(--te-white);
-    padding: 6px 10px;
+    padding: var(--s-4) var(--s-11);
     z-index: 30;
   }
 

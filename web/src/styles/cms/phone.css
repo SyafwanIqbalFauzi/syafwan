@@ -1,0 +1,51 @@
+/* =====================================================================
+ * Phone: comfortable tap targets, no zoom-on-focus, nothing wider than the screen
+ * ===================================================================== */
+@media (max-width: 899px) {
+  /* iOS zooms the page in when a field under 16px gets focus */
+  .cms :is(input:not([type='checkbox'], [type='radio'], [type='range']), select, textarea),
+  .dlg :is(input:not([type='checkbox'], [type='radio'], [type='range']), select, textarea) {
+    font-size: 16px !important;
+  }
+
+  .search {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* edit / delete / rename links in rows: a finger needs about 40px */
+  .row-actions button,
+  .row-actions a {
+    min-height: 40px;
+    min-width: 40px;
+    padding: 0 var(--s-8) !important;
+  }
+
+  .cms-main :is(.btn, button.btn) {
+    min-height: 44px;
+  }
+
+  .legend-item,
+  .drag-handle,
+  .pager a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    min-width: 40px;
+  }
+
+  .legend-item {
+    padding-inline: var(--s-11);
+  }
+
+  .dlg {
+    width: calc(100vw - 24px);
+  }
+}
+
+/* An author `display` (e.g. .btn is inline-flex) beats the browser's rule for the hidden attribute,
+   so a "hidden" button stayed visible (the Stop button was showing while idle). */
+[hidden] {
+  display: none !important;
+}

@@ -1,0 +1,217 @@
+---
+// Catalog of the CMS design system: the spacing scale, the page rhythm and the shared components, drawn with the
+// real classes. Everything here is sample data. The rules behind it are in web/DESIGN.md.
+import HermesShell from '../../layouts/HermesShell.astro';
+import FilterBar from '../../components/FilterBar.astro';
+
+export const prerender = false;
+
+const scale = [
+  { token: '--s-4', px: 4, use: 'icon + label, chips, stacked captions' },
+  { token: '--s-8', px: 8, use: 'items on one line (--gap-inline)' },
+  { token: '--s-11', px: 11, use: 'control padding, list row (--pad-control)' },
+  { token: '--s-15', px: 15, use: 'stacked in a card or form, after a filter bar (--gap-lead)' },
+  { token: '--s-22', px: 22, use: 'after the page head, before tabs / notice / footnote (--gap-head)' },
+  { token: '--s-33', px: 33, use: 'block after block (--gap-section)' },
+  { token: '--s-66', px: 66, use: 'bottom of a page' },
+];
+const rhythm = [
+  { role: 'After the page head', token: '--gap-head', px: 22 },
+  { role: 'Before a filter bar, tabs, notice or footnote', token: '--gap-head', px: 22 },
+  { role: 'After a filter bar (the content it filters)', token: '--gap-lead', px: 15 },
+  { role: 'Block after block, or any element without a role', token: '--gap-section', px: 33 },
+  { role: 'A second footnote', token: '--gap-note-next', px: 8 },
+];
+---
+
+<HermesShell title="Design" current="design" area="agent">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Design</h1>
+      <p class="label muted">CMS design system · sample data only</p>
+    </div>
+
+    <section class="block" aria-labelledby="ds-scale">
+      <div class="block-head"><h2 id="ds-scale">Spacing scale</h2></div>
+      <div class="ruled">
+        {
+          scale.map((s) => (
+            <div class="row row-ds-scale">
+              <code>{s.token}</code>
+              <span class="num">{s.px}px</span>
+              <span class="ds-bar" style={`width:${s.px}px`} aria-hidden="true" />
+              <span class="sub">{s.use}</span>
+            </div>
+          ))
+        }
+      </div>
+      <p class="label muted ds-note">Only 0, 1 and 2px literals are allowed besides these. A test fails on anything else.</p>
+    </section>
+
+    <section class="block" aria-labelledby="ds-rhythm">
+      <div class="block-head"><h2 id="ds-rhythm">Page rhythm</h2></div>
+      <div class="ruled">
+        {
+          rhythm.map((r) => (
+            <div class="row row-ds-rhythm">
+              <span>{r.role}</span>
+              <code>{r.token}</code>
+              <span class="num">{r.px}px</span>
+            </div>
+          ))
+        }
+      </div>
+      <p class="label muted ds-note">This page follows it: the gaps you see between its sections are these tokens, not hand-set margins.</p>
+    </section>
+
+    <section class="block" aria-labelledby="ds-actions">
+      <div class="block-head"><h2 id="ds-actions">Buttons and tags</h2></div>
+      <p class="ds-line">
+        <button type="button" class="btn">Secondary</button>
+        <button type="button" class="btn btn-solid">Primary</button>
+        <button type="button" class="btn" disabled>Disabled</button>
+        <a class="arrow-link" href="/agent/design">Arrow link</a>
+      </p>
+      <p class="ds-line">
+        <span class="tag">ok</span>
+        <span class="tag tag-idle">idle</span>
+        <span class="tag tag-fail">failed</span>
+        <span class="dot" aria-hidden="true"></span> running
+        <span class="dot dot-fail" aria-hidden="true"></span> failed
+        <span class="dot dot-idle" aria-hidden="true"></span> idle
+      </p>
+    </section>
+
+    <section class="block" aria-labelledby="ds-notice">
+      <div class="block-head"><h2 id="ds-notice">Notices</h2></div>
+      <p class="notice" role="status">Waiting: this job is paused until you resume it.</p>
+      <p class="notice error" role="alert">Error: could not read the data.</p>
+      <p class="notice attention" role="status"><strong>2 results need your check.</strong> <a class="link" href="/agent/design">Show only these</a></p>
+    </section>
+
+    <section class="block" aria-labelledby="ds-filter">
+      <div class="block-head"><h2 id="ds-filter">Filter bar and tabs</h2></div>
+      <FilterBar
+        selects={[{ name: 'cat', label: 'Category', value: null, all: 'All categories', options: [{ value: 'a', label: 'Saran fitur (4)' }, { value: 'b', label: 'Lainnya (2)' }] }]}
+        search={{ name: 'q', value: '', placeholder: 'Search (sample)' }}
+      />
+      <div class="type-tabs" role="tablist" aria-label="Sample tabs">
+        <a role="tab" class="type-tab" href="/agent/design" aria-selected="true">All<span class="type-tab-count">6</span></a>
+        <a role="tab" class="type-tab" href="/agent/design" aria-selected="false">To review<span class="type-tab-count">4</span></a>
+        <a role="tab" class="type-tab" href="/agent/design" aria-selected="false">Replied<span class="type-tab-count">2</span></a>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="ds-figures">
+      <div class="block-head"><h2 id="ds-figures">Figures</h2></div>
+      <div class="figures">
+        <div class="figure"><p class="value"><span class="dot" aria-hidden="true"></span>Healthy</p><p class="label">Website · 3 min ago</p></div>
+        <div class="figure"><p class="value">128</p><p class="label">Runs this week</p></div>
+        <div class="figure"><p class="value"><span class="dot dot-fail" aria-hidden="true"></span>2</p><p class="label">Failed</p></div>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="ds-feed">
+      <div class="block-head"><h2 id="ds-feed">Feed rows</h2></div>
+      <div class="feed">
+        <article class="update" data-attention="true">
+          <time class="update-when">27 Oct, 09:12<span class="sub">3 hours ago</span></time>
+          <div class="update-body">
+            <h3 class="update-title">
+              <span>Sample agent run</span>
+              <span class="chips"><span class="tag">ai</span><span class="tag tag-idle">Research</span><span class="tag tag-fail">needs your check</span></span>
+            </h3>
+            <p class="update-reason">Reason the run was flagged.</p>
+            <p class="update-summary">Short summary of the answer, cut to a few lines when it is long.</p>
+            <p class="update-actions"><a class="arrow-link" href="/agent/design">Full result</a><button type="button" class="btn">Mark as checked</button></p>
+          </div>
+        </article>
+        <article class="update">
+          <time class="update-when">26 Oct, 18:40<span class="sub">yesterday</span></time>
+          <div class="update-body">
+            <h3 class="update-title"><span>Another sample run</span><span class="chips"><span class="tag">script</span></span></h3>
+            <p class="update-summary">A quiet row without a flag.</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="ds-list">
+      <div class="block-head"><h2 id="ds-list">List rows</h2></div>
+      <div class="ruled">
+        <div class="row row-head row-ds-list"><span>Name</span><span>Status</span><span>Updated</span></div>
+        <div class="row row-ds-list"><span class="name">Sample item</span><span><span class="tag">ok</span></span><span class="sub">2 min ago</span></div>
+        <div class="row row-ds-list"><span class="name">Another item</span><span><span class="tag tag-fail">failed</span></span><span class="sub">1 hour ago</span></div>
+      </div>
+      <p class="empty">Empty state: nothing here yet.</p>
+    </section>
+
+    <section class="block" aria-labelledby="ds-dialog">
+      <div class="block-head"><h2 id="ds-dialog">Dialogs and toasts</h2></div>
+      <p class="ds-line">
+        <button type="button" class="btn" data-demo="confirm">Confirm</button>
+        <button type="button" class="btn" data-demo="text">Text input</button>
+        <button type="button" class="btn" data-demo="notice">Notice</button>
+        <button type="button" class="btn" data-demo="toast-success">Toast: success</button>
+        <button type="button" class="btn" data-demo="toast-error">Toast: error</button>
+      </p>
+    </section>
+
+    <p class="label muted">Rules and the why behind each value: web/DESIGN.md. Spacing is checked by tests/css-spacing.test.ts; CMS-only scope by tests/css-scope.test.ts.</p>
+  </div>
+</HermesShell>
+
+<script>
+  import '../../scripts/design-demo';
+</script>
+
+<style is:global>
+  .row-ds-scale {
+    grid-template-columns: 110px 60px 70px minmax(0, 1fr);
+    align-items: center;
+    padding-block: var(--pad-row-y);
+  }
+  .row-ds-rhythm {
+    grid-template-columns: minmax(0, 1fr) 150px 60px;
+    align-items: baseline;
+    padding-block: var(--pad-row-y);
+  }
+  .row-ds-list {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    align-items: center;
+  }
+  .ds-bar {
+    display: block;
+    height: 11px;
+    background: var(--te-black);
+  }
+  .ds-line {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--gap-inline) var(--gap-stack);
+  }
+  .ds-line + .ds-line {
+    margin-top: var(--gap-stack);
+  }
+  .ds-note {
+    margin-top: var(--gap-stack);
+  }
+  .block > .notice + .notice {
+    margin-top: var(--gap-inline);
+  }
+  @media (max-width: 720px) {
+    .row-ds-scale {
+      grid-template-columns: 90px 50px minmax(0, 1fr);
+    }
+    .row-ds-scale .ds-bar {
+      display: none;
+    }
+    .row-ds-rhythm {
+      grid-template-columns: minmax(0, 1fr) auto;
+    }
+    .row-ds-rhythm code {
+      grid-column: 1;
+    }
+  }
+</style>

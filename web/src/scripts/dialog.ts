@@ -1,6 +1,6 @@
 // Small modal dialogs for the /agent pages, replacing the browser's alert/confirm/prompt.
 // Built on the native <dialog>, so focus trapping, the Escape key and the dimmed backdrop come
-// from the browser. Look: see ".dlg" in styles/hermes.css.
+// from the browser. Look: see ".dlg" in styles/cms/dialog.css.
 
 interface Base {
   title: string;
