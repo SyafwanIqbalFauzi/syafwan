@@ -58,6 +58,76 @@ class Registry(unittest.TestCase):
         self.assertEqual(out[0]["token"], os.path.expanduser("~/t.json"))
 
 
+def row(status, detail=None, label="Work", ident="w@x.id"):
+    return {"provider": "google", "identifier": ident, "label": label, "status": status, "detail": detail}
+
+
+T0 = "2026-10-27T07:00:00.000Z"
+T1 = "2026-10-27T09:10:00.000Z"
+
+
+class Alerts(unittest.TestCase):
+    def run_seq(self, statuses, start=None):
+        state, out = start or {}, []
+        for st in statuses:
+            msgs, state = s.plan_alerts([row(*st) if isinstance(st, tuple) else row(st)], state, T0)
+            out.append(msgs)
+        return out, state
+
+    def test_healthy_is_silent(self):
+        out, _ = self.run_seq(["connected", "connected"])
+        self.assertEqual(out, [[], []])
+
+    def test_revoked_alerts_once_then_silent_then_recovers_once(self):
+        out, state = self.run_seq([("revoked", "invalid_grant"), "revoked", "revoked"])
+        self.assertEqual(len(out[0]), 1)
+        self.assertIn("Work (w@x.id) terputus", out[0][0])
+        self.assertIn("https://syafwan.com/accounts", out[0][0])
+        self.assertEqual(out[1:], [[], []])
+        msgs, state = s.plan_alerts([row("connected")], state, T1)
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("kembali terhubung", msgs[0])
+        self.assertIn("2 jam 10 menit", msgs[0])
+        self.assertEqual(s.plan_alerts([row("connected")], state, T1)[0], [])
+
+    def test_changed_reason_alerts_again(self):
+        out, _ = self.run_seq(["revoked", "mismatch"])
+        self.assertEqual([len(m) for m in out], [1, 1])
+        self.assertIn("akun lain", out[1][0])
+
+    def test_one_off_error_is_silent_and_resets(self):
+        out, state = self.run_seq(["error", "error", "connected", "error", "error"])
+        self.assertEqual(out, [[], [], [], [], []])
+        self.assertEqual(state["accounts"]["google|w@x.id"]["errors"], 2)
+
+    def test_repeated_error_alerts_once_and_recovers(self):
+        out, state = self.run_seq([("error", "Could not reach Google")] * 4)
+        self.assertEqual([len(m) for m in out], [0, 0, 1, 0])
+        msgs, _ = s.plan_alerts([row("connected")], state, T1)
+        self.assertEqual(len(msgs), 1)
+
+    def test_accounts_are_independent_and_removed_ones_drop_out(self):
+        rows = [row("revoked", ident="a@x.id", label="A"), row("connected", ident="b@x.id", label="B")]
+        msgs, state = s.plan_alerts(rows, {}, T0)
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("A (a@x.id)", msgs[0])
+        _, state = s.plan_alerts(rows[1:], state, T0)
+        self.assertEqual(list(state["accounts"]), ["google|b@x.id"])
+
+    def test_other_state_keys_survive_and_bad_state_is_tolerated(self):
+        _, state = s.plan_alerts([row("connected")], {"upload_failing": True}, T0)
+        self.assertTrue(state["upload_failing"])
+        self.assertEqual(len(s.plan_alerts([row("revoked")], {"accounts": "junk"}, T0)[0]), 1)
+        self.assertEqual(len(s.plan_alerts([row("revoked")], "junk", T0)[0]), 1)
+
+    def test_state_roundtrip(self):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "sub", "state.json")
+            self.assertEqual(s.load_state(path), {})
+            s.save_state({"a": 1}, path)
+            self.assertEqual(s.load_state(path), {"a": 1})
+
+
 class Checks(unittest.TestCase):
     def test_missing_token_file(self):
         self.assertEqual(s.check_google({**ENTRY, "token": "/nonexistent.json"})[0], "not_connected")
