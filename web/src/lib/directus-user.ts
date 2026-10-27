@@ -77,6 +77,7 @@ export interface ClaudeUsageRow {
 }
 
 export type ReadableCollection =
+  | 'connected_accounts'
   | 'agent_runs'
   | 'agent_jobs'
   | 'agent_skills'

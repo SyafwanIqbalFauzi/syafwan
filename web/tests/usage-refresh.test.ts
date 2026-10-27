@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { findSyncJobId, isNewer, latestCheckedAt } from '../src/lib/usage-refresh.ts';
 
 test('findSyncJobId: by name, array or {jobs}, ignores others and bad ids', () => {
+  assert.equal(findSyncJobId([{ id: 'bbb', name: 'sync-accounts' }, { id: 'aaa', name: 'sync-claude-usage' }], 'sync-accounts'), 'bbb');
   const jobs = [{ id: 'aaa', name: 'other' }, { id: '78dde941faea', name: 'sync-claude-usage' }];
   assert.equal(findSyncJobId(jobs), '78dde941faea');
   assert.equal(findSyncJobId({ jobs }), '78dde941faea');

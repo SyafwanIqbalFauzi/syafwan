@@ -18,7 +18,9 @@ interface Props {
 const { current, email, area = 'agent' } = Astro.props;
 
 const groups = AREAS[area].groups;
-const brand = { href: AREAS[area].home, name: area === 'finance' ? 'finance' : 'agents' };
+const AREA_NAME: Record<Area, string> = { agent: 'agents', finance: 'finance', accounts: 'accounts' };
+const AREA_PICTOGRAM: Record<Area, Section> = { agent: 'agents', finance: 'finance', accounts: 'accounts' };
+const brand = { href: AREAS[area].home, name: AREA_NAME[area] };
 ---
 
 <aside class="sidebar" data-sidebar data-area={area}>
@@ -26,7 +28,7 @@ const brand = { href: AREAS[area].home, name: area === 'finance' ? 'finance' : '
     {
       AREA_ORDER.map((key) => (
         <a href={AREAS[key].home} class="rail-link" data-area-link={key} aria-current={key === area ? 'true' : undefined}>
-          <Pictogram name={key === 'finance' ? 'finance' : 'agents'} size={22} />
+          <Pictogram name={AREA_PICTOGRAM[key]} size={22} />
           <span class="rail-label">{AREAS[key].label}</span>
         </a>
       ))
@@ -43,7 +45,7 @@ const brand = { href: AREAS[area].home, name: area === 'finance' ? 'finance' : '
     <button type="button" class="menu-btn" aria-expanded="false" aria-controls="side-nav" data-menu-toggle>menu</button>
   </div>
 
-  <nav id="side-nav" class="side-nav" aria-label={area === 'finance' ? 'Finance' : 'Hermes'}>
+  <nav id="side-nav" class="side-nav" aria-label={area === 'agent' ? 'Hermes' : AREAS[area].label}>
     {
       groups.map((group) => (
         <div class="group">

@@ -4,10 +4,10 @@
 export const SYNC_JOB_NAME = 'sync-claude-usage';
 
 /** Id of the sync job in a Hermes `/api/jobs` payload, or null when it is missing or removed. */
-export function findSyncJobId(payload: unknown): string | null {
+export function findSyncJobId(payload: unknown, name: string = SYNC_JOB_NAME): string | null {
   const jobs = Array.isArray(payload) ? payload : Array.isArray((payload as any)?.jobs) ? (payload as any).jobs : [];
   for (const job of jobs) {
-    if (job?.name !== SYNC_JOB_NAME) continue;
+    if (job?.name !== name) continue;
     const id = job.id ?? job.job_id;
     if (typeof id === 'string' && /^[A-Za-z0-9_.:-]{1,128}$/.test(id)) return id;
   }
