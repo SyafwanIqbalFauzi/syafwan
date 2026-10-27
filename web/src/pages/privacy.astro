@@ -1,0 +1,75 @@
+---
+// Privacy policy of the personal "hermes-agent" Google OAuth app (linked from the Google Cloud consent screen,
+// so keep the URL stable). English only: Google reviews it.
+import Layout from '../layouts/Layout.astro';
+
+export const prerender = false;
+
+const updated = 'October 27, 2026';
+---
+
+<Layout locale="en" title="Privacy policy" description="How the personal Hermes assistant uses Google account data." alternates={false}>
+  <section class="container head">
+    <h1 class="h1">Privacy policy</h1>
+    <p class="label muted">Last updated: {updated}</p>
+  </section>
+
+  <section class="container body">
+    <div class="prose">
+      <p>
+        This page describes how "hermes-agent", a personal AI assistant run by Syafwan Iqbal Fauzi on his own server, uses Google
+        account data. The app is for personal use. It is not offered to the public, and the only accounts connected to it belong to
+        its owner.
+      </p>
+
+      <h2>What the app accesses</h2>
+      <p>
+        When the owner connects one of his own Google accounts, the app asks for access to Gmail (read, send and modify), Google
+        Calendar, Google Drive, Google Contacts (read only), Google Sheets and Google Docs. It uses this access only to carry out
+        tasks the owner asks for, such as reading and labelling email, checking the calendar, or updating a spreadsheet.
+      </p>
+
+      <h2>What is stored</h2>
+      <ul>
+        <li>OAuth tokens that keep the connection working are stored on the owner's private server, readable only by the owner. They are never published and never shown on any web page.</li>
+        <li>The owner's private dashboard stores only the account address, a label, the connection status, the list of granted permissions and the time of the last check.</li>
+        <li>Email, calendar, file and contact content is read when a task needs it. It is not copied into a database for other purposes.</li>
+      </ul>
+
+      <h2>How data is used and shared</h2>
+      <p>
+        Data from Google accounts is used only to provide the assistant's features to the owner. It is not sold, not used for
+        advertising, and not shared with anyone else. To carry out a task, the relevant content may be sent to the AI model
+        provider the assistant runs on (currently Anthropic), solely to produce the result the owner asked for.
+      </p>
+      <p>
+        The use of information received from Google APIs adheres to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Google API Services User Data Policy</a>,
+        including the Limited Use requirements.
+      </p>
+
+      <h2>Removing access</h2>
+      <p>
+        Access can be withdrawn at any time at <a href="https://myaccount.google.com/permissions" rel="noopener">myaccount.google.com/permissions</a>.
+        Once access is withdrawn the stored token stops working, and it can be deleted from the server on request.
+      </p>
+
+      <h2>Contact</h2>
+      <p>Questions about this policy: see the contact details on the <a href="/en/about">about page</a>.</p>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  .head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-15);
+    padding-block: var(--s-66) var(--s-33);
+  }
+
+  .body {
+    padding-bottom: var(--s-66);
+    max-width: 760px;
+  }
+</style>
