@@ -11,16 +11,16 @@ const scale = [
   { token: '--s-8', px: 8, use: 'items on one line (--gap-inline)' },
   { token: '--s-11', px: 11, use: 'control padding, list row (--pad-control)' },
   { token: '--s-15', px: 15, use: 'stacked in a card or form, after a filter bar (--gap-lead)' },
-  { token: '--s-22', px: 22, use: 'after the page head, before tabs / notice / footnote (--gap-head)' },
+  { token: '--s-22', px: 22, use: 'after the page head, tabs or a notice (--gap-head)' },
   { token: '--s-33', px: 33, use: 'block after block (--gap-section)' },
   { token: '--s-66', px: 66, use: 'bottom of a page' },
 ];
 const rhythm = [
-  { role: 'After the page head', token: '--gap-head', px: 22 },
-  { role: 'Before a filter bar, tabs, notice or footnote', token: '--gap-head', px: 22 },
+  { role: 'After the page head, tabs or a notice', token: '--gap-head', px: 22 },
   { role: 'After a filter bar (the content it filters)', token: '--gap-lead', px: 15 },
-  { role: 'Block after block, or any element without a role', token: '--gap-section', px: 33 },
-  { role: 'A second footnote', token: '--gap-note-next', px: 8 },
+  { role: 'Back link above a detail title', token: '--s-11', px: 11 },
+  { role: 'Section after section, a footnote after content, any element without a role', token: '--gap-section', px: 33 },
+  { role: 'A second footnote', token: '--s-8', px: 8 },
 ];
 ---
 
