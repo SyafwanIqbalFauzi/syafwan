@@ -121,6 +121,23 @@ def summarize(markdown: str | None) -> str | None:
     return flat[:SUMMARY_CAP]
 
 
+# An agent that needs the owner to look at its result ends the answer with a line such as
+#   PERLU-CEK: 3 draft entries wait for approval
+# (also "**PERLU-CEK:** ...", "> PERLU-CEK: ..." or the English NEEDS-CHECK:). The last such line wins.
+CHECK_LINE = re.compile(r"^[\s>*_#\-]*(?:PERLU[-_ ]?CEK|NEEDS[-_ ]?CHECK)\s*[:：]\s*[*_]*\s*(.*?)\s*[*_]*\s*$", re.IGNORECASE | re.MULTILINE)
+CHECK_CAP = 300
+
+
+def check_marker(markdown: str | None) -> tuple[bool, str | None]:
+    """(needs_check, reason). The reason may be empty text -> None; the flag is still set."""
+    if not markdown:
+        return False, None
+    found = CHECK_LINE.findall(markdown)
+    if not found:
+        return False, None
+    return True, (found[-1].strip()[:CHECK_CAP] or None)
+
+
 def schedule_display(job: dict) -> str | None:
     sched = job.get("schedule") or {}
     return job.get("schedule_display") or sched.get("display") or sched.get("expr")
@@ -208,6 +225,7 @@ def collect_runs(jobs: dict, executions: dict, directory: dict, redact, known: s
         finished = parse_dt(ex.get("finished_at")) if ex else None
         error = redact(ex.get("error"))[:ERROR_CAP] if ex and ex.get("error") else None
         text = redact(response)[:RESPONSE_CAP] if response else None
+        needs_check, check_reason = check_marker(text)
         skills = (job or {}).get("skills") or (doc or {}).get("skills") or []
         rows.append(
             {
@@ -229,6 +247,8 @@ def collect_runs(jobs: dict, executions: dict, directory: dict, redact, known: s
                 "summary": summarize(text),
                 "response_md": text,
                 "error": error,
+                "needs_check": needs_check,
+                "check_reason": check_reason,
             }
         )
 

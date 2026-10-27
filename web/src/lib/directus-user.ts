@@ -38,6 +38,11 @@ export interface AgentRun {
   summary: string | null;
   response_md: string | null;
   error: string | null;
+  /** The agent asked for a person to look at this result (a `PERLU-CEK:` line in its reply) */
+  needs_check?: boolean | null;
+  check_reason?: string | null;
+  /** When the owner marked it as looked at */
+  checked_at?: string | null;
 }
 
 export interface AgentSkill {
@@ -159,7 +164,7 @@ export async function readItem<T>(token: string, collection: ReadableCollection,
 }
 
 /** PATCH one item with the signed-in user's token (e.g. the agent group). */
-export async function updateItem(token: string, collection: 'agent_jobs' | 'finance_budgets' | 'finance_transactions' | 'finance_categories', id: number, data: Record<string, unknown>): Promise<void> {
+export async function updateItem(token: string, collection: 'agent_jobs' | 'agent_runs' | 'finance_budgets' | 'finance_transactions' | 'finance_categories', id: number, data: Record<string, unknown>): Promise<void> {
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}/${id}`, {
     method: 'PATCH',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },

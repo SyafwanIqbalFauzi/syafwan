@@ -1,0 +1,212 @@
+---
+import HermesShell from '../../layouts/HermesShell.astro';
+import StatusTag from '../../components/StatusTag.astro';
+import { readItems, type AgentJob } from '../../lib/directus-user';
+import { dayKey, formatWhen, relative } from '../../lib/format';
+import { CATEGORIES, feedView, parseCategory, statusCells, type RunRow } from '../../lib/updates';
+
+export const prerender = false;
+
+const token = Astro.locals.hermesToken!;
+const cat = parseCategory(Astro.url.searchParams.get('cat'));
+const onlyAttention = Astro.url.searchParams.get('check') === '1';
+const SHOW = 40;
+const shown = Math.min(400, Math.max(SHOW, Number(Astro.url.searchParams.get('n')) || SHOW));
+
+let rows: RunRow[] = [];
+let jobs: Pick<AgentJob, 'name' | 'last_status' | 'last_run_at' | 'synced_at'>[] = [];
+let problem = '';
+try {
+  rows = (
+    await readItems<RunRow>(token, 'agent_runs', {
+      limit: 400,
+      sort: '-started_at',
+      fields: 'id,execution_id,job_id,job_name,kind,status,started_at,summary,error,needs_check,check_reason,checked_at',
+    })
+  ).data;
+  jobs = (await readItems<Pick<AgentJob, 'name' | 'last_status' | 'last_run_at' | 'synced_at'>>(token, 'agent_jobs', { limit: -1, fields: 'name,last_status,last_run_at,synced_at' })).data;
+} catch {
+  problem = 'Could not read the agent results from Directus.';
+}
+
+const view = feedView(rows, cat, onlyAttention);
+const items = view.items.slice(0, shown);
+const cells = statusCells(jobs);
+const today = dayKey(new Date().toISOString());
+const todayCount = rows.filter((r) => dayKey(r.started_at) === today).length;
+const syncedAt = jobs.map((j) => j.synced_at).filter(Boolean).sort().at(-1);
+
+const href = (next: { cat?: string; check?: boolean; n?: number }) => {
+  const params = new URLSearchParams();
+  const c = next.cat ?? cat;
+  if (c !== 'all') params.set('cat', c);
+  if (next.check ?? onlyAttention) params.set('check', '1');
+  if (next.n) params.set('n', String(next.n));
+  const text = params.toString();
+  return text ? `?${text}` : Astro.url.pathname;
+};
+const toneClass = { ok: 'dot', fail: 'dot dot-fail', idle: 'dot dot-idle' } as const;
+---
+
+<HermesShell title="Updates" current="updates" area="persib">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Updates</h1>
+      <p class="label muted">
+        {rows.length} results · {todayCount} today{syncedAt ? ` · synced ${relative(syncedAt)}` : ''}
+      </p>
+    </div>
+
+    {problem && <p class="notice error" role="alert">{problem}</p>}
+
+    {
+      view.attention > 0 && (
+        <p class="notice attention" role="status">
+          <strong>{view.attention} {view.attention === 1 ? 'result needs' : 'results need'} your check.</strong>{' '}
+          {!onlyAttention ? <a class="link" href={href({ check: true })}>Show only these</a> : <a class="link" href={href({ check: false })}>Show everything</a>}
+        </p>
+      )
+    }
+
+    <section class="block">
+      <div class="figures">
+        {
+          cells.map((c) => (
+            <div class="figure">
+              <p class="value"><span class={toneClass[c.tone]} aria-hidden="true"></span>{c.text}</p>
+              <p class="label">{c.label}{c.at ? ` · ${relative(c.at)}` : ''}</p>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
+    <div class="type-tabs" role="tablist" aria-label="Show updates by category">
+      {
+        CATEGORIES.map((c) => (
+          <a role="tab" class="type-tab" href={href({ cat: c.key })} aria-selected={c.key === cat ? 'true' : 'false'}>
+            {c.label}
+            <span class="type-tab-count">{view.counts[c.key]}</span>
+          </a>
+        ))
+      }
+    </div>
+
+    <section class="block feed" aria-label="Updates">
+      {
+        items.map((item) => (
+          <article class="update" data-attention={item.attention ? 'true' : undefined}>
+            <time class="update-when" datetime={item.run.started_at ?? undefined}>
+              {formatWhen(item.run.started_at)}
+              <span class="sub">{relative(item.run.started_at)}</span>
+            </time>
+            <div class="update-body">
+              <h3 class="update-title">
+                <a href={`/agent/agents/${item.run.job_id}${item.run.execution_id ? `?run=${encodeURIComponent(item.run.execution_id)}` : ''}`}>{item.run.job_name ?? item.run.job_id}</a>
+                <span class="chips">
+                  <span class="tag">{item.run.kind === 'script' ? 'script' : 'ai'}</span>
+                  <span class="tag tag-idle">{CATEGORIES.find((c) => c.key === item.category)?.label}</span>
+                  {item.run.status === 'failed' && <StatusTag status="failed" />}
+                  {item.attention && <span class="tag tag-fail">needs your check</span>}
+                </span>
+              </h3>
+              {item.attention && item.reason && <p class="update-reason">{item.reason}</p>}
+              {item.run.summary && <p class="update-summary">{item.run.summary}</p>}
+              <p class="update-actions">
+                {item.run.execution_id && <a class="arrow-link" href={`/agent/agents/${item.run.job_id}?run=${encodeURIComponent(item.run.execution_id)}`}>Full result</a>}
+                {item.attention && <button type="button" class="btn" data-check-run={item.run.id}>Mark as checked</button>}
+              </p>
+            </div>
+          </article>
+        ))
+      }
+      {!items.length && !problem && <p class="empty">{onlyAttention ? 'Nothing is waiting for your check.' : 'No results in this category yet.'}</p>}
+    </section>
+
+    {view.items.length > shown && <p class="label"><a class="arrow-link" href={href({ n: shown + SHOW })}>Older results</a></p>}
+
+    <p class="label muted">
+      Results are copied from the agents about every few minutes. A run is flagged when it failed in the last 7 days, or when the agent ended its answer with a PERLU-CEK line.
+    </p>
+  </div>
+</HermesShell>
+
+<script>
+  import '../../scripts/persib-updates';
+</script>
+
+<style is:global>
+  .dot {
+    display: inline-block;
+    width: 9px;
+    height: 9px;
+    margin-right: 8px;
+    border-radius: 50%;
+    background: var(--te-black);
+  }
+  .dot-fail {
+    background: var(--te-orange);
+  }
+  .dot-idle {
+    background: var(--te-grey-300);
+  }
+  .notice.attention {
+    border-left: 3px solid var(--te-orange);
+    background: var(--te-white);
+  }
+  .feed {
+    border-top: 1px solid var(--te-black);
+  }
+  .update {
+    display: grid;
+    grid-template-columns: 150px minmax(0, 1fr);
+    gap: var(--s-15);
+    padding: var(--s-22) 0;
+    border-bottom: 1px solid var(--te-grey-100);
+  }
+  .update[data-attention='true'] {
+    border-left: 3px solid var(--te-orange);
+    padding-left: var(--s-15);
+  }
+  .update-when {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--text-caption);
+    color: var(--te-grey-600);
+  }
+  .update-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 0;
+    font-size: var(--text-body);
+    font-weight: var(--w-regular);
+  }
+  .update-reason {
+    margin: 8px 0 0;
+    font-weight: var(--w-regular);
+  }
+  .update-summary {
+    margin: 8px 0 0;
+    color: var(--te-grey-600);
+    overflow-wrap: anywhere;
+  }
+  .update-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-15);
+    margin: var(--s-15) 0 0;
+  }
+  @media (max-width: 720px) {
+    .update {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+    }
+    .update-when {
+      flex-direction: row;
+      gap: 8px;
+    }
+  }
+</style>
