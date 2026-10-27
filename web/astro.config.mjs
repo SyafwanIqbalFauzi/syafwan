@@ -27,6 +27,8 @@ export default defineConfig({
       // Hermes API server on the VPS host (see src/lib/hermes.ts). The key never reaches the browser.
       HERMES_API_URL: envField.string({ context: 'server', access: 'secret', default: 'http://172.18.0.1:8642' }),
       HERMES_API_KEY: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // Google Analytics 4 Measurement ID (G-XXXXXXXXXX). Unset = no tracking (see src/layouts/Layout.astro).
+      PUBLIC_GA_ID: envField.string({ context: 'server', access: 'secret', optional: true }),
     },
   },
   // Behind Caddy the request URL does not always match the public origin, so Astro's
@@ -38,7 +40,26 @@ export default defineConfig({
     envDir: '..',
     // The native file watcher misses some edits/new files on Windows (seen under
     // src/pages/[lang]); polling is slower but reliable. Dev only.
-    server: { watch: { usePolling: true, interval: 300 } },
+    server: {
+      watch: { usePolling: true, interval: 300 },
+      // Mirrors Caddy in prod (docs/PLAN.md): `redir /panel /panel/admin` and
+      // `handle_path /panel/*` (prefix stripped, Directus never sees it).
+      // Needs Directus PUBLIC_URL=http://localhost:4321/panel (DIRECTUS_PUBLIC_URL in .env).
+      proxy: {
+        '^/panel(/.*)?$': {
+          target: process.env.DIRECTUS_INTERNAL_URL ?? 'http://localhost:8055',
+          rewrite: (path) => path.replace(/^\/panel/, '') || '/',
+          xfwd: true,
+          ws: true,
+          bypass: (req, res) => {
+            if (req.url !== '/panel' || !res) return;
+            res.writeHead(302, { Location: '/panel/admin' });
+            res.end();
+            return false;
+          },
+        },
+      },
+    },
   },
   server: { port: 4321, host: true },
 });
