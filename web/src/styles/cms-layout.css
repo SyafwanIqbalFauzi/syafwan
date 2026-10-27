@@ -1,0 +1,82 @@
+/*
+ * CMS design system, layer 1: spacing tokens and the vertical rhythm of a page.
+ *
+ * SCOPE: CMS only (/agent /finance /accounts /sejarahpersib). Loaded by layouts/HermesShell.astro and nothing
+ * else; tokens hang on `body.cms-body`, which the public site's layout never sets, so nothing here can reach the
+ * landing pages even by mistake. Colours, type and the base scale (--s-8 .. --s-66) come from global.css, which
+ * this file reads but never edits.
+ *
+ * How the rhythm works: `.page` is a flex column whose `gap` is the section gap. Hidden children (the inline
+ * <script> of a component, an empty flash notice, a closed <dialog>) are `display:none`, so they are not flex items
+ * and cannot break a gap, which the old "margin on the next sibling" rules could not guarantee. An element that
+ * INTRODUCES what follows (page head, filter bar, tabs, notice) pulls its follower closer with a negative bottom
+ * margin; nothing depends on which element comes before another.
+ */
+
+body.cms-body {
+  /* Scale. --s-8/15/22/33/66 live in global.css (shared with the public site); these two fill the gaps the CMS needs. */
+  --s-4: 4px; /* icon + label, chips, stacked captions */
+  --s-11: 11px; /* control padding (inputs, buttons, table cells) */
+
+  /* Rhythm of a page, by role */
+  --gap-section: var(--s-33); /* between sections; also the default between any two children of a page */
+  --gap-head: var(--s-22); /* after the page head, tabs or a notice */
+  --gap-lead: var(--s-15); /* after a filter bar: the content it filters */
+  --pull-head: calc(var(--gap-head) - var(--gap-section));
+  --pull-lead: calc(var(--gap-lead) - var(--gap-section));
+  --pull-note-next: calc(var(--s-8) - var(--gap-section)); /* a second footnote */
+  --pull-crumb: calc(var(--s-11) - var(--gap-section)); /* back link above a detail title */
+
+  /* Inside a component */
+  --gap-tight: var(--s-4);
+  --gap-inline: var(--s-8); /* items on one line */
+  --gap-stack: var(--s-15); /* items stacked in a card / form */
+  --pad-control: var(--s-11); /* input / select / textarea / small button */
+  --pad-row: var(--s-15); /* inline padding of a list row */
+  --pad-row-y: var(--s-11); /* block padding of a list row */
+  --pad-card: var(--s-15);
+  --pad-dialog: var(--s-22);
+}
+
+.cms-main .page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-section);
+}
+
+/* Outer margins of page-level children are decided here, not by each component (a closed dialog keeps its own centring). */
+.cms-main .page > :not(dialog) {
+  margin-block: 0;
+  min-width: 0;
+}
+
+/* ---- roles: these elements bring the next one closer ---- */
+.cms-main .page > .page-head,
+.cms-main .page > .type-tabs,
+.cms-main .page > .notice {
+  margin-bottom: var(--pull-head);
+}
+
+.cms-main .page > .filterbar {
+  margin-bottom: var(--pull-lead);
+}
+
+/* a second footnote sits right under the first */
+.cms-main .page > p.label + p.label {
+  margin-top: var(--pull-note-next);
+}
+
+/* "← back" link above the title of a detail page */
+.cms-main .page > .crumb {
+  margin-bottom: var(--pull-crumb);
+}
+
+/* a line that explains the filter bar above it: close to the bar, then the head-to-content gap */
+.cms-main .page > .note-lead {
+  margin-bottom: var(--pull-head);
+}
+
+/* ---- blocks nested inside a block keep the section gap (page children get it from the gap above) ---- */
+.cms-main :not(.page) > .block + .block {
+  margin-top: var(--gap-section);
+}

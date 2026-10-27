@@ -46,8 +46,8 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
 
 <HermesShell title={name} current="skills">
   <div class="container page">
-    <p class="label muted"><a class="link" href="/agent/skills">← skills</a></p>
-    <div class="page-head" style="margin-top: 12px">
+    <p class="label muted crumb"><a class="link" href="/agent/skills">← skills</a></p>
+    <div class="page-head">
       <h1 class="h1">{name}</h1>
       <div class="chips">
         {skill && <span class="tag">{skill.source === 'builtin' ? 'built-in' : skill.source === 'removed' ? 'removed' : 'yours'}</span>}
@@ -119,7 +119,7 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
                 </form>
               )
             }
-            {!canAttach && !removed && <p class="label muted" style="margin-top: 12px">Disabled skills cannot be added to agents.</p>}
+            {!canAttach && !removed && <p class="label muted" style="margin-top: var(--s-11)">Disabled skills cannot be added to agents.</p>}
           </section>
 
           <section class="block">
@@ -184,7 +184,7 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
 <style is:global>
   .row-change {
     grid-template-columns: 150px 150px 110px 1fr;
-    padding-block: 10px;
+    padding-block: var(--s-11);
   }
   @media (max-width: 900px) {
     .row-change {
@@ -206,7 +206,7 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
     background: var(--te-page);
     border: 1px solid var(--te-grey-200);
     border-radius: 0;
-    padding: 12px;
+    padding: var(--s-11);
     resize: vertical;
   }
   .editor-form textarea:focus-visible {
@@ -254,7 +254,7 @@ const canAttach = Boolean(skill) && !removed && skill?.enabled !== false;
   .skill-body th,
   .skill-body td {
     border: 1px solid var(--te-grey-100);
-    padding: 6px 10px;
+    padding: var(--s-4) var(--s-11);
     font-size: var(--text-caption);
   }
 </style>

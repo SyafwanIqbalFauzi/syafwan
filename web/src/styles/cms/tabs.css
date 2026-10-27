@@ -1,0 +1,59 @@
+/* ---- tabs that filter a page by type (All / Income / Spending / Savings) ---- */
+.type-tabs {
+  display: flex;
+  gap: var(--s-8);
+  margin-bottom: var(--s-22);
+  border-bottom: 1px solid var(--te-grey-100);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.type-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-4);
+  min-height: 44px;
+  padding: var(--s-11) var(--s-15);
+  margin-bottom: -1px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--w-light);
+  color: var(--te-grey-600);
+  cursor: pointer;
+}
+
+.type-tab:hover {
+  color: var(--te-black);
+}
+
+.type-tab:focus-visible {
+  outline: 1px solid var(--te-black);
+  outline-offset: -3px;
+}
+
+.type-tab[aria-selected='true'] {
+  color: var(--te-black);
+  font-weight: var(--w-regular);
+  border-bottom-color: var(--te-black);
+}
+
+.type-tab-count {
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+}
+
+/* On a phone all four tabs fit without sideways scrolling */
+@media (max-width: 480px) {
+  .type-tabs {
+    gap: 0;
+  }
+
+  .type-tab {
+    padding-inline: var(--s-8);
+    gap: var(--s-4);
+  }
+}

@@ -64,7 +64,7 @@ export const prerender = false;
   .chat #sessions li {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--s-4);
   }
 
   .chat #sessions li.active {
@@ -76,7 +76,7 @@ export const prerender = false;
     flex: 1;
     min-width: 0;
     text-align: left;
-    padding: 10px 8px;
+    padding: var(--s-11) var(--s-8);
     font-size: var(--text-caption);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -91,7 +91,7 @@ export const prerender = false;
 
   .chat #sessions .run-flag {
     flex: none;
-    padding: 1px 6px;
+    padding: 1px var(--s-4);
     font-size: 11px;
     line-height: 1.3;
     border: 1px solid var(--te-amber);
@@ -128,7 +128,7 @@ export const prerender = false;
   .chat #sessions .mini {
     font-size: 11px;
     color: var(--te-grey-600);
-    padding: 4px;
+    padding: var(--s-4);
   }
 
   .chat .pane {
@@ -163,7 +163,7 @@ export const prerender = false;
     background: var(--te-white);
     border: 1px solid var(--te-black);
     border-radius: 0;
-    padding: 2px 8px;
+    padding: 2px var(--s-8);
   }
 
   .title-input:focus-visible {
@@ -193,9 +193,9 @@ export const prerender = false;
   .typing {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: var(--s-11);
     max-width: 780px;
-    padding: 6px 14px;
+    padding: var(--s-4) var(--s-15);
     font-size: var(--text-caption);
     color: var(--te-grey-600);
     border-left: 1px solid var(--te-black);
@@ -209,7 +209,7 @@ export const prerender = false;
 
   .typing .dots {
     display: inline-flex;
-    gap: 4px;
+    gap: var(--s-4);
   }
 
   .typing .dots i {
@@ -281,7 +281,7 @@ export const prerender = false;
   }
 
   .msg .body {
-    padding: 12px 14px;
+    padding: var(--s-11) var(--s-15);
     line-height: 1.55;
     overflow-wrap: anywhere;
   }
@@ -337,7 +337,7 @@ export const prerender = false;
   .approval pre {
     background: var(--te-carbon);
     color: var(--te-white);
-    padding: 12px;
+    padding: var(--s-11);
     font-size: 13px;
     overflow-x: auto;
     white-space: pre-wrap;
@@ -346,7 +346,7 @@ export const prerender = false;
 
   .tool {
     max-width: 780px;
-    padding: 6px 10px;
+    padding: var(--s-4) var(--s-11);
     border-left: 3px solid var(--te-grey-600);
   }
 
@@ -365,31 +365,31 @@ export const prerender = false;
   .approval {
     max-width: 780px;
     border: 1px solid var(--te-amber);
-    padding: 12px 14px;
+    padding: var(--s-11) var(--s-15);
   }
 
   .approval pre {
-    margin: 8px 0;
+    margin: var(--s-8) 0;
   }
 
   .approval.done {
     border-color: var(--te-grey-600);
     color: var(--te-grey-600);
     font-size: var(--text-caption);
-    padding: 6px 10px;
+    padding: var(--s-4) var(--s-11);
     overflow-wrap: anywhere;
   }
 
   .approval .choices {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--s-8);
   }
 
   .approval .choices button {
     font-size: var(--text-caption);
     font-weight: var(--w-regular);
-    padding: 8px 14px;
+    padding: var(--s-8) var(--s-15);
     border: 1px solid var(--te-black);
   }
 
@@ -411,7 +411,7 @@ export const prerender = false;
   #composer {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--s-8);
     padding: var(--s-15) var(--gutter);
     border-top: 1px solid var(--te-grey-100);
   }
@@ -425,7 +425,7 @@ export const prerender = false;
     background: var(--te-white);
     border: 1px solid var(--te-grey-200);
     border-radius: 0;
-    padding: 10px 12px;
+    padding: var(--s-11) var(--s-11);
   }
 
   /* Handle on the top edge of the composer: pull up for a taller message box (works with touch too). */
@@ -464,7 +464,7 @@ export const prerender = false;
     flex-basis: 100%;
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
+    gap: var(--s-8);
     list-style: none;
     margin: 0;
     padding: 0;
@@ -508,8 +508,8 @@ export const prerender = false;
   .msg .body .pics {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px;
-    margin-bottom: 8px;
+    gap: var(--s-8);
+    margin-bottom: var(--s-8);
   }
 
   .msg .body .pics img {
@@ -573,8 +573,8 @@ export const prerender = false;
     .pane-head {
       align-items: center;
       flex-wrap: wrap;
-      gap: 8px;
-      padding-block: 10px;
+      gap: var(--s-8);
+      padding-block: var(--s-11);
     }
 
     .chat-title {
@@ -584,12 +584,12 @@ export const prerender = false;
     }
 
     .chat #sessions .open {
-      padding-block: 14px;
+      padding-block: var(--s-15);
     }
 
     .chat #sessions .mini {
       min-height: 44px;
-      padding-inline: 8px;
+      padding-inline: var(--s-8);
     }
 
     #log {
@@ -614,7 +614,7 @@ export const prerender = false;
         'files files files'
         'pic text go';
       align-items: end;
-      gap: 8px;
+      gap: var(--s-8);
       padding-bottom: max(var(--s-15), env(safe-area-inset-bottom));
     }
 
@@ -651,7 +651,7 @@ export const prerender = false;
       justify-content: center;
       min-height: 48px;
       min-width: 56px;
-      padding-inline: 12px;
+      padding-inline: var(--s-11);
     }
   }
 </style>
