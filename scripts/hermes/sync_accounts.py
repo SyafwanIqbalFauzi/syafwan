@@ -149,6 +149,90 @@ def check_google(entry: dict) -> tuple[str, str, list[str]]:
 
 CHECKS = {"google": check_google}
 
+STATE_PATH = os.environ.get("HERMES_ACCOUNTS_STATE") or os.path.join(HOME, "cache", "sync_accounts_state.json")
+SITE = "https://syafwan.com/accounts"
+# A failed check (network, Google outage) is only worth a message after this many runs in a row (30 min each).
+ERRORS_BEFORE_ALERT = 3
+# Statuses where a person has to act. `error` is handled separately (needs to repeat first).
+ACTION_REASONS = {
+    "revoked": "token ditolak Google, perlu dihubungkan ulang",
+    "mismatch": "token milik akun lain",
+    "not_connected": "belum ada token",
+}
+
+
+def _span(start_iso: str | None, end_iso: str) -> str:
+    try:
+        a = dt.datetime.fromisoformat((start_iso or "").replace("Z", "+00:00"))
+        b = dt.datetime.fromisoformat(end_iso.replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    minutes = max(0, int((b - a).total_seconds() // 60))
+    if minutes < 60:
+        return f"{minutes} menit"
+    hours, rest = divmod(minutes, 60)
+    if hours < 48:
+        return f"{hours} jam {rest} menit" if rest else f"{hours} jam"
+    return f"{hours // 24} hari"
+
+
+def plan_alerts(rows: list[dict], state: dict, now: str) -> tuple[list[str], dict]:
+    """Messages to send now and the new state. Alert once when an account breaks, once when it recovers. Pure.
+
+    state = {"accounts": {"google|me@x": {"status": "ok"|"problem", "reason": str, "since": iso, "errors": int}}}
+    """
+    old = state.get("accounts") if isinstance(state, dict) else None
+    if not isinstance(old, dict):
+        old = {}
+    state = state if isinstance(state, dict) else {}
+    new: dict[str, dict] = {}
+    messages: list[str] = []
+    for row in rows:
+        key = f"{row['provider']}|{row['identifier'].lower()}"
+        prev = old.get(key) or {"status": "ok", "errors": 0}
+        who = f"{row['label']} ({row['identifier']})"
+        status = row["status"]
+        entry = {"status": "ok", "errors": 0}
+        if status == "connected":
+            if prev.get("status") == "problem":
+                messages.append(f"✅ Akun {who} kembali terhubung" + (f" (putus ±{_span(prev.get('since'), now)})." if prev.get("since") else "."))
+        elif status == "error":
+            errors = int(prev.get("errors", 0)) + 1
+            if prev.get("status") == "problem":
+                entry = {**prev, "errors": errors}
+            elif errors >= ERRORS_BEFORE_ALERT:
+                messages.append(f"⚠️ Akun {who} tidak bisa dicek {errors}x berturut-turut: {row.get('detail') or 'tidak ada detail'}. Cek {SITE}")
+                entry = {"status": "problem", "reason": "error", "since": now, "errors": errors}
+            else:
+                entry = {"status": "ok", "errors": errors}
+        else:
+            reason = status
+            if prev.get("status") == "problem" and prev.get("reason") == reason:
+                entry = prev  # same problem as last time: stay silent
+            else:
+                text = ACTION_REASONS.get(status, status)
+                messages.append(f"⚠️ Akun {who} terputus: {text}. Hubungkan ulang, status di {SITE}")
+                entry = {"status": "problem", "reason": reason, "since": prev.get("since") if prev.get("status") == "problem" else now, "errors": 0}
+        new[key] = entry
+    return messages, {**{k: v for k, v in state.items() if k != "accounts"}, "accounts": new}
+
+
+def load_state(path: str = STATE_PATH) -> dict:
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state: dict, path: str = STATE_PATH) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(state, fh, indent=1)
+    os.replace(tmp, path)
+
 
 def check_account(entry: dict) -> tuple[str, str, list[str]]:
     check = CHECKS.get(entry["provider"])
@@ -221,10 +305,27 @@ def main() -> int:
         status, detail, scopes = check_account(entry)
         rows.append(build_row(entry, status, detail, scopes, existing.get((entry["provider"], entry["identifier"].lower())), now))
     if args.dry_run:
+        messages, _ = plan_alerts(rows, load_state(), now)
         print(json.dumps(rows, indent=1))
+        for line in messages:
+            print("[would alert]", line)
         return 0
     assert directus is not None
-    directus.save(rows, existing)
+    state = load_state()
+    messages, new_state = plan_alerts(rows, state, now)
+    # Saving to Directus failing (Directus down) must not hide an account alert, and is itself reported once.
+    try:
+        directus.save(rows, existing)
+        if state.get("upload_failing"):
+            messages.append("✅ sync-accounts bisa menyimpan ke Directus lagi.")
+        new_state["upload_failing"] = False
+    except Exception as exc:  # noqa: BLE001
+        if not state.get("upload_failing"):
+            messages.append(f"⚠️ sync-accounts gagal menyimpan ke Directus: {type(exc).__name__}: {str(exc)[:200]}")
+        new_state["upload_failing"] = True
+    save_state(new_state)
+    for line in messages:
+        print(line)  # stdout is what the cron job delivers; empty output = silent
     return 0
 
 
