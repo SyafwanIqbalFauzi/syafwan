@@ -49,7 +49,7 @@
 .tag-fail {
   background: var(--te-orange);
   border-color: var(--te-orange);
-  color: var(--te-white);
+  color: var(--te-black); /* 6.2:1; the light text it had was 3.18:1, under WCAG AA */
 }
 
 .tag-idle {
