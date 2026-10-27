@@ -4,6 +4,7 @@ import { accountsView } from '../../lib/accounts';
 import { readItems } from '../../lib/directus-user';
 import type { AccountRow } from '../../lib/accounts';
 import { formatWhen, relative } from '../../lib/format';
+import { connectLabel } from '../../lib/account-connect';
 
 export const prerender = false;
 
@@ -18,6 +19,7 @@ const tagClass = { ok: 'tag', idle: 'tag tag-idle', fail: 'tag tag-fail' } as co
       <h1 class="h1">Accounts</h1>
       <div class="page-actions">
         {view.checkedAt && <p class="label muted">checked {relative(view.checkedAt)}</p>}
+        <button type="button" class="btn" data-connect-open>Add account</button>
         <button type="button" class="btn" data-accounts-refresh data-checked-at={view.checkedAt ?? ''}>Check now</button>
       </div>
     </div>
@@ -45,6 +47,11 @@ const tagClass = { ok: 'tag', idle: 'tag tag-idle', fail: 'tag tag-fail' } as co
                 <span class={tagClass[a.tone]}>{a.statusLabel}</span>
                 {a.stale && <span class="sub">not checked recently</span>}
                 {a.detail && <span class="sub">{a.detail}</span>}
+                {connectLabel(a.status) && (
+                  <button type="button" class="btn account-connect" data-connect-open data-identifier={a.identifier} data-name={a.label}>
+                    {connectLabel(a.status)}
+                  </button>
+                )}
               </div>
               <div class="account-times">
                 <span class="sub">checked {a.checkedAt ? relative(a.checkedAt) : 'never'}</span>
@@ -67,12 +74,52 @@ const tagClass = { ok: 'tag', idle: 'tag tag-idle', fail: 'tag tag-fail' } as co
       {!view.accounts.length && result && <p class="empty">No accounts have been reported yet. The check runs every 30 minutes.</p>}
     </section>
 
+    <dialog class="dlg" id="connect-dialog" aria-labelledby="connect-title">
+      <form method="dialog" novalidate data-connect-form>
+        <h2 id="connect-title" data-connect-title>Add a Google account</h2>
+
+        <div data-step="form">
+          <label class="dlg-field" data-name-field>
+            <span class="label muted">Name</span>
+            <input name="label" type="text" maxlength="40" autocomplete="off" placeholder="e.g. Work" />
+          </label>
+          <label class="dlg-field">
+            <span class="label muted">Google email address</span>
+            <input name="identifier" type="email" maxlength="254" autocomplete="off" placeholder="name@gmail.com" required />
+          </label>
+          <p class="sub">Next you sign in to Google and allow access. Nothing is saved unless you sign in as exactly this address.</p>
+        </div>
+
+        <div data-step="waiting" hidden>
+          <p class="dlg-message" data-wait-text role="status">Working…</p>
+        </div>
+
+        <div data-step="link" hidden>
+          <ol class="steps">
+            <li><a class="arrow-link" data-link href="#" target="_blank" rel="noopener noreferrer">Open Google sign-in →</a> and allow every permission. A message that the app is not verified is expected: choose Advanced, then Continue.</li>
+            <li>Google then ends on a page that fails to load (localhost:1). That is normal. Copy the full address from the address bar and paste it here.</li>
+          </ol>
+          <label class="dlg-field">
+            <span class="label muted">Address of that page</span>
+            <textarea name="redirect" rows="3" autocomplete="off" placeholder="http://localhost:1/?state=…&code=…"></textarea>
+          </label>
+        </div>
+
+        <p class="dlg-error" data-connect-error role="alert"></p>
+        <div class="dlg-actions">
+          <button type="button" class="btn" data-cancel>Close</button>
+          <button type="submit" class="btn btn-solid" data-connect-submit>Get link</button>
+        </div>
+      </form>
+    </dialog>
+
     <p class="label muted">Only the address, status and granted permissions are stored here. Tokens stay on the server and are never shown.</p>
   </div>
 </HermesShell>
 
 <script>
   import '../../scripts/accounts-refresh';
+  import '../../scripts/accounts-connect';
 </script>
 
 <style is:global>
@@ -97,6 +144,30 @@ const tagClass = { ok: 'tag', idle: 'tag tag-idle', fail: 'tag tag-fail' } as co
   .scope-list {
     margin-top: var(--s-8);
     overflow-wrap: anywhere;
+  }
+
+  .account-connect {
+    align-self: flex-start;
+    margin-top: var(--s-8);
+  }
+
+  .dlg .dlg-field textarea {
+    width: 100%;
+    font: inherit;
+    font-size: var(--text-caption);
+    background: var(--te-white);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 10px 12px;
+    resize: vertical;
+    overflow-wrap: anywhere;
+  }
+
+  .dlg .steps {
+    margin: 0 0 var(--s-15) 1.2em;
+    display: grid;
+    gap: var(--s-8);
+    font-size: var(--text-caption);
   }
 
   @media (max-width: 720px) {

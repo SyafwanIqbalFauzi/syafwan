@@ -67,6 +67,14 @@ export interface SkillChange {
   result: string | null;
 }
 
+export interface AccountRequestRow {
+  id: number;
+  action: 'start' | 'finish';
+  identifier: string;
+  status: 'pending' | 'done' | 'failed';
+  result: string | null;
+}
+
 export interface ClaudeUsageRow {
   id: number;
   window: string;
@@ -78,6 +86,7 @@ export interface ClaudeUsageRow {
 
 export type ReadableCollection =
   | 'connected_accounts'
+  | 'account_requests'
   | 'agent_runs'
   | 'agent_jobs'
   | 'agent_skills'
@@ -161,7 +170,7 @@ export async function updateItem(token: string, collection: 'agent_jobs' | 'fina
 }
 
 /** Create one item with the signed-in user's token (skill change requests). */
-export async function createItem<T>(token: string, collection: 'skill_changes' | 'finance_budgets' | 'finance_transactions' | 'finance_categories', data: Record<string, unknown> | Record<string, unknown>[]): Promise<T> {
+export async function createItem<T>(token: string, collection: 'skill_changes' | 'account_requests' | 'finance_budgets' | 'finance_transactions' | 'finance_categories', data: Record<string, unknown> | Record<string, unknown>[]): Promise<T> {
   const res = await fetch(`${DIRECTUS_INTERNAL_URL}/items/${collection}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
