@@ -139,11 +139,7 @@ export interface StatusCell {
 }
 
 /** The status strip: the job's own last result (silent successful ticks never become feed rows). */
-export const STATUS_WATCH = [
-  { label: 'Website', job: 'watchdog-web-persib-cheap' },
-  { label: 'Deploy', job: 'check-deploy-status' },
-  { label: 'Anthropic login', job: 'watchdog-anthropic-auth' },
-] as const;
+export const STATUS_WATCH = [{ label: 'Website', job: 'watchdog-web-persib-cheap' }] as const;
 
 export function statusCells(jobs: StatusJob[]): StatusCell[] {
   return STATUS_WATCH.map(({ label, job }) => {
