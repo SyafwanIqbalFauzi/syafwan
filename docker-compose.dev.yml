@@ -33,7 +33,8 @@ services:
       SECRET: ${DIRECTUS_SECRET}
       ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL}
       ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD}
-      PUBLIC_URL: http://localhost:8055
+      # Set DIRECTUS_PUBLIC_URL=http://localhost:4321/panel to mirror prod (Astro dev proxy strips /panel)
+      PUBLIC_URL: ${DIRECTUS_PUBLIC_URL:-http://localhost:8055}
       DB_CLIENT: pg
       DB_HOST: postgres
       DB_PORT: "5432"
