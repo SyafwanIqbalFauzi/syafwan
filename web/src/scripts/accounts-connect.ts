@@ -12,7 +12,7 @@ if (dialog && form) init(dialog, form);
 
 type Step = 'form' | 'waiting' | 'link';
 const POLL_MS = 2_000;
-const GIVE_UP_MS = 90_000;
+const GIVE_UP_MS = 180_000;
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const isNewer = (before: string | null, after: string | null): boolean => {
   const a = after ? Date.parse(after) : NaN;
@@ -85,11 +85,18 @@ function init(dialog: HTMLDialogElement, form: HTMLFormElement) {
     const first = await sent.json().catch(() => null);
     if (!sent.ok) throw new Error(first?.error ?? `Request failed (${sent.status})`);
     const until = Date.now() + GIVE_UP_MS;
-    while (Date.now() < until) {
-      await sleep(POLL_MS);
-      const res = await api('GET', `/api/accounts/connect/${first.id}`).catch(() => null);
-      const data = res?.ok ? await res.json().catch(() => null) : null;
-      if (data && data.state !== 'waiting') return data;
+    const slow = setTimeout(() => {
+      if (step === 'waiting' && !waitText.textContent?.includes('minute or two')) waitText.textContent += ' This can take a minute or two.';
+    }, 20_000);
+    try {
+      while (Date.now() < until) {
+        await sleep(POLL_MS);
+        const res = await api('GET', `/api/accounts/connect/${first.id}`).catch(() => null);
+        const data = res?.ok ? await res.json().catch(() => null) : null;
+        if (data && data.state !== 'waiting') return data;
+      }
+    } finally {
+      clearTimeout(slow);
     }
     throw new Error('The server did not answer in time. Try again in a minute.');
   }
