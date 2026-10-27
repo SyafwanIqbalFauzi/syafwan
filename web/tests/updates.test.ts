@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { attentionParams, categoryOf, checkReason, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
+import { attentionParams, categoryOf, checkReason, dedupeRuns, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
 
 const NOW = Date.parse('2026-10-27T10:00:00Z');
 const run = (over: Partial<RunRow>): RunRow => ({
@@ -84,7 +84,7 @@ test('feedView sorts newest first, counts per category and filters', () => {
 
 test('statusCells reads the job own last result', () => {
   const cells = statusCells([
-    { name: 'watchdog-web-persib', last_status: 'ok', last_run_at: 'a' },
+    { name: 'watchdog-web-persib-cheap', last_status: 'ok', last_run_at: 'a' },
     { name: 'check-deploy-status', last_status: 'error', last_run_at: 'b' },
   ]);
   assert.deepEqual(cells.map((c) => [c.label, c.tone, c.text]), [
@@ -92,4 +92,32 @@ test('statusCells reads the job own last result', () => {
     ['Deploy', 'fail', 'needs a look'],
     ['Anthropic login', 'idle', 'no data'],
   ]);
+});
+
+test('dedupeRuns drops the file: copy of a run stored twice, keeps unique ones', () => {
+  const base = { job_id: 'j', summary: 'same text' };
+  const rows: { job_id: string; summary: string | null; execution_id?: string; started_at: string | null }[] = [
+    { ...base, execution_id: 'file:j:2026-10-27_07-05-17', started_at: '2026-10-27T07:05:17Z' },
+    { ...base, execution_id: 'abc123', started_at: '2026-10-27T07:00:15Z' },
+    // same text but hours apart: a real separate run, kept even though it is a file: row
+    { ...base, execution_id: 'file:j:2026-10-27_01-05-00', started_at: '2026-10-27T01:05:00Z' },
+    // different job with the same text is not a duplicate
+    { job_id: 'other', summary: 'same text', execution_id: 'file:other:x', started_at: '2026-10-27T07:05:00Z' },
+    // no execution id at all: kept
+    { ...base, started_at: '2026-10-27T07:01:00Z' },
+  ];
+  assert.deepEqual(dedupeRuns(rows).map((r) => r.execution_id), ['abc123', 'file:j:2026-10-27_01-05-00', 'file:other:x', undefined]);
+});
+
+test('feedView counts a duplicated run once', () => {
+  const a = run({ id: 1, execution_id: 'e1', started_at: '2026-10-27T07:00:15Z' });
+  const b = run({ id: 2, execution_id: 'file:j:2026-10-27_07-05-17', started_at: '2026-10-27T07:05:17Z' });
+  const view = feedView([a, b], 'all', false, NOW);
+  assert.equal(view.counts.all, 1);
+  assert.equal(view.items[0].run.id, 1);
+});
+
+test('statusCells watches the hourly website job, not the escalation agent', () => {
+  const cells = statusCells([{ name: 'watchdog-web-persib-cheap', last_status: 'ok', last_run_at: 'a' }]);
+  assert.equal(cells[0].tone, 'ok');
 });

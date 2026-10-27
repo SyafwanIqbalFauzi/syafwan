@@ -263,7 +263,7 @@ def collect_runs(jobs: dict, executions: dict, directory: dict, redact, known: s
                 continue
             ex = match_execution(executions.get(job_id, []), when)
             source_id = f"file:{job_id}:{fname[:-3]}"
-            if (ex["id"] if ex else source_id) in known:
+            if (source_id in known or (ex and ex["id"] in known)):
                 continue
             with open(os.path.join(job_dir, fname), encoding="utf-8", errors="replace") as fh:
                 doc = split_run_document(fh.read())

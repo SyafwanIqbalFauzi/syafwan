@@ -91,9 +91,29 @@ export interface FeedView {
   attention: number;
 }
 
+/** A run stored twice (see sync_agent_runs.py: the document was synced before its execution was recorded) shows once. */
+export const DUPLICATE_WINDOW_MS = 15 * 60_000;
+
+/**
+ * Drops the `file:` copy of a run when the same job has a row with the same text recorded within a few
+ * minutes: the copy that carries the real execution id has the true status and duration. Rows that are
+ * unique stay, `file:` or not.
+ */
+export function dedupeRuns<T extends Pick<RunRow, 'job_id' | 'execution_id' | 'summary' | 'started_at'>>(rows: T[]): T[] {
+  const isCopy = (r: T) => (r.execution_id ?? '').startsWith('file:');
+  const keepers = rows.filter((r) => !isCopy(r));
+  return rows.filter((r) => {
+    if (!isCopy(r)) return true;
+    const at = Date.parse(r.started_at ?? '');
+    return !keepers.some(
+      (k) => k.job_id === r.job_id && (k.summary ?? '') === (r.summary ?? '') && Math.abs(Date.parse(k.started_at ?? '') - at) <= DUPLICATE_WINDOW_MS,
+    );
+  });
+}
+
 /** Newest first. `cat` filters the list; counts always cover everything so the tabs stay stable. */
 export function feedView(rows: RunRow[], cat: Category, onlyAttention: boolean, now = Date.now()): FeedView {
-  const all: FeedItem[] = rows
+  const all: FeedItem[] = dedupeRuns(rows)
     .map((run) => {
       const attention = needsCheck(run, now);
       return { run, category: categoryOf(run.job_name), attention, reason: attention ? checkReason(run) : null };
@@ -120,7 +140,7 @@ export interface StatusCell {
 
 /** The status strip: the job's own last result (silent successful ticks never become feed rows). */
 export const STATUS_WATCH = [
-  { label: 'Website', job: 'watchdog-web-persib' },
+  { label: 'Website', job: 'watchdog-web-persib-cheap' },
   { label: 'Deploy', job: 'check-deploy-status' },
   { label: 'Anthropic login', job: 'watchdog-anthropic-auth' },
 ] as const;

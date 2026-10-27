@@ -146,6 +146,35 @@ class CheckMarkerTests(unittest.TestCase):
         self.assertEqual(len(reason), s.CHECK_CAP)
 
 
+class CollectRunsTests(unittest.TestCase):
+    """A run document synced before its execution was recorded must not be stored again later."""
+
+    def _collect(self, known):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as out:
+            os.makedirs(os.path.join(out, "j1"))
+            with open(os.path.join(out, "j1", "2026-10-27_07-05-17.md"), "w", encoding="utf-8") as fh:
+                fh.write("# Cron Job: demo\n\n## Prompt\n\nx\n\n## Response\n\nHasil riset\n")
+            old = s.OUTPUT
+            s.OUTPUT = out
+            try:
+                ex = {"id": "e1", "status": "completed", "started_at": "2026-10-27T07:00:15+00:00", "finished_at": "2026-10-27T07:05:00+00:00"}
+                return s.collect_runs({"j1": {"id": "j1", "name": "demo"}}, {"j1": [ex]}, {}, lambda t: t, known)
+            finally:
+                s.OUTPUT = old
+
+    def test_new_document_with_its_execution_is_stored_once_under_the_execution_id(self):
+        rows = self._collect(set())
+        self.assertEqual([r["execution_id"] for r in rows], ["e1"])
+
+    def test_document_already_stored_as_file_copy_is_not_stored_again(self):
+        self.assertEqual(self._collect({"file:j1:2026-10-27_07-05-17"}), [])
+
+    def test_document_already_stored_under_the_execution_id_is_not_stored_again(self):
+        self.assertEqual(self._collect({"e1"}), [])
+
+
 class ParseTests(unittest.TestCase):
     def test_response_only_and_prompt_dropped(self):
         meta = s.split_run_document(DOC)
