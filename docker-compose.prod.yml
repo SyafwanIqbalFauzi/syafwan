@@ -63,6 +63,9 @@ services:
       PUBLIC_CMS_URL: ${PUBLIC_CMS_URL}
       DIRECTUS_INTERNAL_URL: ${DIRECTUS_INTERNAL_URL}
       DIRECTUS_TOKEN: ${DIRECTUS_TOKEN}
+      # sejarahpersib.com Directus (container name, not the shared alias `directus`) and its feedback token.
+      PERSIB_DIRECTUS_URL: ${PERSIB_DIRECTUS_URL:-http://sejarah-persib-directus-1:8055}
+      PERSIB_DIRECTUS_TOKEN: ${PERSIB_DIRECTUS_TOKEN:-}
       # Create-only token for the Autoplay Blocker report form. Unset = the form says it is unavailable.
       DIRECTUS_REPORT_TOKEN: ${DIRECTUS_REPORT_TOKEN:-}
       # Google Analytics 4 Measurement ID. Unset = no tracking.

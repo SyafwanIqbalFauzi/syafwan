@@ -1,0 +1,253 @@
+---
+import HermesShell from '../../layouts/HermesShell.astro';
+import { readItems } from '../../lib/directus-user';
+import { dayKey, formatWhen, relative } from '../../lib/format';
+import { feedbackView, parseStatusTab, playerUrl, senderAccounts, stateOf, STATUS_TABS, MAX_BODY, MAX_SUBJECT, type FeedbackRow, type SenderRow } from '../../lib/feedback';
+import { listFeedback, persibConfigured } from '../../lib/persib-directus';
+
+export const prerender = false;
+
+const tab = parseStatusTab(Astro.url.searchParams.get('tab'));
+const category = Astro.url.searchParams.get('cat') || null;
+const query = (Astro.url.searchParams.get('q') ?? '').slice(0, 100);
+const SHOW = 30;
+const shown = Math.min(1000, Math.max(SHOW, Number(Astro.url.searchParams.get('n')) || SHOW));
+
+let rows: FeedbackRow[] = [];
+let problem = '';
+if (!persibConfigured()) {
+  problem = 'The sejarahpersib.com Directus is not connected yet (PERSIB_DIRECTUS_TOKEN is not set).';
+} else {
+  try {
+    rows = await listFeedback();
+  } catch {
+    problem = 'Could not read the feedback from the sejarahpersib.com Directus.';
+  }
+}
+const accounts = await readItems<SenderRow>(Astro.locals.hermesToken!, 'connected_accounts', { limit: -1 }).catch(() => null);
+const senders = accounts ? senderAccounts(accounts.data) : [];
+
+const view = feedbackView(rows, tab, category, query);
+const items = view.items.slice(0, shown);
+const today = dayKey(new Date().toISOString());
+const todayCount = rows.filter((r) => dayKey(r.date_created) === today).length;
+
+const href = (next: { tab?: string; cat?: string | null; n?: number }) => {
+  const params = new URLSearchParams();
+  const t = next.tab ?? tab;
+  const c = next.cat === undefined ? category : next.cat;
+  if (t !== 'all') params.set('tab', t);
+  if (c) params.set('cat', c);
+  if (query) params.set('q', query);
+  if (next.n) params.set('n', String(next.n));
+  const text = params.toString();
+  return text ? `?${text}` : Astro.url.pathname;
+};
+const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' } as const;
+---
+
+<HermesShell title="Feedback" current="feedback" area="persib">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Feedback</h1>
+      <p class="label muted">{view.counts.all} messages · {view.counts.new} to review · {todayCount} today</p>
+    </div>
+
+    {problem && <p class="notice error" role="alert">{problem}</p>}
+    {!problem && senders.length === 0 && <p class="notice" role="status">No connected Google account can send email yet, so replies are switched off. Connect one on the Accounts page.</p>}
+
+    <form class="feedback-search" method="get" role="search">
+      {tab !== 'all' && <input type="hidden" name="tab" value={tab} />}
+      {category && <input type="hidden" name="cat" value={category} />}
+      <label class="label muted" for="feedback-q">Search name, email, message or player</label>
+      <input id="feedback-q" class="search" type="search" name="q" value={query} maxlength="100" />
+    </form>
+
+    <div class="type-tabs" role="tablist" aria-label="Show feedback by status">
+      {
+        STATUS_TABS.map((t) => (
+          <a role="tab" class="type-tab" href={href({ tab: t.key })} aria-selected={t.key === tab ? 'true' : 'false'}>
+            {t.label}
+            <span class="type-tab-count">{view.counts[t.key]}</span>
+          </a>
+        ))
+      }
+    </div>
+
+    {
+      view.categories.length > 1 && (
+        <p class="feedback-cats label">
+          <a class="arrow-link" href={href({ cat: null })} aria-current={category ? undefined : 'true'}>All categories</a>
+          {view.categories.map((c) => (
+            <a class="arrow-link" href={href({ cat: c.name })} aria-current={category === c.name ? 'true' : undefined}>{c.name} ({c.count})</a>
+          ))}
+        </p>
+      )
+    }
+
+    <section class="block feed" aria-label="Feedback">
+      {
+        items.map((row) => {
+          const state = stateOf(row);
+          const player = row.pemain ? { name: row.pemain.nama_lengkap, url: playerUrl(row.pemain.slug) } : null;
+          return (
+            <article class="update" data-feedback={row.id} data-state={state} data-email={row.email ?? undefined} data-name={row.nama ?? undefined}>
+              <time class="update-when" datetime={row.date_created ?? undefined}>
+                {formatWhen(row.date_created)}
+                <span class="sub">{relative(row.date_created)}</span>
+              </time>
+              <div class="update-body">
+                <h3 class="update-title">
+                  <span>{row.nama || 'Anonymous'}</span>
+                  <span class="chips">
+                    <span class="tag tag-idle">{row.kategori || 'Lainnya'}</span>
+                    <span class={state === 'new' ? 'tag tag-fail' : state === 'replied' ? 'tag' : 'tag tag-idle'}>{stateLabel[state]}</span>
+                  </span>
+                </h3>
+                <p class="feedback-meta label muted">
+                  {row.email ? <a href={`mailto:${row.email}`}>{row.email}</a> : 'No email left'}
+                  {player && <> · Player: {player.url ? <a href={player.url} target="_blank" rel="noopener">{player.name}</a> : player.name}</>}
+                </p>
+                <p class="feedback-message">{row.pesan}</p>
+                {
+                  row.dibalas_pada && (
+                    <details class="feedback-reply">
+                      <summary>Replied {formatWhen(row.dibalas_pada)} from {row.balasan_dari}</summary>
+                      <p class="label muted">Subject: {row.balasan_subjek}</p>
+                      <p class="feedback-message">{row.balasan_isi}</p>
+                    </details>
+                  )
+                }
+                <p class="update-actions">
+                  {state === 'new' && <button type="button" class="btn" data-review={row.id}>Mark as reviewed</button>}
+                  {state === 'reviewed' && <button type="button" class="btn" data-unreview={row.id}>Mark as not reviewed</button>}
+                  {
+                    row.email && senders.length > 0 && (
+                      <button type="button" class="btn" data-reply={row.id} data-replied={row.dibalas_pada ? 'true' : undefined}>
+                        {state === 'replied' ? 'Reply again' : 'Reply by email'}
+                      </button>
+                    )
+                  }
+                </p>
+              </div>
+            </article>
+          );
+        })
+      }
+      {!items.length && !problem && <p class="empty">{rows.length ? 'Nothing matches this filter.' : 'No feedback yet.'}</p>}
+    </section>
+
+    {view.items.length > shown && <p class="label"><a class="arrow-link" href={href({ n: shown + SHOW })}>Older messages</a></p>}
+
+    <p class="label muted">Messages come from the form on sejarahpersib.com. Replies are sent by the agent from the account you pick, and what was sent is saved with the message.</p>
+  </div>
+
+  <dialog class="dlg dlg-reply" id="reply-dialog" aria-labelledby="reply-title">
+    <form method="dialog" id="reply-form">
+      <h2 id="reply-title">Reply by email</h2>
+      <p class="dlg-message" id="reply-original"></p>
+      <label class="dlg-field">
+        <span class="label muted">From</span>
+        <select name="from" required>
+          {senders.map((s) => <option value={s.address}>{s.label}</option>)}
+        </select>
+      </label>
+      <label class="dlg-field">
+        <span class="label muted">To</span>
+        <input type="text" name="to" readonly tabindex="-1" />
+      </label>
+      <label class="dlg-field">
+        <span class="label muted">Subject</span>
+        <input type="text" name="subject" maxlength={MAX_SUBJECT} required />
+      </label>
+      <label class="dlg-field">
+        <span class="label muted" id="reply-body-label">Message</span>
+        <textarea name="body" rows="10" maxlength={MAX_BODY} required></textarea>
+      </label>
+      <p class="dlg-status label muted" id="reply-status" role="status" aria-live="polite"></p>
+      <p class="dlg-error" id="reply-error" role="alert"></p>
+      <div class="dlg-actions">
+        <button type="button" class="btn" id="reply-redraft">Draft again</button>
+        <button type="button" class="btn" id="reply-cancel">Cancel</button>
+        <button type="submit" class="btn btn-solid" id="reply-send">Send email</button>
+      </div>
+    </form>
+  </dialog>
+</HermesShell>
+
+<script>
+  import '../../scripts/persib-feedback';
+</script>
+
+<style is:global>
+  .feedback-search {
+    display: grid;
+    gap: 6px;
+    margin-bottom: var(--s-22);
+  }
+  .feedback-cats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    margin: var(--s-15) 0 0;
+  }
+  .feedback-cats [aria-current='true'] {
+    font-weight: var(--w-regular);
+    text-decoration: underline;
+  }
+  .feedback-meta {
+    margin: 6px 0 0;
+    overflow-wrap: anywhere;
+  }
+  .feedback-message {
+    margin: 8px 0 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .feedback-reply {
+    margin: var(--s-15) 0 0;
+    padding-left: var(--s-15);
+    border-left: 1px solid var(--te-grey-200);
+  }
+  .feedback-reply summary {
+    cursor: pointer;
+    font-size: var(--text-caption);
+  }
+  .update[data-state='new'] {
+    border-left: 3px solid var(--te-orange);
+    padding-left: var(--s-15);
+  }
+  .dlg-reply {
+    width: min(620px, calc(100vw - 32px));
+  }
+  .dlg .dlg-field input[readonly] {
+    background: var(--te-grey-100);
+    color: var(--te-grey-600);
+  }
+  .dlg .dlg-field textarea {
+    width: 100%;
+    font: inherit;
+    font-size: var(--text-body);
+    background: var(--te-white);
+    border: 1px solid var(--te-grey-200);
+    border-radius: 0;
+    padding: 10px 12px;
+    resize: vertical;
+    min-height: 160px;
+  }
+  .dlg .dlg-field textarea:focus-visible {
+    outline: 1px solid var(--te-black);
+    outline-offset: 0;
+  }
+  .dlg-reply .dlg-message {
+    max-height: 7.5em;
+    overflow-y: auto;
+    padding: 8px 10px;
+    background: var(--te-white);
+    border-left: 2px solid var(--te-grey-200);
+  }
+  .dlg-status {
+    margin: 8px 0 0;
+    min-height: 1.2em;
+  }
+</style>

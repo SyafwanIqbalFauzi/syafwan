@@ -12,7 +12,7 @@ test('allItems covers all areas', () => {
   assert.equal(items.filter((i) => i.area === 'agent').length, 6);
   assert.equal(items.filter((i) => i.area === 'finance').length, 4);
   assert.equal(items.filter((i) => i.area === 'accounts').length, 1);
-  assert.equal(items.filter((i) => i.area === 'persib').length, 1);
+  assert.equal(items.filter((i) => i.area === 'persib').length, 2);
   assert.equal(new Set(items.map((i) => i.href)).size, items.length);
 });
 

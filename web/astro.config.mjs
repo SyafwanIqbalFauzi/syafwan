@@ -22,6 +22,10 @@ export default defineConfig({
       DIRECTUS_TOKEN: envField.string({ context: 'server', access: 'secret' }),
       // Create-only token for the Autoplay Blocker report form (cms/autoplay-reports-setup.mjs). Unset = form shows "unavailable".
       DIRECTUS_REPORT_TOKEN: envField.string({ context: 'server', access: 'secret', optional: true }),
+      // Directus of sejarahpersib.com (a separate instance): token that reads `feedback` and changes only its
+      // review / reply fields. Unset = /sejarahpersib/feedback says it is not connected.
+      PERSIB_DIRECTUS_URL: envField.string({ context: 'server', access: 'secret', default: 'http://sejarah-persib-directus-1:8055' }),
+      PERSIB_DIRECTUS_TOKEN: envField.string({ context: 'server', access: 'secret', optional: true }),
       // Read at runtime: a "public" field would be inlined at build time with the localhost default.
       PUBLIC_CMS_URL: envField.string({ context: 'server', access: 'secret', default: 'http://localhost:8055' }),
       // Hermes API server on the VPS host (see src/lib/hermes.ts). The key never reaches the browser.
