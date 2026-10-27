@@ -21,7 +21,7 @@ const { current, email, area = 'agent' } = Astro.props;
 
 const groups = AREAS[area].groups;
 const AREA_NAME: Record<Area, string> = { agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'persib' };
-const AREA_PICTOGRAM: Record<Area, Section> = { agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'updates' };
+const AREA_PICTOGRAM: Record<Area, Section | 'persib'> = { agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'persib' };
 const brand = { href: AREAS[area].home, name: AREA_NAME[area] };
 
 // Results that wait for a look from the owner (badge on the Persib rail link and its page entry).

@@ -3,7 +3,7 @@
 // header (pinwheel, store bag, frame, finder): flat shapes, no strokes to speak of.
 // Cut-outs use the page colour so they read as negative space.
 interface Props {
-  name: 'work' | 'about' | 'writing' | 'overview' | 'agents' | 'chat' | 'sessions' | 'usage' | 'skills' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts' | 'updates';
+  name: 'work' | 'about' | 'writing' | 'overview' | 'agents' | 'chat' | 'sessions' | 'usage' | 'skills' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts' | 'updates' | 'persib';
   size?: number;
 }
 const { name, size = 56 } = Astro.props;
@@ -97,6 +97,20 @@ const { name, size = 56 } = Astro.props;
     )
   }
   {
+    name === 'persib' && (
+      <>
+        <path d="M7 5H49V29C49 42 39 50 28 55C17 50 7 42 7 29Z" class="fill" />
+        <circle cx="28" cy="26" r="13" class="cut" />
+        <polygon points="28,20 33.7,24.1 31.5,30.9 24.5,30.9 22.3,24.1" class="fill" />
+        <line x1="28" y1="20" x2="28" y2="13" class="fillline" />
+        <line x1="33.7" y1="24.1" x2="40.4" y2="22" class="fillline" />
+        <line x1="31.5" y1="30.9" x2="35.6" y2="36.5" class="fillline" />
+        <line x1="24.5" y1="30.9" x2="20.4" y2="36.5" class="fillline" />
+        <line x1="22.3" y1="24.1" x2="15.6" y2="22" class="fillline" />
+      </>
+    )
+  }
+  {
     name === 'updates' && (
       <>
         <rect x="4" y="8" width="8" height="8" class="fill" />
@@ -174,5 +188,11 @@ const { name, size = 56 } = Astro.props;
 
   .cut {
     fill: var(--te-page);
+  }
+
+  /* Seams of the ball in the Persib shield: lines in the ink colour */
+  .fillline {
+    stroke: currentColor;
+    stroke-width: 2.4;
   }
 </style>
