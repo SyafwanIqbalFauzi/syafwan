@@ -73,7 +73,10 @@ const sources = [...bySource].sort((a, b) => b[1].cost - a[1].cost);
   <div class="container page">
     <div class="page-head">
       <h1 class="h1">Usage</h1>
-      <p class="label muted">newest sessions first</p>
+      <div class="page-actions">
+        <p class="label muted">newest sessions first</p>
+        <button type="button" class="btn" data-usage-refresh data-checked-at={plan?.checkedAt ?? ''}>Refresh</button>
+      </div>
     </div>
 
     <ClaudeUsage view={plan} />
@@ -157,7 +160,17 @@ const sources = [...bySource].sort((a, b) => b[1].cost - a[1].cost);
   </div>
 </HermesShell>
 
+<script>
+  import '../../scripts/usage-refresh';
+</script>
+
 <style is:global>
+  .page-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--s-15);
+  }
+
   .row-usage {
     grid-template-columns: minmax(160px, 2fr) 1fr 1fr 1fr;
     padding-block: 10px;
