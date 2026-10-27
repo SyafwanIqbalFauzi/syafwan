@@ -12,6 +12,7 @@ test('allItems covers all areas', () => {
   assert.equal(items.filter((i) => i.area === 'agent').length, 6);
   assert.equal(items.filter((i) => i.area === 'finance').length, 4);
   assert.equal(items.filter((i) => i.area === 'accounts').length, 1);
+  assert.equal(items.filter((i) => i.area === 'persib').length, 1);
   assert.equal(new Set(items.map((i) => i.href)).size, items.length);
 });
 
@@ -21,6 +22,9 @@ test('areaOf', () => {
   assert.equal(areaOf('/finance/budgets'), 'finance');
   assert.equal(areaOf('/accounts'), 'accounts');
   assert.equal(areaOf('/accountsx'), null);
+  assert.equal(areaOf('/sejarahpersib'), 'persib');
+  assert.equal(areaOf('/sejarahpersib/x'), 'persib');
+  assert.equal(areaOf('/sejarahpersibx'), null);
   assert.equal(areaOf('/financex'), null);
   assert.equal(areaOf('/en'), null);
 });

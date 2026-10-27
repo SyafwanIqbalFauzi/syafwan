@@ -2,8 +2,8 @@
 // Ctrl+K palette, and "last page visited per area" so switching area returns to where you were.
 // Pure functions; storage is injected, so it is unit-tested without a browser.
 
-export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts';
-export type Area = 'agent' | 'finance' | 'accounts';
+export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts' | 'updates';
+export type Area = 'agent' | 'finance' | 'accounts' | 'persib';
 
 export interface NavItem {
   section: Section;
@@ -71,9 +71,19 @@ export const AREAS: Record<Area, { label: string; home: string; groups: NavGroup
       },
     ],
   },
+  persib: {
+    label: 'Persib',
+    home: '/sejarahpersib',
+    groups: [
+      {
+        label: 'Agents at work',
+        items: [{ section: 'updates', href: '/sejarahpersib', label: 'Updates' }],
+      },
+    ],
+  },
 };
 
-export const AREA_ORDER: Area[] = ['agent', 'finance', 'accounts'];
+export const AREA_ORDER: Area[] = ['agent', 'finance', 'accounts', 'persib'];
 
 export function allItems(): NavItem[] {
   return AREA_ORDER.flatMap((area) =>
@@ -84,6 +94,7 @@ export function allItems(): NavItem[] {
 export function areaOf(pathname: string): Area | null {
   if (pathname === '/finance' || pathname.startsWith('/finance/')) return 'finance';
   if (pathname === '/accounts' || pathname.startsWith('/accounts/')) return 'accounts';
+  if (pathname === '/sejarahpersib' || pathname.startsWith('/sejarahpersib/')) return 'persib';
   if (pathname === '/agent' || pathname.startsWith('/agent/')) return 'agent';
   return null;
 }

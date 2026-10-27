@@ -121,6 +121,31 @@ class RedactTests(unittest.TestCase):
         self.assertEqual(s.hide_credential_paths("ls ~/.hermes/credentials/ 2>/dev/null"), "ls ~/.hermes/credentials/ 2>/dev/null")
 
 
+class CheckMarkerTests(unittest.TestCase):
+    def test_plain_line(self):
+        self.assertEqual(s.check_marker("Hasil riset.\n\nPERLU-CEK: 3 draft menunggu persetujuan"), (True, "3 draft menunggu persetujuan"))
+
+    def test_markdown_decorations_and_case(self):
+        self.assertEqual(s.check_marker("ok\n**PERLU-CEK:** dua sumber jadwal bertentangan"), (True, "dua sumber jadwal bertentangan"))
+        self.assertEqual(s.check_marker("> perlu cek: x"), (True, "x"))
+        self.assertEqual(s.check_marker("- NEEDS-CHECK: draft"), (True, "draft"))
+
+    def test_last_marker_wins(self):
+        self.assertEqual(s.check_marker("PERLU-CEK: a\nteks\nPERLU-CEK: b"), (True, "b"))
+
+    def test_no_marker_and_midline_mention_do_not_flag(self):
+        self.assertEqual(s.check_marker("Semua aman."), (False, None))
+        self.assertEqual(s.check_marker("Tidak ada yang perlu cek: aman"), (False, None))
+        self.assertEqual(s.check_marker(None), (False, None))
+        self.assertEqual(s.check_marker(""), (False, None))
+
+    def test_empty_reason_still_flags_and_long_reason_is_cut(self):
+        self.assertEqual(s.check_marker("PERLU-CEK:"), (True, None))
+        flagged, reason = s.check_marker("PERLU-CEK: " + "x" * 500)
+        self.assertTrue(flagged)
+        self.assertEqual(len(reason), s.CHECK_CAP)
+
+
 class ParseTests(unittest.TestCase):
     def test_response_only_and_prompt_dropped(self):
         meta = s.split_run_document(DOC)

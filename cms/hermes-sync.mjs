@@ -45,6 +45,11 @@ const COLLECTIONS = {
       field('summary', 'text', { interface: 'input-multiline' }),
       field('response_md', 'text', { interface: 'input-multiline' }),
       field('error', 'text', { interface: 'input-multiline' }),
+      // /sejarahpersib: the agent asked for a look (PERLU-CEK line), and when the owner marked it as checked.
+      // Also added to an existing collection by cms/hermes-persib.mjs.
+      field('needs_check', 'boolean', { interface: 'boolean' }, { default_value: false }),
+      field('check_reason', 'text', { interface: 'input-multiline' }),
+      field('checked_at', 'timestamp', { interface: 'datetime' }),
     ],
   },
   agent_jobs: {
