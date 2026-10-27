@@ -13,12 +13,27 @@ const COLLECTION = 'autoplay_reports';
 const NAME = 'Autoplay Reports';
 const EMAIL = 'autoplay-reports@example.com';
 
-// --- 1. Collection ---------------------------------------------------------
+// --- 1. Folder + collection ------------------------------------------------
+// A collection without a table is a folder in Directus' Data Model; the reports collection sits inside it.
+const FOLDER = 'autoplay_folder';
 const collections = await api.get('/collections?limit=-1');
-if (!collections.some((c) => c.collection === COLLECTION)) {
+if (!collections.some((c) => c.collection === FOLDER)) {
+  await api.post('/collections', {
+    collection: FOLDER,
+    meta: { icon: 'folder', note: 'Everything for the Autoplay Blocker extension.', translations: [{ language: 'en-US', translation: 'Autoplay Folder' }] },
+    schema: null,
+  });
+  console.log(`+ folder ${FOLDER}`);
+}
+const existing = collections.find((c) => c.collection === COLLECTION);
+if (existing && existing.meta?.group !== FOLDER) {
+  await api.patch(`/collections/${COLLECTION}`, { meta: { group: FOLDER } });
+  console.log(`~ ${COLLECTION} moved into ${FOLDER}`);
+}
+if (!existing) {
   await api.post('/collections', {
     collection: COLLECTION,
-    meta: { icon: 'bug_report', note: 'Reports and questions sent from the Autoplay Blocker report form. Deleted after 12 months.', hidden: false, singleton: false },
+    meta: { group: FOLDER, icon: 'bug_report', note: 'Reports and questions sent from the Autoplay Blocker report form. Deleted after 12 months.', hidden: false, singleton: false },
     schema: {},
     fields: [
       { field: 'id', type: 'integer', meta: { hidden: true, readonly: true, interface: 'input' }, schema: { is_primary_key: true, has_auto_increment: true } },
