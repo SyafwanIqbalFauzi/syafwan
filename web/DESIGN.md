@@ -89,12 +89,13 @@ Everything uses one scale: 4, 8, 11, 15, 22, 33, 66 px (`--s-4 ... --s-66`). Hai
 
 Rule of proximity: space inside a group < space between groups < space between sections.
 
-Vertical rhythm of a page (`.container.page`), decided by the role of the element that follows, in `cms-layout.css`:
+Vertical rhythm of a page (`.container.page`) in `cms-layout.css`. `.page` is a flex column whose `gap` is `--gap-section` (33); an element that introduces what follows pulls it closer with a negative bottom margin (`--pull-*`). Hidden children (inline scripts, an empty notice, a closed dialog) are `display:none` and take no part. Do not use `+` sibling selectors for gaps: they see those hidden siblings.
 
-- after the page head, before a filter bar, tabs, notice or footnote: `--gap-head` (22)
+- after the page head, tabs or a notice: `--gap-head` (22)
 - after a filter bar, before the content it filters: `--gap-lead` (15)
-- block after block, and any element without a role: `--gap-section` (33)
-- a second footnote: `--gap-note-next` (8)
+- back link above a detail title: 11
+- section after section, a footnote after content, and any element without a role: `--gap-section` (33)
+- a second footnote right under the first: 8
 
 Inside components: `--gap-tight` (4) icon and label, `--gap-inline` (8) items on a line, `--gap-stack` (15) items stacked in a card or form, `--pad-control` (11) inputs and buttons, `--pad-row` / `--pad-row-y` list rows, `--pad-dialog` (22).
 
