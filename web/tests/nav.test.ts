@@ -7,10 +7,11 @@ const memory = () => {
   return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
 };
 
-test('allItems covers both areas', () => {
+test('allItems covers all areas', () => {
   const items = allItems();
   assert.equal(items.filter((i) => i.area === 'agent').length, 6);
   assert.equal(items.filter((i) => i.area === 'finance').length, 4);
+  assert.equal(items.filter((i) => i.area === 'accounts').length, 1);
   assert.equal(new Set(items.map((i) => i.href)).size, items.length);
 });
 
@@ -18,6 +19,8 @@ test('areaOf', () => {
   assert.equal(areaOf('/agent'), 'agent');
   assert.equal(areaOf('/agent/chat'), 'agent');
   assert.equal(areaOf('/finance/budgets'), 'finance');
+  assert.equal(areaOf('/accounts'), 'accounts');
+  assert.equal(areaOf('/accountsx'), null);
   assert.equal(areaOf('/financex'), null);
   assert.equal(areaOf('/en'), null);
 });

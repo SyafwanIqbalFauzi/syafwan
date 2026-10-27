@@ -30,7 +30,7 @@ const email = Astro.locals.hermesUser?.email;
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="robots" content="noindex, nofollow" />
     <meta name="theme-color" content="#ffffff" />
-    <title>{title} — {area === 'finance' ? 'finance' : 'agents'}</title>
+    <title>{title} — {area === 'agent' ? 'agents' : area}</title>
     <link rel="icon" href="/favicon.ico" sizes="32x32" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="preload" href={interWoff2} as="font" type="font/woff2" crossorigin />

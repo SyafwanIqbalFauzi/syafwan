@@ -1,0 +1,107 @@
+---
+import HermesShell from '../../layouts/HermesShell.astro';
+import { accountsView } from '../../lib/accounts';
+import { readItems } from '../../lib/directus-user';
+import type { AccountRow } from '../../lib/accounts';
+import { formatWhen, relative } from '../../lib/format';
+
+export const prerender = false;
+
+const result = await readItems<AccountRow>(Astro.locals.hermesToken!, 'connected_accounts', { limit: -1 }).catch(() => null);
+const view = accountsView(result?.data);
+const tagClass = { ok: 'tag', idle: 'tag tag-idle', fail: 'tag tag-fail' } as const;
+---
+
+<HermesShell title="Accounts" current="accounts" area="accounts">
+  <div class="container page">
+    <div class="page-head">
+      <h1 class="h1">Accounts</h1>
+      <div class="page-actions">
+        {view.checkedAt && <p class="label muted">checked {relative(view.checkedAt)}</p>}
+        <button type="button" class="btn" data-accounts-refresh data-checked-at={view.checkedAt ?? ''}>Check now</button>
+      </div>
+    </div>
+
+    {!result && <p class="notice error" role="alert">Could not read the account statuses.</p>}
+
+    <section class="block">
+      <div class="figures">
+        <div class="figure"><p class="value">{view.connected}/{view.accounts.length}</p><p class="label">connected</p></div>
+        <div class="figure"><p class="value">{view.needAction}</p><p class="label">need attention</p></div>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block-head"><h2>Connected accounts</h2><p class="label muted">status is checked every 30 minutes</p></div>
+      <div class="ruled">
+        {
+          view.accounts.map((a) => (
+            <div class="row row-account">
+              <div class="account-who">
+                <span class="name" style="font-size: var(--text-body)">{a.label}</span>
+                <span class="sub">{a.providerLabel} · {a.identifier}</span>
+              </div>
+              <div class="account-status">
+                <span class={tagClass[a.tone]}>{a.statusLabel}</span>
+                {a.stale && <span class="sub">not checked recently</span>}
+                {a.detail && <span class="sub">{a.detail}</span>}
+              </div>
+              <div class="account-times">
+                <span class="sub">checked {a.checkedAt ? relative(a.checkedAt) : 'never'}</span>
+                <span class="sub" title={a.lastOkAt ? formatWhen(a.lastOkAt) : undefined}>last working {a.lastOkAt ? relative(a.lastOkAt) : 'never'}</span>
+              </div>
+              <div class="account-scopes">
+                {a.scopes.length ? (
+                  <details>
+                    <summary class="sub">{a.scopes.length} permissions</summary>
+                    <p class="sub scope-list">{a.scopes.join(', ')}</p>
+                  </details>
+                ) : (
+                  <span class="sub">no permissions</span>
+                )}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+      {!view.accounts.length && result && <p class="empty">No accounts have been reported yet. The check runs every 30 minutes.</p>}
+    </section>
+
+    <p class="label muted">Only the address, status and granted permissions are stored here. Tokens stay on the server and are never shown.</p>
+  </div>
+</HermesShell>
+
+<script>
+  import '../../scripts/accounts-refresh';
+</script>
+
+<style is:global>
+  .row-account {
+    grid-template-columns: minmax(200px, 1.6fr) minmax(160px, 1.2fr) minmax(140px, 1fr) minmax(120px, 1fr);
+  }
+
+  .account-who,
+  .account-status,
+  .account-times {
+    display: flex;
+    flex-direction: column;
+    gap: var(--s-8);
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .account-status > .tag {
+    align-self: flex-start;
+  }
+
+  .scope-list {
+    margin-top: var(--s-8);
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 720px) {
+    .row-account {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+</style>

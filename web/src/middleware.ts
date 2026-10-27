@@ -1,7 +1,7 @@
 import { defineMiddleware } from 'astro:middleware';
 import { authenticate } from './lib/auth';
 
-const isPrivate = (path: string) => path === '/agent' || path.startsWith('/agent/') || path.startsWith('/api/agent/') || path === '/finance' || path.startsWith('/finance/') || path.startsWith('/api/finance/');
+const isPrivate = (path: string) => path === '/agent' || path.startsWith('/agent/') || path.startsWith('/api/agent/') || path === '/finance' || path.startsWith('/finance/') || path.startsWith('/api/finance/') || path === '/accounts' || path.startsWith('/accounts/') || path.startsWith('/api/accounts/');
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /** Sign-in page that sends the person back to where they were going afterwards. */
