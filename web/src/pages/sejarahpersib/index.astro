@@ -3,7 +3,7 @@ import HermesShell from '../../layouts/HermesShell.astro';
 import StatusTag from '../../components/StatusTag.astro';
 import { readItems, type AgentJob } from '../../lib/directus-user';
 import { dayKey, formatWhen, relative } from '../../lib/format';
-import { CATEGORIES, feedView, parseCategory, statusCells, type RunRow } from '../../lib/updates';
+import { CATEGORIES, dedupeRuns, feedView, parseCategory, statusCells, type RunRow } from '../../lib/updates';
 
 export const prerender = false;
 
@@ -33,7 +33,7 @@ const view = feedView(rows, cat, onlyAttention);
 const items = view.items.slice(0, shown);
 const cells = statusCells(jobs);
 const today = dayKey(new Date().toISOString());
-const todayCount = rows.filter((r) => dayKey(r.started_at) === today).length;
+const todayCount = dedupeRuns(rows).filter((r) => dayKey(r.started_at) === today).length;
 const syncedAt = jobs.map((j) => j.synced_at).filter(Boolean).sort().at(-1);
 
 const href = (next: { cat?: string; check?: boolean; n?: number }) => {
@@ -53,7 +53,7 @@ const toneClass = { ok: 'dot', fail: 'dot dot-fail', idle: 'dot dot-idle' } as c
     <div class="page-head">
       <h1 class="h1">Updates</h1>
       <p class="label muted">
-        {rows.length} results · {todayCount} today{syncedAt ? ` · synced ${relative(syncedAt)}` : ''}
+        {view.counts.all} results · {todayCount} today{syncedAt ? ` · synced ${relative(syncedAt)}` : ''}
       </p>
     </div>
 
