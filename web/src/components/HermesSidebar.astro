@@ -20,6 +20,8 @@ interface Props {
 const { current, email, area = 'agent' } = Astro.props;
 
 const groups = AREAS[area].groups;
+// Accounts sits at the bottom of the rail, right above Search.
+const railOrder = [...AREA_ORDER.filter((key) => key !== 'accounts'), ...AREA_ORDER.filter((key) => key === 'accounts')];
 const AREA_NAME: Record<Area, string> = { agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'persib' };
 const AREA_PICTOGRAM: Record<Area, Section | 'persib'> = { agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'persib' };
 const brand = { href: AREAS[area].home, name: AREA_NAME[area] };
@@ -44,8 +46,8 @@ if (token) {
 <aside class="sidebar" data-sidebar data-area={area}>
   <nav class="rail" aria-label="Area">
     {
-      AREA_ORDER.map((key) => (
-        <a href={AREAS[key].home} class="rail-link" data-area-link={key} aria-current={key === area ? 'true' : undefined}>
+      railOrder.map((key) => (
+        <a href={AREAS[key].home} class={key === 'accounts' ? 'rail-link rail-account' : 'rail-link'} data-area-link={key} aria-current={key === area ? 'true' : undefined}>
           <Pictogram name={AREA_PICTOGRAM[key]} size={22} />
           <span class="rail-label">{AREAS[key].label}</span>
           {key === 'persib' && waiting > 0 && <span class="rail-dot" title={`${waiting} waiting for your check`} aria-label={`${waiting} waiting for your check`}>{waiting > 99 ? '99+' : waiting}</span>}
@@ -241,7 +243,7 @@ if (token) {
     font-weight: var(--w-regular);
   }
 
-  .rail-search {
+  .rail-account {
     margin-top: auto;
   }
 
@@ -451,7 +453,7 @@ if (token) {
       border-top-color: var(--te-black);
     }
 
-    .rail-search {
+    .rail-account {
       margin-top: 0;
     }
 
