@@ -1,4 +1,5 @@
 ---
+import FilterBar from '../../components/FilterBar.astro';
 import HermesShell from '../../layouts/HermesShell.astro';
 import { readItems } from '../../lib/directus-user';
 import { dayKey, formatWhen, relative } from '../../lib/format';
@@ -56,12 +57,12 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
     {problem && <p class="notice error" role="alert">{problem}</p>}
     {!problem && senders.length === 0 && <p class="notice" role="status">No connected Google account can send email yet, so replies are switched off. Connect one on the Accounts page.</p>}
 
-    <form class="feedback-search" method="get" role="search">
-      {tab !== 'all' && <input type="hidden" name="tab" value={tab} />}
-      {category && <input type="hidden" name="cat" value={category} />}
-      <label class="label muted" for="feedback-q">Search name, email, message or player</label>
-      <input id="feedback-q" class="search" type="search" name="q" value={query} maxlength="100" />
-    </form>
+    <FilterBar
+      selects={[{ name: 'cat', label: 'Category', value: category, all: 'All categories', options: view.categories.map((c) => ({ value: c.name, label: `${c.name} (${c.count})` })) }]}
+      search={{ name: 'q', value: query, placeholder: 'Search name, email, message or player' }}
+      keep={{ tab: tab === 'all' ? '' : tab }}
+      resetHref={Astro.url.pathname}
+    />
 
     <div class="type-tabs" role="tablist" aria-label="Show feedback by status">
       {
@@ -73,17 +74,6 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
         ))
       }
     </div>
-
-    {
-      view.categories.length > 1 && (
-        <p class="feedback-cats label">
-          <a class="arrow-link" href={href({ cat: null })} aria-current={category ? undefined : 'true'}>All categories</a>
-          {view.categories.map((c) => (
-            <a class="arrow-link" href={href({ cat: c.name })} aria-current={category === c.name ? 'true' : undefined}>{c.name} ({c.count})</a>
-          ))}
-        </p>
-      )
-    }
 
     <section class="block feed" aria-label="Feedback">
       {
@@ -180,21 +170,6 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
 </script>
 
 <style is:global>
-  .feedback-search {
-    display: grid;
-    gap: 6px;
-    margin-bottom: var(--s-22);
-  }
-  .feedback-cats {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px 18px;
-    margin: var(--s-15) 0 0;
-  }
-  .feedback-cats [aria-current='true'] {
-    font-weight: var(--w-regular);
-    text-decoration: underline;
-  }
   .feedback-meta {
     margin: 6px 0 0;
     overflow-wrap: anywhere;

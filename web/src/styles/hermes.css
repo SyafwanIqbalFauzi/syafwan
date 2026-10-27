@@ -1148,3 +1148,78 @@ a.row:hover {
     gap: 4px;
   }
 }
+
+/* ---- /sejarahpersib feed rows (Updates and Feedback share them; a page-level <style is:global> only ships with that page) ---- */
+.dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: var(--te-black);
+}
+.dot-fail {
+  background: var(--te-orange);
+}
+.dot-idle {
+  background: var(--te-grey-300);
+}
+.notice.attention {
+  border-left: 3px solid var(--te-orange);
+  background: var(--te-white);
+}
+.feed {
+  border-top: 1px solid var(--te-black);
+}
+.update {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: var(--s-15);
+  padding: var(--s-22) 0;
+  border-bottom: 1px solid var(--te-grey-100);
+}
+.update[data-attention='true'] {
+  border-left: 3px solid var(--te-orange);
+  padding-left: var(--s-15);
+}
+.update-when {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-caption);
+  color: var(--te-grey-600);
+}
+.update-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--w-regular);
+}
+.update-reason {
+  margin: 8px 0 0;
+  font-weight: var(--w-regular);
+}
+.update-summary {
+  margin: 8px 0 0;
+  color: var(--te-grey-600);
+  overflow-wrap: anywhere;
+}
+.update-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-15);
+  margin: var(--s-15) 0 0;
+}
+@media (max-width: 720px) {
+  .update {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  .update-when {
+    flex-direction: row;
+    gap: 8px;
+  }
+}
