@@ -1,6 +1,8 @@
 // /sejarahpersib/feedback: mark a message reviewed / not reviewed, and the "Reply by email" modal.
 // The modal asks the agent for a draft (a Hermes run, watched by polling), lets the owner edit it, then
 // sends it through the chosen connected account. Nothing is sent without the owner pressing "Send email".
+// Sending runs in the background: the modal closes at once, the card shows "Sending…" and the page tells the
+// owner when the server has recorded the result (sent, or failed with the reason).
 import { parseSuggestion } from '../lib/feedback.ts';
 import { askConfirm } from './dialog';
 import { flash, toast } from './toast';
@@ -135,8 +137,18 @@ function setupReply(dialog: HTMLDialogElement) {
       fail('');
       delete sendBtn.dataset.sending;
       setBusy(false);
+      // A failed send keeps what was written: open the modal with that text instead of asking for a new draft.
+      const retrySubject = button.dataset.retrySubject;
+      const retryBody = button.dataset.retryBody;
+      const retry = Boolean(retrySubject && retryBody);
+      if (retry) {
+        subject.value = retrySubject!;
+        body.value = retryBody!;
+        if (button.dataset.retryFrom && [...from.options].some((o) => o.value === button.dataset.retryFrom)) from.value = button.dataset.retryFrom;
+        say('Your earlier text is back. Check it and send again.');
+      }
       dialog.showModal();
-      void draft();
+      if (!retry) void draft();
     });
   });
 
@@ -170,20 +182,18 @@ function setupReply(dialog: HTMLDialogElement) {
     ticket += 1; // a draft still running must not touch the text any more
     sendBtn.dataset.sending = 'true';
     setBusy(true);
-    say('Sending through the agent… this can take up to a minute.');
+    say('Handing the email to the agent…');
     try {
-      let result = await call(`/api/sejarahpersib/feedback/${feedbackId}/reply`, { method: 'POST', json: payload });
-      let tries = 0;
-      while (result.data?.state === 'pending' && tries++ < 20) {
-        result = await call(`/api/sejarahpersib/feedback/${feedbackId}/reply-done`, { method: 'POST', json: { ...payload, run_id: result.data.run_id } });
-      }
-      if (result.data?.state === 'sent') {
-        flash('Email sent and saved with the message.');
-        location.reload();
-        return;
-      }
-      if (result.data?.state === 'pending') throw new Error('The agent is still sending. Check the sent folder before trying again.');
-      throw new Error(result.data?.error ?? `Request failed (${result.status})`);
+      const result = await call(`/api/sejarahpersib/feedback/${feedbackId}/reply`, { method: 'POST', json: payload });
+      if (result.status !== 202 || result.data?.state !== 'sending') throw new Error(result.data?.error ?? `Request failed (${result.status})`);
+      // The agent has the job. Close the modal; the server records the outcome without this page.
+      const card = document.querySelector<HTMLElement>(`[data-feedback="${feedbackId}"]`);
+      if (card) markSending(card);
+      delete sendBtn.dataset.sending;
+      setBusy(false);
+      dialog.close();
+      toast('Sending in the background. This card shows the result.', 'info', { title: 'Reply on its way' });
+      watchSending(feedbackId);
     } catch (error) {
       say('');
       fail(error instanceof Error ? error.message : 'Could not send the email');
@@ -192,3 +202,63 @@ function setupReply(dialog: HTMLDialogElement) {
     }
   });
 }
+
+// ------------------------------------------------------------------ background sending
+
+/** Turns a card into its "Sending…" look without a reload. */
+function markSending(card: HTMLElement) {
+  card.dataset.send = 'sending';
+  const chips = card.querySelector('.chips');
+  if (chips && !chips.querySelector('[data-sending-tag]')) {
+    const tag = document.createElement('span');
+    tag.className = 'tag tag-idle';
+    tag.dataset.sendingTag = 'true';
+    tag.textContent = 'Sending…';
+    chips.append(tag);
+  }
+  const button = card.querySelector<HTMLButtonElement>('[data-reply]');
+  if (button) {
+    button.disabled = true;
+    button.textContent = 'Sending…';
+  }
+}
+
+const watching = new Set<string>();
+
+/**
+ * Asks the server how a sending reply is doing until it is over, then reloads with a message. The server
+ * finishes the job on its own, so closing the page loses nothing: the next page load shows the result.
+ */
+async function watchSending(id: string) {
+  if (watching.has(id)) return;
+  watching.add(id);
+  try {
+    const until = Date.now() + 16 * 60_000;
+    while (Date.now() < until) {
+      await sleep(4000);
+      let result;
+      try {
+        result = await call(`/api/sejarahpersib/feedback/${id}/status`);
+      } catch {
+        return; // signed out: call() already redirected
+      }
+      const state = result.data?.state;
+      if (state === 'sent') {
+        flash('Reply sent to the visitor and saved with the message.');
+        location.reload();
+        return;
+      }
+      if (state === 'failed') {
+        flash(`Sending failed: ${result.data?.error ?? 'unknown reason'}`, 'error');
+        location.reload();
+        return;
+      }
+      if (state === 'idle') return;
+    }
+  } finally {
+    watching.delete(id);
+  }
+}
+
+// A card that is already sending when the page opens (a reload, a second tab, a deploy in the middle).
+document.querySelectorAll<HTMLElement>('[data-feedback][data-send="sending"]').forEach((card) => void watchSending(card.dataset.feedback!));

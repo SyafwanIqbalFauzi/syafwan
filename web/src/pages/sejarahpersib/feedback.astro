@@ -3,7 +3,8 @@ import FilterBar from '../../components/FilterBar.astro';
 import HermesShell from '../../layouts/HermesShell.astro';
 import { readItems } from '../../lib/directus-user';
 import { dayKey, formatWhen, relative } from '../../lib/format';
-import { feedbackView, parseStatusTab, playerUrl, senderAccounts, stateOf, STATUS_TABS, MAX_BODY, MAX_SUBJECT, type FeedbackRow, type SenderRow } from '../../lib/feedback';
+import { feedbackView, parsePending, parseStatusTab, playerUrl, senderAccounts, sendStateOf, stateOf, STATUS_TABS, MAX_BODY, MAX_SUBJECT, type FeedbackRow, type SenderRow } from '../../lib/feedback';
+import { reconcileSend } from '../../lib/feedback-reply';
 import { listFeedback, persibConfigured } from '../../lib/persib-directus';
 
 export const prerender = false;
@@ -21,6 +22,8 @@ if (!persibConfigured()) {
 } else {
   try {
     rows = await listFeedback();
+    // A send that was still going when the server restarted is settled here, before anything is drawn.
+    rows = await Promise.all(rows.map((r) => (r.balasan_status === 'sending' ? reconcileSend(r, Astro.locals.hermesUser?.email) : r)));
   } catch {
     problem = 'Could not read the feedback from the sejarahpersib.com Directus.';
   }
@@ -79,9 +82,11 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
       {
         items.map((row) => {
           const state = stateOf(row);
+          const send = sendStateOf(row);
+          const retry = send === 'failed' ? parsePending(row.balasan_run) : null;
           const player = row.pemain ? { name: row.pemain.nama_lengkap, url: playerUrl(row.pemain.slug) } : null;
           return (
-            <article class="update" data-feedback={row.id} data-state={state} data-email={row.email ?? undefined} data-name={row.nama ?? undefined}>
+            <article class="update" data-feedback={row.id} data-state={state} data-send={send === 'idle' ? undefined : send} data-email={row.email ?? undefined} data-name={row.nama ?? undefined}>
               <time class="update-when" datetime={row.date_created ?? undefined}>
                 {formatWhen(row.date_created)}
                 <span class="sub">{relative(row.date_created)}</span>
@@ -92,6 +97,8 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
                   <span class="chips">
                     <span class="tag tag-idle">{row.kategori || 'Lainnya'}</span>
                     <span class={state === 'new' ? 'tag tag-fail' : state === 'replied' ? 'tag' : 'tag tag-idle'}>{stateLabel[state]}</span>
+                    {send === 'sending' && <span class="tag tag-idle">Sending…</span>}
+                    {send === 'failed' && <span class="tag tag-fail">Sending failed</span>}
                   </span>
                 </h3>
                 <p class="feedback-meta label muted">
@@ -99,6 +106,8 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
                   {player && <> · Player: {player.url ? <a href={player.url} target="_blank" rel="noopener">{player.name}</a> : player.name}</>}
                 </p>
                 <p class="feedback-message">{row.pesan}</p>
+                {send === 'sending' && <p class="label muted" role="status">Sending your reply in the background. This card updates when it is done.</p>}
+                {send === 'failed' && <p class="update-reason" role="alert">Sending failed: {row.balasan_error ?? 'unknown reason'}. The text you wrote is kept; use Try again.</p>}
                 {
                   row.dibalas_pada && (
                     <details class="feedback-reply">
@@ -113,8 +122,17 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
                   {state === 'reviewed' && <button type="button" class="btn" data-unreview={row.id}>Mark as not reviewed</button>}
                   {
                     row.email && senders.length > 0 && (
-                      <button type="button" class="btn" data-reply={row.id} data-replied={row.dibalas_pada ? 'true' : undefined}>
-                        {state === 'replied' ? 'Reply again' : 'Reply by email'}
+                      <button
+                        type="button"
+                        class="btn"
+                        data-reply={row.id}
+                        data-replied={row.dibalas_pada ? 'true' : undefined}
+                        data-retry-from={retry?.from}
+                        data-retry-subject={retry?.subject}
+                        data-retry-body={retry?.body}
+                        disabled={send === 'sending'}
+                      >
+                        {send === 'sending' ? 'Sending…' : send === 'failed' ? 'Try again' : state === 'replied' ? 'Reply again' : 'Reply by email'}
                       </button>
                     )
                   }

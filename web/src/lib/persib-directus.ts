@@ -42,7 +42,7 @@ export async function getFeedback(id: number): Promise<FeedbackRow | null> {
   }
 }
 
-export type FeedbackPatch = Partial<Pick<FeedbackRow, 'ditinjau_pada' | 'dibalas_pada' | 'balasan_dari' | 'balasan_subjek' | 'balasan_isi'>>;
+export type FeedbackPatch = Partial<Pick<FeedbackRow, 'ditinjau_pada' | 'dibalas_pada' | 'balasan_dari' | 'balasan_subjek' | 'balasan_isi' | 'balasan_status' | 'balasan_error' | 'balasan_run'>>;
 
 export async function patchFeedback(id: number, data: FeedbackPatch): Promise<void> {
   await call(`/items/feedback/${id}`, { method: 'PATCH', body: data });

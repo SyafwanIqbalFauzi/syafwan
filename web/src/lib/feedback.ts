@@ -17,10 +17,15 @@ export interface FeedbackRow {
   balasan_dari: string | null;
   balasan_subjek: string | null;
   balasan_isi: string | null;
+  /** A reply being sent in the background ('sending') or one that failed ('failed'); null otherwise */
+  balasan_status: 'sending' | 'failed' | null;
+  balasan_error: string | null;
+  /** JSON of the reply in flight (see `PendingSend`), kept after a failure so it can be tried again */
+  balasan_run: string | null;
 }
 
 export const FEEDBACK_FIELDS =
-  'id,date_created,nama,email,kategori,pesan,ditinjau_pada,dibalas_pada,balasan_dari,balasan_subjek,balasan_isi,pemain.id,pemain.slug,pemain.nama_lengkap';
+  'id,date_created,nama,email,kategori,pesan,ditinjau_pada,dibalas_pada,balasan_dari,balasan_subjek,balasan_isi,balasan_status,balasan_error,balasan_run,pemain.id,pemain.slug,pemain.nama_lengkap';
 
 export type StatusTab = 'all' | 'new' | 'reviewed' | 'replied';
 export const STATUS_TABS: { key: StatusTab; label: string }[] = [
@@ -217,3 +222,71 @@ export function parseSendResult(id: number, output: string | null | undefined): 
   }
   return { sent: false, reason: 'The agent did not confirm that the email was sent' };
 }
+
+// ---------------------------------------------------------------- sending in the background
+// The modal closes as soon as the send run is started. What is in flight lives on the feedback row
+// (balasan_status / balasan_error / balasan_run) so it survives a reload or a deploy; the server finishes it
+// without the browser (watchSend) and every page load settles anything left over (reconcileSend).
+
+export interface PendingSend {
+  /** Hermes run that sends the email; null for the moment between claiming the row and starting the run */
+  run_id: string | null;
+  from: string;
+  subject: string;
+  body: string;
+  started_at: string;
+  /** The row already had a reply when this one was started (a failed attempt must not remove the old one) */
+  resend: boolean;
+}
+
+export const PENDING_MAX_AGE_MS = 15 * 60_000;
+
+export function serializePending(pending: PendingSend): string {
+  return JSON.stringify(pending);
+}
+
+export function parsePending(raw: string | null | undefined): PendingSend | null {
+  if (!raw) return null;
+  try {
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return null;
+    const started = typeof data.started_at === 'string' ? data.started_at : '';
+    if (!Number.isFinite(Date.parse(started))) return null;
+    return {
+      run_id: typeof data.run_id === 'string' && /^[A-Za-z0-9_.:-]{1,128}$/.test(data.run_id) ? data.run_id : null,
+      from: typeof data.from === 'string' ? data.from : '',
+      subject: typeof data.subject === 'string' ? data.subject : '',
+      body: typeof data.body === 'string' ? data.body : '',
+      started_at: started,
+      resend: data.resend === true,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export type SendState = 'idle' | 'sending' | 'failed';
+
+/** What the card shows: a send in flight (not older than PENDING_MAX_AGE_MS), a failed one, or nothing. */
+export function sendStateOf(row: Pick<FeedbackRow, 'balasan_status' | 'balasan_run'>, now = Date.now()): SendState {
+  if (row.balasan_status === 'failed') return 'failed';
+  if (row.balasan_status !== 'sending') return 'idle';
+  const pending = parsePending(row.balasan_run);
+  return pending && now - Date.parse(pending.started_at) <= PENDING_MAX_AGE_MS ? 'sending' : 'idle';
+}
+
+export type RunEnd =
+  | { state: 'sent'; messageId: string }
+  | { state: 'failed'; error: string }
+  | { state: 'pending' };
+
+/** Reads a send run that may be over. Only a finished run decides; anything else stays pending. */
+export function outcomeOfRun(id: number, run: { status?: string; output?: string | null } | null): RunEnd {
+  const over = new Set(['completed', 'failed', 'cancelled', 'interrupted']);
+  if (!run?.status || !over.has(run.status)) return { state: 'pending' };
+  if (run.status !== 'completed') return { state: 'failed', error: 'The agent run did not finish, so the email was probably not sent.' };
+  const outcome = parseSendResult(id, run.output);
+  return outcome.sent ? { state: 'sent', messageId: outcome.messageId } : { state: 'failed', error: outcome.reason };
+}
+
+export const STALE_SEND_ERROR = 'Could not confirm the result after 15 minutes. Check the sent folder before trying again.';

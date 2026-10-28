@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   checkReply,
+  outcomeOfRun,
+  parsePending,
+  PENDING_MAX_AGE_MS,
+  sendStateOf,
+  serializePending,
   feedbackView,
   parseStatusTab,
   parseSendResult,
@@ -17,7 +22,7 @@ import {
 
 const row = (over: Partial<FeedbackRow>): FeedbackRow => ({
   id: 1, date_created: '2026-10-01T00:00:00Z', nama: 'Budi', email: 'budi@example.com', kategori: 'Saran fitur', pesan: 'Tambah filter musim',
-  pemain: null, ditinjau_pada: null, dibalas_pada: null, balasan_dari: null, balasan_subjek: null, balasan_isi: null, ...over,
+  pemain: null, ditinjau_pada: null, dibalas_pada: null, balasan_dari: null, balasan_subjek: null, balasan_isi: null, balasan_status: null, balasan_error: null, balasan_run: null, ...over,
 });
 
 test('state: replied beats reviewed beats new', () => {
@@ -108,4 +113,34 @@ test('send result only counts this feedback id', () => {
   assert.equal(parseSendResult(5, null).sent, false);
   // a quoted TERKIRIM earlier, then a failure last: the last line wins
   assert.equal(parseSendResult(5, 'TERKIRIM fb5 a\nGAGAL: x').sent, false);
+});
+
+test('pending send round-trips and rejects broken data', () => {
+  const pending = { run_id: 'run_abc-1', from: 'a@x.com', subject: 'Halo', body: 'Isi', started_at: '2026-10-28T03:00:00.000Z', resend: true };
+  assert.deepEqual(parsePending(serializePending(pending)), pending);
+  assert.equal(parsePending(null), null);
+  assert.equal(parsePending('not json'), null);
+  assert.equal(parsePending('{"started_at":"nope"}'), null);
+  // a run id that is not a plain id is dropped, never trusted
+  assert.equal(parsePending(serializePending({ ...pending, run_id: '../x y' }))?.run_id, null);
+});
+
+test('send state: in flight, failed, or nothing; an old unresolved send is not shown as sending', () => {
+  const now = Date.parse('2026-10-28T03:10:00Z');
+  const pending = (startedAt: string) => serializePending({ run_id: 'r1', from: 'a@x.com', subject: 's', body: 'b', started_at: startedAt, resend: false });
+  assert.equal(sendStateOf(row({ balasan_status: 'sending', balasan_run: pending('2026-10-28T03:05:00Z') }), now), 'sending');
+  assert.equal(sendStateOf(row({ balasan_status: 'sending', balasan_run: pending('2026-10-28T02:00:00Z') }), now), 'idle');
+  assert.equal(sendStateOf(row({ balasan_status: 'sending', balasan_run: null }), now), 'idle');
+  assert.equal(sendStateOf(row({ balasan_status: 'failed' }), now), 'failed');
+  assert.equal(sendStateOf(row({}), now), 'idle');
+  assert.ok(PENDING_MAX_AGE_MS > 5 * 60_000);
+});
+
+test('outcomeOfRun: only a finished run decides, and only this id counts as sent', () => {
+  assert.deepEqual(outcomeOfRun(5, null), { state: 'pending' });
+  assert.deepEqual(outcomeOfRun(5, { status: 'running' }), { state: 'pending' });
+  assert.deepEqual(outcomeOfRun(5, { status: 'completed', output: 'ok\nTERKIRIM fb5 abc' }), { state: 'sent', messageId: 'abc' });
+  assert.deepEqual(outcomeOfRun(5, { status: 'completed', output: 'GAGAL: token kedaluwarsa' }), { state: 'failed', error: 'token kedaluwarsa' });
+  assert.equal(outcomeOfRun(5, { status: 'completed', output: 'TERKIRIM fb6 abc' }).state, 'failed');
+  assert.equal(outcomeOfRun(5, { status: 'failed', output: 'TERKIRIM fb5 abc' }).state, 'failed');
 });
