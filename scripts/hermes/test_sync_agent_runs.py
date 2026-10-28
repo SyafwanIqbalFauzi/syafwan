@@ -121,6 +121,41 @@ class RedactTests(unittest.TestCase):
         self.assertEqual(s.hide_credential_paths("ls ~/.hermes/credentials/ 2>/dev/null"), "ls ~/.hermes/credentials/ 2>/dev/null")
 
 
+class RelatedLinksTests(unittest.TestCase):
+    def test_pull_request_and_entities_from_the_flagged_line(self):
+        text = (
+            "Hasil. PR: https://github.com/SyafwanIqbalFauzi/sejarah-persib/pull/9\n"
+            "PERLU-CEK: Asep Dayat (id=326) periodenya kemungkinan 1994-2005. Statistik Suwita Pata (id=25) salah klub."
+        )
+        links = s.related_links("riset-data-persib", text)
+        self.assertEqual(
+            links,
+            [
+                {"label": "PR #9", "url": "https://github.com/SyafwanIqbalFauzi/sejarah-persib/pull/9"},
+                {"label": "Asep Dayat", "url": "https://sejarahpersib.com/panel/content/players/326"},
+                {"label": "Suwita Pata", "url": "https://sejarahpersib.com/panel/content/players/25"},
+            ],
+        )
+
+    def test_id_list_uses_the_word_on_the_line_else_the_job_default(self):
+        links = s.related_links("riset-data-persib", "Enam laga Okt 2026 menunggu (id 37, 3, 46).")
+        self.assertEqual([l["url"].rsplit("/", 2)[-2:] for l in links], [["matches", "37"], ["matches", "3"], ["matches", "46"]])
+        self.assertEqual(s.related_links("ui-ux-persib", "(id=5) tanpa petunjuk"), [])
+
+    def test_site_pages_from_paths_and_urls_but_not_noise(self):
+        text = "Cek `/pertandingan/956` dan https://sejarahpersib.com/pemain/robby-darwis. Ping https://sejarahpersib.com/panel/server/ping dan jadwal-persib.ics."
+        self.assertEqual(
+            [l["url"] for l in s.related_links("ui-ux-persib", text)],
+            ["https://sejarahpersib.com/pertandingan/956", "https://sejarahpersib.com/pemain/robby-darwis"],
+        )
+
+    def test_foreign_links_are_ignored_and_the_list_is_capped(self):
+        self.assertEqual(s.related_links("x", "lihat https://evil.example/pull/1 dan https://github.com/other/repo/pull/2"), [])
+        many = " ".join(f"/pertandingan/{n}" for n in range(20))
+        self.assertEqual(len(s.related_links("x", many)), s.LINKS_CAP)
+        self.assertEqual(s.related_links("x", None), [])
+
+
 class CheckMarkerTests(unittest.TestCase):
     def test_plain_line(self):
         self.assertEqual(s.check_marker("Hasil riset.\n\nPERLU-CEK: 3 draft menunggu persetujuan"), (True, "3 draft menunggu persetujuan"))

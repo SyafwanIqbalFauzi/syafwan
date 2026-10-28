@@ -72,3 +72,45 @@
     gap: var(--s-8);
   }
 }
+
+/* ---- Updates: links to what a result is about, and the follow-up modal ---- */
+.update-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-8) var(--s-15);
+  margin: var(--s-11) 0 0;
+}
+.update-actions {
+  flex-wrap: wrap;
+}
+.dlg-followup {
+  width: min(620px, calc(100vw - 32px));
+}
+.dlg-followup .dlg-context {
+  margin: 0 0 var(--s-15);
+  max-height: 9em;
+  overflow-y: auto;
+  padding: var(--s-8) var(--s-11);
+  background: var(--te-white);
+  border-left: 2px solid var(--te-grey-200);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dlg-followup .dlg-field textarea {
+  min-height: 130px;
+}
+.dlg-followup .dlg-note {
+  margin: var(--s-8) 0 0;
+  min-height: 1.2em;
+}
+.dlg-followup .dlg-answer {
+  margin: var(--s-15) 0 0;
+  max-height: 16em;
+  overflow-y: auto;
+  padding: var(--s-11);
+  background: var(--te-white);
+  border: 1px solid var(--te-grey-200);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

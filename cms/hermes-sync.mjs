@@ -50,6 +50,9 @@ const COLLECTIONS = {
       field('needs_check', 'boolean', { interface: 'boolean' }, { default_value: false }),
       field('check_reason', 'text', { interface: 'input-multiline' }),
       field('checked_at', 'timestamp', { interface: 'datetime' }),
+      field('related_links', 'json', { interface: 'input-code', options: { language: 'json' } }),
+      field('followup_at', 'timestamp', { interface: 'datetime' }),
+      field('followup_session', 'string', { interface: 'input' }, { max_length: 128 }),
     ],
   },
   agent_jobs: {

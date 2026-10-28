@@ -1,4 +1,6 @@
-// Adds the three fields /sejarahpersib needs to the existing `agent_runs` collection:
+// Adds the fields /sejarahpersib needs to the existing `agent_runs` collection:
+//   related_links     links to what the result is about (set by sync_agent_runs.py)
+//   followup_at / followup_session   the owner sent a follow-up instruction to Hermes (set by the web)
 //   needs_check   the agent ended its answer with a PERLU-CEK line (set by sync_agent_runs.py)
 //   check_reason  the text after PERLU-CEK:
 //   checked_at    when the owner pressed "Mark as checked" (set by the web, with the owner's own token)
@@ -14,6 +16,11 @@ const FIELDS = [
   { field: 'needs_check', type: 'boolean', meta: { interface: 'boolean', note: 'The agent asked for a person to look at this result' }, schema: { default_value: false } },
   { field: 'check_reason', type: 'text', meta: { interface: 'input-multiline' }, schema: {} },
   { field: 'checked_at', type: 'timestamp', meta: { interface: 'datetime', note: 'When the owner marked this result as checked' }, schema: {} },
+  // Links to what the result is about ([{label, url}], set by sync_agent_runs.py; [] = none found, null = not computed yet).
+  { field: 'related_links', type: 'json', meta: { interface: 'input-code', options: { language: 'json' }, note: 'Links to what this result is about' }, schema: {} },
+  // The owner sent a follow-up instruction to Hermes from /sejarahpersib (set by the web with the owner's token).
+  { field: 'followup_at', type: 'timestamp', meta: { interface: 'datetime', note: 'When the owner last sent a follow-up instruction about this result' }, schema: {} },
+  { field: 'followup_session', type: 'string', meta: { interface: 'input', note: 'Hermes chat session of that follow-up' }, schema: { max_length: 128 } },
 ];
 
 const existing = new Set((await api.get('/fields/agent_runs')).map((f) => f.field));
