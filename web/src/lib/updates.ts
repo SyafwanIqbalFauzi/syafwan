@@ -7,10 +7,27 @@ export const CATEGORIES = [
   { key: 'research', label: 'Research' },
   { key: 'schedule', label: 'Schedule & standings' },
   { key: 'dev', label: 'UI/UX & dev' },
-  { key: 'system', label: 'System' },
+  { key: 'system', label: 'Website & backup' },
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number]['key'];
+
+/**
+ * This page is only about sejarahpersib. A job belongs here when its name contains one of these words;
+ * every other agent or script (finance, token logs, deploy checks, Hermes backups, ...) is covered by
+ * /agent and stays out of the feed, the "needs your check" count and the sidebar badge.
+ */
+export const PERSIB_KEYWORDS = ['persib', 'klasemen', 'uiux', 'ux-scan', 'match-detail'] as const;
+
+export function isPersibJob(jobName: string | null | undefined): boolean {
+  const name = (jobName ?? '').toLowerCase();
+  return PERSIB_KEYWORDS.some((k) => name.includes(k));
+}
+
+/** Directus filter keeping only Persib runs, shared by the page and the badge. `group` is the `_and` slot it occupies. */
+export function persibParams(group: string): Record<string, string> {
+  return Object.fromEntries(PERSIB_KEYWORDS.map((k, i) => [`${group}[_or][${i}][job_name][_icontains]`, k]));
+}
 export type RealCategory = Exclude<Category, 'all'>;
 
 /** First matching rule wins; anything unknown is "system", so a new job never disappears from the feed. */
@@ -75,6 +92,7 @@ export function attentionParams(now = Date.now()): Record<string, string> {
     'filter[_and][1][_or][0][needs_check][_eq]': 'true',
     'filter[_and][1][_or][1][_and][0][status][_eq]': 'failed',
     'filter[_and][1][_or][1][_and][1][started_at][_gte]': since,
+    ...persibParams('filter[_and][2]'),
   };
 }
 
@@ -113,7 +131,7 @@ export function dedupeRuns<T extends Pick<RunRow, 'job_id' | 'execution_id' | 's
 
 /** Newest first. `cat` filters the list; counts always cover everything so the tabs stay stable. */
 export function feedView(rows: RunRow[], cat: Category, onlyAttention: boolean, now = Date.now()): FeedView {
-  const all: FeedItem[] = dedupeRuns(rows)
+  const all: FeedItem[] = dedupeRuns(rows.filter((r) => isPersibJob(r.job_name)))
     .map((run) => {
       const attention = needsCheck(run, now);
       return { run, category: categoryOf(run.job_name), attention, reason: attention ? checkReason(run) : null };

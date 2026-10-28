@@ -3,7 +3,7 @@ import HermesShell from '../../layouts/HermesShell.astro';
 import StatusTag from '../../components/StatusTag.astro';
 import { readItems, type AgentJob } from '../../lib/directus-user';
 import { dayKey, formatWhen, relative } from '../../lib/format';
-import { CATEGORIES, dedupeRuns, feedView, parseCategory, statusCells, type RunRow } from '../../lib/updates';
+import { CATEGORIES, dedupeRuns, feedView, isPersibJob, parseCategory, persibParams, statusCells, type RunRow } from '../../lib/updates';
 
 export const prerender = false;
 
@@ -21,6 +21,7 @@ try {
     await readItems<RunRow>(token, 'agent_runs', {
       limit: 400,
       sort: '-started_at',
+      ...persibParams('filter[_and][0]'),
       fields: 'id,execution_id,job_id,job_name,kind,status,started_at,summary,error,needs_check,check_reason,checked_at',
     })
   ).data;
@@ -33,7 +34,7 @@ const view = feedView(rows, cat, onlyAttention);
 const items = view.items.slice(0, shown);
 const cells = statusCells(jobs);
 const today = dayKey(new Date().toISOString());
-const todayCount = dedupeRuns(rows).filter((r) => dayKey(r.started_at) === today).length;
+const todayCount = dedupeRuns(rows.filter((r) => isPersibJob(r.job_name))).filter((r) => dayKey(r.started_at) === today).length;
 const syncedAt = jobs.map((j) => j.synced_at).filter(Boolean).sort().at(-1);
 
 const href = (next: { cat?: string; check?: boolean; n?: number }) => {

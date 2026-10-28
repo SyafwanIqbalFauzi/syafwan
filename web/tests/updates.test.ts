@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { attentionParams, categoryOf, checkReason, dedupeRuns, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
+import { attentionParams, categoryOf, isPersibJob, persibParams, checkReason, dedupeRuns, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
 
 const NOW = Date.parse('2026-10-27T10:00:00Z');
 const run = (over: Partial<RunRow>): RunRow => ({
@@ -118,4 +118,32 @@ test('feedView counts a duplicated run once', () => {
 test('statusCells watches the hourly website job, not the escalation agent', () => {
   const cells = statusCells([{ name: 'watchdog-web-persib-cheap', last_status: 'ok', last_run_at: 'a' }]);
   assert.equal(cells[0].tone, 'ok');
+});
+
+test('isPersibJob keeps Persib jobs and drops everything else', () => {
+  for (const n of ['riset-data-persib', 'riset-klasemen-persib-daily', 'update-klasemen-berjalan', 'ui-ux-persib', 'dev-persib', 'ux-scan-mingguan', 'chain-uiux-to-dev', 'riset-match-detail', 'watchdog-web-persib-cheap', 'backup-data-sejarah-persib']) {
+    assert.equal(isPersibJob(n), true, n);
+  }
+  for (const n of ['insight-mingguan-keuangan', 'log-token-harian', 'watchdog-anthropic-auth', 'check-deploy-status', 'sync-agent-runs', 'gmail-label-transaction', 'backup-hermes-config', '', null, undefined]) {
+    assert.equal(isPersibJob(n), false, String(n));
+  }
+});
+
+test('feedView leaves non-Persib runs out of items, counts and attention', () => {
+  const rows = [
+    run({ id: 1 }),
+    run({ id: 2, job_name: 'insight-mingguan-keuangan', status: 'failed', started_at: '2026-10-27T08:00:00Z' }),
+    run({ id: 3, job_name: 'log-token-harian', needs_check: true }),
+  ];
+  const view = feedView(rows, 'all', false, NOW);
+  assert.deepEqual(view.items.map((i) => i.run.id), [1]);
+  assert.equal(view.counts.all, 1);
+  assert.equal(view.counts.system, 0);
+  assert.equal(view.attention, 0);
+});
+
+test('attentionParams (sidebar badge) also limits to Persib jobs', () => {
+  const p = attentionParams(NOW);
+  assert.equal(p['filter[_and][2][_or][0][job_name][_icontains]'], 'persib');
+  assert.equal(Object.keys(persibParams('filter[_and][0]')).length, 5);
 });
