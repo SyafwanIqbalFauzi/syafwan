@@ -43,6 +43,9 @@ export interface AgentRun {
   check_reason?: string | null;
   /** When the owner marked it as looked at */
   checked_at?: string | null;
+  related_links?: unknown;
+  followup_at?: string | null;
+  followup_session?: string | null;
 }
 
 export interface AgentSkill {

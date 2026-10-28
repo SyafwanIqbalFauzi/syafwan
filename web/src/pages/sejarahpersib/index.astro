@@ -3,7 +3,8 @@ import HermesShell from '../../layouts/HermesShell.astro';
 import StatusTag from '../../components/StatusTag.astro';
 import { readItems, type AgentJob } from '../../lib/directus-user';
 import { dayKey, formatWhen, relative } from '../../lib/format';
-import { CATEGORIES, dedupeRuns, feedView, isPersibJob, parseCategory, persibParams, statusCells, type RunRow } from '../../lib/updates';
+import { MAX_INSTRUCTION } from '../../lib/followup.ts';
+import { CATEGORIES, dedupeRuns, feedView, isPersibJob, parseCategory, persibParams, safeLinks, statusCells, type RunRow } from '../../lib/updates';
 
 export const prerender = false;
 
@@ -22,7 +23,7 @@ try {
       limit: 400,
       sort: '-started_at',
       ...persibParams('filter[_and][0]'),
-      fields: 'id,execution_id,job_id,job_name,kind,status,started_at,summary,error,needs_check,check_reason,checked_at',
+      fields: 'id,execution_id,job_id,job_name,kind,status,started_at,summary,error,needs_check,check_reason,checked_at,related_links,followup_at,followup_session',
     })
   ).data;
   jobs = (await readItems<Pick<AgentJob, 'name' | 'last_status' | 'last_run_at' | 'synced_at'>>(token, 'agent_jobs', { limit: -1, fields: 'name,last_status,last_run_at,synced_at' })).data;
@@ -109,12 +110,24 @@ const toneClass = { ok: 'dot', fail: 'dot dot-fail', idle: 'dot dot-idle' } as c
                   <span class="tag tag-idle">{CATEGORIES.find((c) => c.key === item.category)?.label}</span>
                   {item.run.status === 'failed' && <StatusTag status="failed" />}
                   {item.attention && <span class="tag tag-fail">needs your check</span>}
+                  {item.run.followup_at && <span class="tag tag-idle" title={`Follow-up sent ${formatWhen(item.run.followup_at)}`}>follow-up sent</span>}
                 </span>
               </h3>
               {item.attention && item.reason && <p class="update-reason">{item.reason}</p>}
               {item.run.summary && <p class="update-summary">{item.run.summary}</p>}
+              {
+                safeLinks(item.run.related_links).length > 0 && (
+                  <p class="update-links">
+                    <span class="label muted">About</span>
+                    {safeLinks(item.run.related_links).map((l) => (
+                      <a class="arrow-link" href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>
+                    ))}
+                  </p>
+                )
+              }
               <p class="update-actions">
                 {item.run.execution_id && <a class="arrow-link" href={`/agent/agents/${item.run.job_id}?run=${encodeURIComponent(item.run.execution_id)}`}>Full result</a>}
+                <button type="button" class="btn" data-followup-run={item.run.id} data-job={item.run.job_name ?? ''} data-reason={item.reason ?? ''} data-summary={item.run.summary ?? ''} data-session={item.run.followup_session ?? ''}>Follow up</button>
                 {item.attention && <button type="button" class="btn" data-check-run={item.run.id}>Mark as checked</button>}
               </p>
             </div>
@@ -130,6 +143,26 @@ const toneClass = { ok: 'dot', fail: 'dot dot-fail', idle: 'dot dot-idle' } as c
       Results are copied from the agents about every few minutes. A run is flagged when it failed in the last 7 days, or when the agent ended its answer with a PERLU-CEK line.
     </p>
   </div>
+
+  <dialog class="dlg dlg-followup" id="followup-dialog" aria-labelledby="followup-title">
+    <form method="dialog" id="followup-form">
+      <h2 id="followup-title">Follow up</h2>
+      <p class="dlg-context" id="followup-context"></p>
+      <label class="dlg-field">
+        <span class="label muted">What should Hermes do?</span>
+        <textarea name="instruction" rows="6" maxlength={MAX_INSTRUCTION} required placeholder="For example: check player id 326 against two sources and propose the period."></textarea>
+      </label>
+      <p class="dlg-note label muted">Hermes explains what it found and its plan first. It changes nothing until you approve the plan in the chat.</p>
+      <p class="dlg-note label muted" id="followup-status" role="status" aria-live="polite"></p>
+      <div class="dlg-answer" id="followup-answer" hidden></div>
+      <p class="dlg-error" id="followup-error" role="alert"></p>
+      <div class="dlg-actions">
+        <a class="arrow-link" id="followup-chat" href="/agent/chat" hidden>Open in chat</a>
+        <button type="button" class="btn" id="followup-cancel">Close</button>
+        <button type="submit" class="btn btn-solid" id="followup-send">Send to Hermes</button>
+      </div>
+    </form>
+  </dialog>
 </HermesShell>
 
 <script>

@@ -60,6 +60,43 @@ export interface RunRow {
   needs_check?: boolean | null;
   check_reason?: string | null;
   checked_at?: string | null;
+  /** [{label, url}] set by the sync script; null/absent until computed. Read through `safeLinks`. */
+  related_links?: unknown;
+  /** The owner sent a follow-up instruction about this result (and in which chat session). */
+  followup_at?: string | null;
+  followup_session?: string | null;
+}
+
+export interface RelatedLink {
+  label: string;
+  url: string;
+}
+
+const LINK_LIMIT = 6;
+const GITHUB_PREFIX = 'https://github.com/SyafwanIqbalFauzi/sejarah-persib/';
+
+/**
+ * The row's related links, reduced to what is safe to render as <a href>: https only, on sejarahpersib.com
+ * or its GitHub repo. Anything else in the stored JSON (it comes from agent text) is dropped.
+ */
+export function safeLinks(raw: unknown): RelatedLink[] {
+  if (!Array.isArray(raw)) return [];
+  const out: RelatedLink[] = [];
+  for (const item of raw) {
+    const label = typeof item?.label === 'string' ? item.label.trim().slice(0, 60) : '';
+    const url = typeof item?.url === 'string' ? item.url : '';
+    let parsed: URL;
+    try {
+      parsed = new URL(url);
+    } catch {
+      continue;
+    }
+    const allowed = parsed.href.startsWith(GITHUB_PREFIX) || (parsed.protocol === 'https:' && parsed.hostname === 'sejarahpersib.com' && !parsed.username && !parsed.password);
+    if (!label || !allowed || out.some((l) => l.url === parsed.href)) continue;
+    out.push({ label, url: parsed.href });
+    if (out.length === LINK_LIMIT) break;
+  }
+  return out;
 }
 
 /** A failed run counts as "needs a look" only for this long; an agent-flagged one stays until it is marked. */

@@ -22,7 +22,7 @@ Safety
 
 Idempotent: rows are keyed by execution_id and created once; re-running adds nothing.
 
-Usage:  sync_agent_runs.py [--dry-run] [--verbose]
+Usage:  sync_agent_runs.py [--dry-run] [--verbose] [--backfill-links]
 Needs:  HERMES_SYNC_TOKEN (env, declared in config.yaml terminal.env_passthrough, or ~/.hermes/.env)
 Exit:   0 on success (stdout stays empty), non-zero on failure (stdout/stderr -> alert to Discord).
 """
@@ -138,6 +138,73 @@ def check_marker(markdown: str | None) -> tuple[bool, str | None]:
     return True, (found[-1].strip()[:CHECK_CAP] or None)
 
 
+# Links to the things a result is about, shown under its row on /sejarahpersib. Only two kinds of target are
+# ever produced: the sejarah-persib repo on GitHub and sejarahpersib.com itself (public pages and the panel).
+SITE = "https://sejarahpersib.com"
+LINKS_CAP = 6
+GITHUB_REF = re.compile(r"https://github\.com/SyafwanIqbalFauzi/sejarah-persib/(pull|commit|tree|compare|issues)/([A-Za-z0-9_.\-/]+)")
+SITE_PAGE = re.compile(
+    r"(?:https?://(?:www\.)?sejarahpersib\.com|(?<![\w/.\-]))(/(?:pertandingan|pemain|pelatih|kompetisi|stadion|jersey|era-ke-era|klub|musim)/[A-Za-z0-9_\-./%]*[A-Za-z0-9_\-%])"
+)
+ENTITY_NAMED = re.compile(r"([A-Z][\w'’.\-]+(?: [A-Z][\w'’.\-]+){0,3}) \(id\s*=\s*(\d{1,7})\)")
+ENTITY_IDS = re.compile(r"\(id[\s=]+(\d{1,7}(?:\s*,\s*\d{1,7})*)\)", re.IGNORECASE)
+# The word on the same line that says which collection an id belongs to, then the job's own default.
+COLLECTION_WORDS = (("pemain", "players"), ("pelatih", "coaches"), ("laga", "matches"), ("pertandingan", "matches"), ("klub", "clubs"))
+JOB_COLLECTION = {"riset-data-persib": "players", "riset-match-detail": "matches", "riset-jadwal-persib": "matches"}
+COLLECTION_LABEL = {"players": "Player", "coaches": "Coach", "matches": "Match", "clubs": "Club"}
+
+
+def _collection_for(before: str, job_name: str | None) -> str | None:
+    """The collection of an id, from the nearest word just before it, else the job's own default."""
+    low = before.lower()[-50:]
+    best, best_at = None, -1
+    for word, collection in COLLECTION_WORDS:
+        at = low.rfind(word)
+        if at > best_at:
+            best, best_at = collection, at
+    return best or JOB_COLLECTION.get((job_name or "").lower())
+
+
+def related_links(job_name: str | None, markdown: str | None) -> list[dict]:
+    """[{label, url}] for what a result points at, best first, at most LINKS_CAP. Never raises."""
+    if not markdown:
+        return []
+    found: list[dict] = []
+    seen: set[str] = set()
+
+    def add(label: str, url: str) -> None:
+        if url not in seen and len(found) < LINKS_CAP:
+            seen.add(url)
+            found.append({"label": label[:60], "url": url})
+
+    for kind, rest in GITHUB_REF.findall(markdown):
+        number = rest.split("/")[0]
+        label = {"pull": "PR #", "issues": "Issue #", "commit": "Commit "}.get(kind, "")
+        add(f"{label}{number[:12]}" if label else f"{kind} {rest}"[:60], f"https://github.com/SyafwanIqbalFauzi/sejarah-persib/{kind}/{rest}")
+
+    # Entries named in the lines that need a look first, then everywhere else.
+    lines = markdown.splitlines()
+    flagged = [ln for ln in lines if CHECK_LINE.match(ln)]
+    for line in flagged + [ln for ln in lines if ln not in flagged]:
+        # A person with a name in front of the id is a coach when "pelatih" is said just before it, else a player.
+        for match in ENTITY_NAMED.finditer(line):
+            name, ident = match.groups()
+            collection = "coaches" if "pelatih" in line[: match.start()].lower()[-50:] else "players"
+            add(" ".join(name.split()[-2:]), f"{SITE}/panel/content/{collection}/{ident}")
+        for match in ENTITY_IDS.finditer(line):
+            if ENTITY_NAMED.search(line[max(0, match.start() - 40) : match.end()]):
+                continue
+            collection = _collection_for(line[: match.start()], job_name)
+            if not collection:
+                continue
+            for ident in re.split(r"\s*,\s*", match.group(1)):
+                add(f"{COLLECTION_LABEL[collection]} #{ident}", f"{SITE}/panel/content/{collection}/{ident}")
+
+    for path in SITE_PAGE.findall(markdown):
+        add(path, SITE + path)
+    return found
+
+
 def schedule_display(job: dict) -> str | None:
     sched = job.get("schedule") or {}
     return job.get("schedule_display") or sched.get("display") or sched.get("expr")
@@ -249,6 +316,7 @@ def collect_runs(jobs: dict, executions: dict, directory: dict, redact, known: s
                 "error": error,
                 "needs_check": needs_check,
                 "check_reason": check_reason,
+                "related_links": related_links((job or {}).get("name") or name_hint, text),
             }
         )
 
@@ -494,6 +562,17 @@ class Directus:
         rows = self.call("GET", "/items/agent_runs?fields=execution_id&limit=-1") or []
         return {r["execution_id"] for r in rows}
 
+    def backfill_links(self, batch: int = 50) -> int:
+        """Fills `related_links` on rows stored before the field existed (null = not computed yet; [] = nothing found)."""
+        done = 0
+        while True:
+            rows = self.call("GET", f"/items/agent_runs?fields=id,job_name,response_md&filter[related_links][_null]=true&sort=id&limit={batch}") or []
+            if not rows:
+                return done
+            for row in rows:
+                self.call("PATCH", f"/items/agent_runs/{row['id']}", {"related_links": related_links(row.get("job_name"), row.get("response_md"))})
+                done += 1
+
     def create_runs(self, rows: list[dict]) -> int:
         sent, batch, size = 0, [], 0
         for row in rows:
@@ -595,7 +674,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="collect and redact, print counts, upload nothing")
     ap.add_argument("--verbose", action="store_true")
+    ap.add_argument("--backfill-links", action="store_true", help="compute related_links for stored rows that have none yet, then exit")
     args = ap.parse_args()
+
+    if args.backfill_links:
+        print(f"related_links filled on {Directus(read_token()).backfill_links()} rows")
+        return 0
 
     redact = _redactor()
     jobs, directory, executions = load_jobs(), load_directory(), load_executions()
