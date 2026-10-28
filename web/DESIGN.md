@@ -56,7 +56,7 @@ components:
     padding: 11px
   tag-fail:
     backgroundColor: "{colors.tertiary}"
-    textColor: "{colors.surface}"
+    textColor: "{colors.primary}"
     rounded: "{rounded.none}"
     padding: 4px
   notice:
@@ -75,7 +75,7 @@ Source of truth in code: `styles/global.css` (colours, type, base scale), `style
 
 - **Primary (#000000):** text, rules that matter, solid buttons. The only high-emphasis action on a page is one solid button.
 - **Secondary (#6b6b6b):** muted text. The only grey that passes AA on white; `#b2b2b2` is for carbon backgrounds only.
-- **Tertiary (#f05a24):** failure and destructive actions. Never decoration.
+- **Tertiary (#f05a24):** failure and destructive actions. Never decoration. Text on it is black (6.2:1); light text on it is only 3.18:1 and fails WCAG AA.
 - **Waiting (#f0a800):** paused / waiting notices.
 - **Surface (#f6f8f7) and rule (#e5e5e5):** cells, header rows, hairlines.
 
@@ -126,5 +126,4 @@ Zero radius everywhere (`rounded.none`). Status dots are the one round thing.
 
 ## Known issues
 
-- `tag-fail` (white text on #f05a24) measures 3.18:1, below WCAG AA 4.5:1 for small text. Found by `design.md lint`; not changed in the spacing work because it alters the look. Candidate fix: black text on the orange (6.6:1) or a darker orange.
 - The colour tokens `rule`, `rule-strong`, `waiting` and `carbon` are used in CSS but not by the components listed in the front matter, so the linter reports them as orphaned.

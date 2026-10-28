@@ -76,12 +76,13 @@
 .dlg .btn-danger {
   background: var(--te-orange);
   border-color: var(--te-orange);
-  color: var(--te-white);
+  color: var(--te-black);
 }
 
 .dlg .btn-danger:hover {
   background: var(--te-black);
   border-color: var(--te-black);
+  color: var(--te-white);
 }
 
 /* Pop-up messages in the corner: "Budget line added", alerts from Hermes (scripts/toast.ts) */
