@@ -166,6 +166,17 @@ export function dedupeRuns<T extends Pick<RunRow, 'job_id' | 'execution_id' | 's
   });
 }
 
+/**
+ * Of the runs that wait for a look (`attention`), the ones the feed really shows: a `file:` copy whose twin
+ * is in `nearby` is hidden by `dedupeRuns` on the page, so the badge must not count it either.
+ */
+export function visibleAttention<T extends Pick<RunRow, 'id' | 'job_id' | 'execution_id' | 'summary' | 'started_at'>>(attention: T[], nearby: T[]): T[] {
+  const byId = new Map<number, T>();
+  for (const r of [...nearby, ...attention]) byId.set(r.id, r);
+  const kept = new Set(dedupeRuns([...byId.values()]).map((r) => r.id));
+  return attention.filter((r) => kept.has(r.id));
+}
+
 type TwinKey = Pick<RunRow, 'job_id' | 'execution_id' | 'summary' | 'started_at'>;
 
 /**

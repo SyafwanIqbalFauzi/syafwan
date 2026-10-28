@@ -8,7 +8,7 @@
 import Pictogram from './Pictogram.astro';
 import { AREA_ORDER, AREAS, type Area, type Section } from '../lib/nav';
 import { readItems } from '../lib/directus-user';
-import { attentionParams } from '../lib/updates';
+import { attentionParams, DUPLICATE_WINDOW_MS, visibleAttention, type RunRow } from '../lib/updates';
 
 export type { Area, Section };
 
@@ -32,11 +32,25 @@ let waiting = 0;
 const token = Astro.locals.hermesToken;
 if (token) {
   try {
-    const result = await Promise.race([
-      readItems<{ id: number }>(token, 'agent_runs', { ...attentionParams(), limit: 1, fields: 'id' }),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500)),
-    ]);
-    waiting = result?.total ?? 0;
+    const KEYS = 'id,job_id,execution_id,summary,started_at';
+    const count = async (): Promise<number> => {
+      const flagged = await readItems<RunRow>(token, 'agent_runs', { ...attentionParams(), limit: 100, fields: KEYS });
+      if (flagged.data.length === 0) return 0;
+      // The feed hides the `file:` copy of a run stored twice; fetch the neighbours so the badge hides it too.
+      const times = flagged.data.map((r) => Date.parse(r.started_at ?? '')).filter(Number.isFinite);
+      const nearby = times.length
+        ? await readItems<RunRow>(token, 'agent_runs', {
+            'filter[job_id][_in]': [...new Set(flagged.data.map((r) => r.job_id))].join(','),
+            'filter[started_at][_gte]': new Date(Math.min(...times) - DUPLICATE_WINDOW_MS).toISOString(),
+            'filter[started_at][_lte]': new Date(Math.max(...times) + DUPLICATE_WINDOW_MS).toISOString(),
+            limit: 200,
+            fields: KEYS,
+          })
+        : { data: [] as RunRow[] };
+      return visibleAttention(flagged.data, nearby.data).length;
+    };
+    const result = await Promise.race([count(), new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))]);
+    waiting = result ?? 0;
   } catch {
     waiting = 0;
   }

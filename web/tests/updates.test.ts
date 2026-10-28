@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { attentionParams, categoryOf, isPersibJob, persibParams, checkReason, dedupeRuns, findTwins, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
+import { attentionParams, categoryOf, isPersibJob, persibParams, checkReason, dedupeRuns, findTwins, visibleAttention, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
 
 const NOW = Date.parse('2026-10-27T10:00:00Z');
 const run = (over: Partial<RunRow>): RunRow => ({
@@ -158,4 +158,15 @@ test('findTwins returns the other copy of the same run, in both directions, and 
   assert.deepEqual(findTwins(real, all).map((r) => r.id), [2]);
   assert.deepEqual(findTwins(copy, all).map((r) => r.id), [1]);
   assert.deepEqual(findTwins(hoursApart, all), []);
+});
+
+test('visibleAttention leaves out a flagged file: copy whose twin the feed shows (even if the twin is already checked)', () => {
+  const checkedTwin = run({ id: 1, execution_id: 'abc', started_at: '2026-10-28T01:00:28Z', summary: 'a' });
+  const ghost = run({ id: 2, execution_id: 'file:j:x', started_at: '2026-10-28T01:04:10Z', summary: 'a' });
+  const real = run({ id: 3, execution_id: 'def', started_at: '2026-10-28T07:00:27Z', summary: 'b' });
+  const realCopy = run({ id: 4, execution_id: 'file:j:y', started_at: '2026-10-28T07:05:08Z', summary: 'b' });
+  const lone = run({ id: 5, execution_id: 'file:j:z', started_at: '2026-10-27T19:04:31Z', summary: 'c' });
+  const nearby = [checkedTwin, ghost, real, realCopy, lone];
+  assert.deepEqual(visibleAttention([ghost, real, realCopy, lone], nearby).map((r) => r.id), [3, 5]);
+  assert.deepEqual(visibleAttention([], nearby), []);
 });
