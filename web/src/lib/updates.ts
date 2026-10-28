@@ -166,6 +166,26 @@ export function dedupeRuns<T extends Pick<RunRow, 'job_id' | 'execution_id' | 's
   });
 }
 
+type TwinKey = Pick<RunRow, 'job_id' | 'execution_id' | 'summary' | 'started_at'>;
+
+/**
+ * Rows that are the same run stored twice (one is the `file:` copy, see `dedupeRuns`) other than `run`
+ * itself. Marking one of them as checked must mark the other too: the feed hides the copy, but the sidebar
+ * badge counts it in Directus, so an unmarked twin shows a badge with nothing to open.
+ */
+export function findTwins<T extends TwinKey>(run: TwinKey, candidates: T[]): T[] {
+  const isCopy = (r: TwinKey) => (r.execution_id ?? '').startsWith('file:');
+  const at = Date.parse(run.started_at ?? '');
+  return candidates.filter(
+    (c) =>
+      c.execution_id !== run.execution_id &&
+      c.job_id === run.job_id &&
+      isCopy(c) !== isCopy(run) &&
+      (c.summary ?? '') === (run.summary ?? '') &&
+      Math.abs(Date.parse(c.started_at ?? '') - at) <= DUPLICATE_WINDOW_MS,
+  );
+}
+
 /** Newest first. `cat` filters the list; counts always cover everything so the tabs stay stable. */
 export function feedView(rows: RunRow[], cat: Category, onlyAttention: boolean, now = Date.now()): FeedView {
   const all: FeedItem[] = dedupeRuns(rows.filter((r) => isPersibJob(r.job_name)))

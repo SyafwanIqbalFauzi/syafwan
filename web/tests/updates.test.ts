@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { attentionParams, categoryOf, isPersibJob, persibParams, checkReason, dedupeRuns, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
+import { attentionParams, categoryOf, isPersibJob, persibParams, checkReason, dedupeRuns, findTwins, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
 
 const NOW = Date.parse('2026-10-27T10:00:00Z');
 const run = (over: Partial<RunRow>): RunRow => ({
@@ -146,4 +146,16 @@ test('attentionParams (sidebar badge) also limits to Persib jobs', () => {
   const p = attentionParams(NOW);
   assert.equal(p['filter[_and][2][_or][0][job_name][_icontains]'], 'persib');
   assert.equal(Object.keys(persibParams('filter[_and][0]')).length, 5);
+});
+
+test('findTwins returns the other copy of the same run, in both directions, and nothing else', () => {
+  const real = run({ id: 1, execution_id: 'abc', started_at: '2026-10-27T13:00:28Z', summary: 'same' });
+  const copy = run({ id: 2, execution_id: 'file:j:2026-10-27_13-05-47', started_at: '2026-10-27T13:05:47Z', summary: 'same' });
+  const hoursApart = run({ id: 3, execution_id: 'file:j:2026-10-27_07-05-00', started_at: '2026-10-27T07:05:00Z', summary: 'same' });
+  const otherJob = run({ id: 4, job_id: 'x', execution_id: 'file:x:y', started_at: '2026-10-27T13:05:00Z', summary: 'same' });
+  const otherText = run({ id: 5, execution_id: 'file:j:z', started_at: '2026-10-27T13:04:00Z', summary: 'different' });
+  const all = [real, copy, hoursApart, otherJob, otherText];
+  assert.deepEqual(findTwins(real, all).map((r) => r.id), [2]);
+  assert.deepEqual(findTwins(copy, all).map((r) => r.id), [1]);
+  assert.deepEqual(findTwins(hoursApart, all), []);
 });
