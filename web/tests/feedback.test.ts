@@ -8,6 +8,7 @@ import {
   sendStateOf,
   serializePending,
   feedbackView,
+  feedbackToReviewParams,
   parseStatusTab,
   parseSendResult,
   parseSuggestion,
@@ -23,6 +24,15 @@ import {
 const row = (over: Partial<FeedbackRow>): FeedbackRow => ({
   id: 1, date_created: '2026-10-01T00:00:00Z', nama: 'Budi', email: 'budi@example.com', kategori: 'Saran fitur', pesan: 'Tambah filter musim',
   pemain: null, ditinjau_pada: null, dibalas_pada: null, balasan_dari: null, balasan_subjek: null, balasan_isi: null, balasan_status: null, balasan_error: null, balasan_run: null, ...over,
+});
+
+test('feedbackToReviewParams counts rows that are neither reviewed nor replied (the "new" state)', () => {
+  const p = feedbackToReviewParams();
+  assert.equal(p['aggregate[count]'], 'id');
+  assert.equal(p['filter[ditinjau_pada][_null]'], 'true');
+  assert.equal(p['filter[dibalas_pada][_null]'], 'true');
+  assert.equal(Object.keys(p).length, 3);
+  assert.equal(stateOf(row({})), 'new');
 });
 
 test('state: replied beats reviewed beats new', () => {

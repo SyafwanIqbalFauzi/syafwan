@@ -46,6 +46,14 @@ export function stateOf(row: Pick<FeedbackRow, 'ditinjau_pada' | 'dibalas_pada'>
   return 'new';
 }
 
+/**
+ * Directus query params that count the rows `stateOf` calls 'new' (not reviewed, not replied), so the
+ * sidebar badge can count without loading rows. Keep both in step (a test compares them).
+ */
+export function feedbackToReviewParams(): Record<string, string> {
+  return { 'aggregate[count]': 'id', 'filter[ditinjau_pada][_null]': 'true', 'filter[dibalas_pada][_null]': 'true' };
+}
+
 export interface FeedbackView {
   items: FeedbackRow[];
   counts: Record<StatusTab, number>;

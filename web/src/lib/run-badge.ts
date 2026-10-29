@@ -29,5 +29,10 @@ export function summarize(states: RunState[]): Summary | null {
   return null;
 }
 
+/** Conversations that want you: waiting for an answer (approval) or finished and not opened yet. Working ones do not count. */
+export function attentionCount(states: RunState[]): number {
+  return states.filter((s) => s === 'wait' || s === 'done').length;
+}
+
 /** Text for the small marker in the chat list. */
 export const markerText = (state: RunState): string => (state === 'wait' ? 'needs you' : state === 'busy' ? 'working' : 'done');

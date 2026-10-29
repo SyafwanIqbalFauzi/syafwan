@@ -9,6 +9,7 @@ import Pictogram from './Pictogram.astro';
 import { AREA_ORDER, AREAS, type Area, type Section } from '../lib/nav';
 import { readItems } from '../lib/directus-user';
 import { attentionParams, DUPLICATE_WINDOW_MS, visibleAttention, type RunRow } from '../lib/updates';
+import { countFeedbackToReview, persibConfigured } from '../lib/persib-directus';
 
 export type { Area, Section };
 
@@ -55,6 +56,18 @@ if (token) {
     waiting = 0;
   }
 }
+// Visitor feedback that nobody has looked at yet (a different Directus; same best-effort rule).
+let feedbackWaiting = 0;
+if (token && persibConfigured()) {
+  try {
+    const result = await Promise.race([countFeedbackToReview(), new Promise<null>((resolve) => setTimeout(() => resolve(null), 1500))]);
+    feedbackWaiting = result ?? 0;
+  } catch {
+    feedbackWaiting = 0;
+  }
+}
+const persibWaiting = waiting + feedbackWaiting;
+const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'} to check`, feedbackWaiting > 0 && `${feedbackWaiting} feedback to review`].filter(Boolean).join(', ');
 ---
 
 <aside class="sidebar" data-sidebar data-area={area}>
@@ -64,7 +77,8 @@ if (token) {
         <a href={AREAS[key].home} class={key === 'accounts' ? 'rail-link rail-account' : 'rail-link'} data-area-link={key} aria-current={key === area ? 'true' : undefined}>
           <Pictogram name={AREA_PICTOGRAM[key]} size={22} />
           <span class="rail-label">{AREAS[key].label}</span>
-          {key === 'persib' && waiting > 0 && <span class="rail-dot" title={`${waiting} waiting for your check`} aria-label={`${waiting} waiting for your check`}>{waiting > 99 ? '99+' : waiting}</span>}
+          {key === 'persib' && persibWaiting > 0 && <span class="rail-dot" title={persibTitle} aria-label={persibTitle}>{persibWaiting > 99 ? '99+' : persibWaiting}</span>}
+          {key === 'agent' && <span class="rail-dot" data-agent-dot hidden></span>}
         </a>
       ))
     }
@@ -93,6 +107,7 @@ if (token) {
                   <span>{item.label}</span>
                   {item.section === 'chat' && <span class="work-badge" data-work-badge hidden>working</span>}
                   {item.section === 'updates' && waiting > 0 && <span class="work-badge" data-state="wait">{waiting} to check</span>}
+                  {item.section === 'feedback' && feedbackWaiting > 0 && <span class="work-badge" data-state="wait">{feedbackWaiting} to review</span>}
                 </a>
               </li>
             ))}
@@ -138,9 +153,10 @@ if (token) {
   // Nothing here ever switches the conversation you are looking at.
   import { clearActiveRun, loadActiveRuns } from '../lib/chat-run';
   import { alertFor, alertsEnabled, alertUser, firstTime, setAlerts } from '../lib/notify';
-  import { stateOf, summarize, type RunState } from '../lib/run-badge';
+  import { attentionCount, stateOf, summarize, type RunState } from '../lib/run-badge';
 
   const badge = document.querySelector<HTMLElement>('[data-work-badge]');
+  const agentDot = document.querySelector<HTMLElement>('[data-agent-dot]');
 
   /** Checks every remembered run once. Returns true while at least one is still going. */
   async function checkRuns(): Promise<boolean> {
@@ -166,6 +182,15 @@ if (token) {
       }),
     );
     const summary = summarize(Object.values(states));
+    // Rail dot on "agents": conversations that need an answer or finished and were not opened yet.
+    const attention = attentionCount(Object.values(states));
+    if (agentDot) {
+      agentDot.hidden = attention === 0;
+      agentDot.textContent = attention > 99 ? '99+' : String(attention);
+      const label = `${attention} chat${attention === 1 ? '' : 's'} need${attention === 1 ? 's' : ''} your attention`;
+      agentDot.title = label;
+      agentDot.setAttribute('aria-label', label);
+    }
     if (badge) {
       badge.hidden = !summary;
       if (summary) {
