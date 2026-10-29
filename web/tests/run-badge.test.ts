@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { markerText, stateOf, summarize } from '../src/lib/run-badge.ts';
+import { attentionCount, markerText, stateOf, summarize } from '../src/lib/run-badge.ts';
 
 test('stateOf: approval = wait, finished = done, anything else = busy', () => {
   assert.equal(stateOf('waiting_for_approval'), 'wait');
@@ -16,6 +16,12 @@ test('summarize: nothing, then needs you > working > done, with counts', () => {
   assert.deepEqual(summarize(['wait', 'wait']), { state: 'wait', text: '2 need you' });
   assert.deepEqual(summarize(['done']), { state: 'done', text: 'done' });
   assert.deepEqual(summarize(['done', 'done', 'done']), { state: 'done', text: '3 done' });
+});
+
+test('attentionCount: needs-you and done count, working does not', () => {
+  assert.equal(attentionCount([]), 0);
+  assert.equal(attentionCount(['busy', 'busy']), 0);
+  assert.equal(attentionCount(['busy', 'wait', 'done', 'done']), 3);
 });
 
 test('markerText', () => {

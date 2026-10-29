@@ -2,7 +2,7 @@
 // Uses a dedicated token that can read `feedback` (and the name of the related player) and change only
 // the review / reply fields. Pages call it only after the middleware has verified an Administrator.
 import { PERSIB_DIRECTUS_TOKEN, PERSIB_DIRECTUS_URL } from 'astro:env/server';
-import { FEEDBACK_FIELDS, type FeedbackRow } from './feedback.ts';
+import { FEEDBACK_FIELDS, feedbackToReviewParams, type FeedbackRow } from './feedback.ts';
 
 export class PersibDirectusError extends Error {
   status: number;
@@ -30,6 +30,12 @@ export async function listFeedback(): Promise<FeedbackRow[]> {
   const query = new URLSearchParams({ fields: FEEDBACK_FIELDS, sort: '-date_created', limit: '1000' });
   const body = await call(`/items/feedback?${query}`);
   return body.data as FeedbackRow[];
+}
+
+/** How many feedback rows still wait for a first look (sidebar badge). */
+export async function countFeedbackToReview(): Promise<number> {
+  const body = await call(`/items/feedback?${new URLSearchParams(feedbackToReviewParams())}`);
+  return Number(body?.data?.[0]?.count?.id ?? body?.data?.[0]?.count ?? 0) || 0;
 }
 
 export async function getFeedback(id: number): Promise<FeedbackRow | null> {
