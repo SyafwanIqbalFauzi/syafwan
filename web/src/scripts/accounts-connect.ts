@@ -3,6 +3,7 @@
 //   1. "Get link"  -> the server prepares the Google sign-in link
 //   2. the person signs in at Google and pastes back the address of the page Google ends on
 //   3. "Connect"   -> the server finishes, checks it is the right account, saves it, and re-checks all accounts
+import { delegate, refresh } from './live';
 import { toast } from './toast';
 
 export {};
@@ -60,9 +61,7 @@ function init(dialog: HTMLDialogElement, form: HTMLFormElement) {
     dialog.showModal();
   };
 
-  document.querySelectorAll<HTMLButtonElement>('[data-connect-open]').forEach((button) =>
-    button.addEventListener('click', () => open(button.dataset.identifier ?? '', button.dataset.name ?? '')),
-  );
+  delegate<HTMLButtonElement>('click', '[data-connect-open]', (button) => open(button.dataset.identifier ?? '', button.dataset.name ?? ''));
   dialog.querySelector('[data-cancel]')?.addEventListener('click', () => dialog.close());
 
   async function api(method: 'GET' | 'POST', path: string, body?: unknown): Promise<Response> {
@@ -111,7 +110,10 @@ function init(dialog: HTMLDialogElement, form: HTMLFormElement) {
       const data = res?.ok ? await res.json().catch(() => null) : null;
       if (data && isNewer(before, data.checkedAt)) break;
     }
-    location.reload();
+    await refresh();
+    show('form'); // so closing the dialog is not taken for giving up
+    dialog.close();
+    toast('Account connected and checked.');
   }
 
   form.addEventListener('submit', async (event) => {

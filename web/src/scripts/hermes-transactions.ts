@@ -1,20 +1,21 @@
 // The transaction list: add / edit in a dialog, delete with a confirmation. Every change goes to
-// /api/finance/transactions*, which checks everything again; the page then reloads.
+// /api/finance/transactions*, which checks everything again; the list is then fetched again (no page reload).
 import { showCurrentCategory } from './category-options';
 import { askConfirm } from './dialog';
-import { flash, toast } from './toast';
+import { delegate, refresh } from './live';
+import { toast } from './toast';
 import { parseTransactionFields } from '../lib/transaction-input';
 
-const root = document.querySelector<HTMLElement>('[data-transactions]');
 const dialog = document.querySelector<HTMLDialogElement>('#trx-dialog');
 const form = document.querySelector<HTMLFormElement>('[data-trx-form]');
 const errorEl = document.querySelector<HTMLElement>('[data-trx-error]');
-const banner = document.querySelector<HTMLElement>('[data-trx-banner]');
-const today = root?.dataset.today ?? new Date().toISOString().slice(0, 10);
+// The list is swapped after every change, so anything inside it is looked up when needed.
+const today = () => document.querySelector<HTMLElement>('[data-transactions]')?.dataset.today ?? new Date().toISOString().slice(0, 10);
 
 let editingId: number | null = null;
 
 const say = (text: string, error = false) => {
+  const banner = document.querySelector<HTMLElement>('[data-trx-banner]');
   if (!banner) return;
   banner.hidden = !text;
   banner.textContent = text;
@@ -46,7 +47,7 @@ function openDialog(line?: Line) {
   if (!dialog || !form) return;
   editingId = line?.id ?? null;
   dialog.querySelector('#trx-dialog-title')!.textContent = line ? 'Edit transaction' : 'Add a transaction';
-  field('tanggal').value = line?.tanggal ?? today;
+  field('tanggal').value = line?.tanggal ?? today();
   field('jenis').value = line?.jenis ?? 'pengeluaran';
   showCurrentCategory(field('kategori') as HTMLSelectElement, line?.kategori ?? '');
   field('kategori').value = line?.kategori ?? '';
@@ -66,13 +67,13 @@ form?.querySelector<HTMLSelectElement>('select[name="kategori"]')?.addEventListe
   if (option?.dataset.jenis) field('jenis').value = option.dataset.jenis;
 });
 
-document.querySelector('[data-trx-add]')?.addEventListener('click', () => openDialog());
+delegate('click', '[data-trx-add]', () => openDialog());
 dialog?.querySelector('[data-cancel]')?.addEventListener('click', () => dialog.close());
 
 form?.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!form || !errorEl) return;
-  const parsed = parseTransactionFields(Object.fromEntries(new FormData(form)), today);
+  const parsed = parseTransactionFields(Object.fromEntries(new FormData(form)), today());
   if (!parsed.ok) {
     errorEl.textContent = parsed.error;
     return;
@@ -84,9 +85,9 @@ form?.addEventListener('submit', async (event) => {
     if (editingId === null) await call('POST', '/api/finance/transactions', parsed.value);
     else await call('PATCH', `/api/finance/transactions/${editingId}`, parsed.value);
     const what = parsed.value.deskripsi ? `“${parsed.value.deskripsi}” (${money(parsed.value.nominal)})` : money(parsed.value.nominal);
-    flash(`Transaction ${editingId === null ? 'added' : 'updated'}: ${what}`);
+    toast(`Transaction ${editingId === null ? 'added' : 'updated'}: ${what}`);
     dialog?.close();
-    location.reload();
+    await refresh();
   } catch (e) {
     errorEl.textContent = (e as Error).message;
     toast((e as Error).message, 'error');
@@ -94,15 +95,12 @@ form?.addEventListener('submit', async (event) => {
   }
 });
 
-document.querySelectorAll<HTMLButtonElement>('[data-trx-edit]').forEach((button) =>
-  button.addEventListener('click', () => {
+delegate<HTMLButtonElement>('click', '[data-trx-edit]', (button) => {
     const d = button.dataset;
-    openDialog({ id: Number(d.id), tanggal: d.tanggal ?? today, jenis: d.jenis ?? 'pengeluaran', kategori: d.kategori ?? '', deskripsi: d.deskripsi ?? '', nominal: d.nominal ?? '0', member: d.member ?? '' });
-  }),
-);
+    openDialog({ id: Number(d.id), tanggal: d.tanggal ?? today(), jenis: d.jenis ?? 'pengeluaran', kategori: d.kategori ?? '', deskripsi: d.deskripsi ?? '', nominal: d.nominal ?? '0', member: d.member ?? '' });
+});
 
-document.querySelectorAll<HTMLButtonElement>('[data-trx-delete]').forEach((button) =>
-  button.addEventListener('click', async () => {
+delegate<HTMLButtonElement>('click', '[data-trx-delete]', async (button) => {
     const sure = await askConfirm({
       title: 'Delete this transaction?',
       message: `${button.dataset.label ?? 'This transaction'} stops counting in the totals and charts. The record is kept in the database, so an administrator can still restore it.`,
@@ -113,12 +111,11 @@ document.querySelectorAll<HTMLButtonElement>('[data-trx-delete]').forEach((butto
     button.disabled = true;
     try {
       await call('DELETE', `/api/finance/transactions/${button.dataset.id}`);
-      flash(`Transaction deleted: ${button.dataset.label ?? ''}`.trim());
-      location.reload();
+      toast(`Transaction deleted: ${button.dataset.label ?? ''}`.trim());
+      await refresh();
     } catch (e) {
       toast((e as Error).message, 'error');
       say((e as Error).message, true);
       button.disabled = false;
     }
-  }),
-);
+});

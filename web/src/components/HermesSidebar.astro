@@ -77,7 +77,7 @@ const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'
         <a href={AREAS[key].home} class={key === 'accounts' ? 'rail-link rail-account' : 'rail-link'} data-area-link={key} aria-current={key === area ? 'true' : undefined}>
           <Pictogram name={AREA_PICTOGRAM[key]} size={22} />
           <span class="rail-label">{AREAS[key].label}</span>
-          {key === 'persib' && persibWaiting > 0 && <span class="rail-dot" title={persibTitle} aria-label={persibTitle}>{persibWaiting > 99 ? '99+' : persibWaiting}</span>}
+          {key === 'persib' && <span class="live-slot" data-live-slot="persib-rail">{persibWaiting > 0 && <span class="rail-dot" title={persibTitle} aria-label={persibTitle}>{persibWaiting > 99 ? '99+' : persibWaiting}</span>}</span>}
           {key === 'agent' && <span class="rail-dot" data-agent-dot hidden></span>}
         </a>
       ))
@@ -106,8 +106,8 @@ const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'
                   <Pictogram name={item.section} size={18} />
                   <span>{item.label}</span>
                   {item.section === 'chat' && <span class="work-badge" data-work-badge hidden>working</span>}
-                  {item.section === 'updates' && waiting > 0 && <span class="work-badge" data-state="wait">{waiting} to check</span>}
-                  {item.section === 'feedback' && feedbackWaiting > 0 && <span class="work-badge" data-state="wait">{feedbackWaiting} to review</span>}
+                  {item.section === 'updates' && <span class="live-slot" data-live-slot="updates-badge">{waiting > 0 && <span class="work-badge" data-state="wait">{waiting} to check</span>}</span>}
+                  {item.section === 'feedback' && <span class="live-slot" data-live-slot="feedback-badge">{feedbackWaiting > 0 && <span class="work-badge" data-state="wait">{feedbackWaiting} to review</span>}</span>}
                 </a>
               </li>
             ))}
@@ -234,6 +234,11 @@ const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'
 </script>
 
 <style>
+  /* Wrapper that lets scripts/live.ts replace a badge in place; it must not change the layout. */
+  .live-slot {
+    display: contents;
+  }
+
   .sidebar {
     position: sticky;
     top: 0;

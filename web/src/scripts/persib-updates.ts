@@ -1,31 +1,44 @@
-// "Mark as checked" on /sejarahpersib: tells the server the owner looked at a result, then reloads so
-// the tag, the banner and the badge in the sidebar all agree.
-import { flash, toast } from './toast';
+// "Mark as checked" on /sejarahpersib: the row changes at once, the server is told, and the page content is
+// fetched again in the background so the banner, the tab counts and the sidebar badge agree (no page reload).
+import { toast } from './toast';
+import { delegate, refresh } from './live';
 
 export {};
 
-document.querySelectorAll<HTMLButtonElement>('[data-check-run]').forEach((button) => {
-  button.addEventListener('click', async () => {
-    const id = button.dataset.checkRun;
-    if (!id || !/^\d+$/.test(id)) return;
-    button.disabled = true;
-    try {
-      const res = await fetch(`/api/sejarahpersib/runs/${id}/check`, { method: 'POST', credentials: 'same-origin' });
-      if (res.status === 401) {
-        location.href = '/agent/login?next=/sejarahpersib';
-        return;
-      }
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error ?? `Request failed (${res.status})`);
-      }
-      flash('Marked as checked.');
-      location.reload();
-    } catch (error) {
-      button.disabled = false;
-      toast(error instanceof Error ? error.message : 'Could not mark it as checked', 'error');
-    }
+/** What the owner expects to see the moment they press the button. The refresh afterwards confirms or undoes it. */
+function showChecked(row: HTMLElement) {
+  row.removeAttribute('data-attention');
+  row.querySelector('.update-reason')?.remove();
+  row.querySelectorAll('.tag-fail').forEach((tag) => {
+    if (tag.textContent?.trim() === 'needs your check') tag.remove();
   });
+  row.querySelector('[data-check-run]')?.remove();
+  // Under "Show only these" a checked result leaves the list.
+  if (new URLSearchParams(location.search).get('check') === '1') row.hidden = true;
+}
+
+delegate<HTMLButtonElement>('click', '[data-check-run]', async (button) => {
+  const id = button.dataset.checkRun;
+  if (!id || !/^\d+$/.test(id) || button.disabled) return;
+  button.disabled = true;
+  const row = button.closest<HTMLElement>('.update');
+  if (row) showChecked(row);
+  try {
+    const res = await fetch(`/api/sejarahpersib/runs/${id}/check`, { method: 'POST', credentials: 'same-origin' });
+    if (res.status === 401) {
+      location.href = '/agent/login?next=/sejarahpersib';
+      return;
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => null);
+      throw new Error(data?.error ?? `Request failed (${res.status})`);
+    }
+    toast('Marked as checked.');
+  } catch (error) {
+    toast(error instanceof Error ? error.message : 'Could not mark it as checked', 'error');
+  }
+  // On success this confirms the new state; on failure it brings the row back as the server has it.
+  await refresh();
 });
 
 // ------------------------------------------------------------------ follow-up modal
@@ -73,32 +86,30 @@ function setupFollowup(dialog: HTMLDialogElement) {
     chat.hidden = false;
   };
 
-  document.querySelectorAll<HTMLButtonElement>('[data-followup-run]').forEach((button) => {
-    button.addEventListener('click', () => {
-      runRow = button.dataset.followupRun!;
-      const reason = button.dataset.reason;
-      context.textContent = [button.dataset.job, reason ? `Needs a look: ${reason}` : '', button.dataset.summary].filter(Boolean).join('\n');
-      instruction.value = '';
-      statusEl.textContent = '';
-      errorEl.textContent = '';
-      answer.hidden = true;
-      answer.textContent = '';
-      chat.hidden = true;
-      sendBtn.disabled = false;
-      sendBtn.hidden = false;
-      sent = false;
-      ticket += 1;
-      if (button.dataset.session) showChat(button.dataset.session);
-      dialog.showModal();
-      instruction.focus();
-    });
+  delegate<HTMLButtonElement>('click', '[data-followup-run]', (button) => {
+    runRow = button.dataset.followupRun!;
+    const reason = button.dataset.reason;
+    context.textContent = [button.dataset.job, reason ? `Needs a look: ${reason}` : '', button.dataset.summary].filter(Boolean).join('\n');
+    instruction.value = '';
+    statusEl.textContent = '';
+    errorEl.textContent = '';
+    answer.hidden = true;
+    answer.textContent = '';
+    chat.hidden = true;
+    sendBtn.disabled = false;
+    sendBtn.hidden = false;
+    sent = false;
+    ticket += 1;
+    if (button.dataset.session) showChat(button.dataset.session);
+    dialog.showModal();
+    instruction.focus();
   });
 
   closeBtn.addEventListener('click', () => dialog.close());
   dialog.addEventListener('close', () => {
     ticket += 1;
-    // The row shows a "follow-up sent" tag once the page is read again.
-    if (sent) location.reload();
+    // The row shows a "follow-up sent" tag once the content is read again.
+    if (sent) void refresh();
   });
 
   form.addEventListener('submit', async (event) => {

@@ -1,8 +1,8 @@
-// Refresh button on /agent/usage: runs the Claude plan sync now, waits for newer numbers, reloads.
+// Refresh button on /agent/usage: runs the Claude plan sync now, waits for newer numbers, then swaps the page content.
+import { delegate, refresh } from './live';
 import { toast } from './toast';
 
 export {};
-const button = document.querySelector<HTMLButtonElement>('[data-usage-refresh]');
 const POLL_MS = 3_000;
 const GIVE_UP_MS = 120_000;
 
@@ -29,7 +29,8 @@ async function call(method: 'GET' | 'POST'): Promise<Response> {
   return res;
 }
 
-button?.addEventListener('click', async () => {
+delegate<HTMLButtonElement>('click', '[data-usage-refresh]', async (button) => {
+  if (button.disabled) return;
   const label = button.textContent;
   const before = button.dataset.checkedAt || null;
   button.disabled = true;
@@ -52,7 +53,7 @@ button?.addEventListener('click', async () => {
       }
     }
     if (!fresh) toast('The sync is taking longer than expected. Showing the latest numbers available.', 'error');
-    location.reload();
+    await refresh(); // the button comes back from the server with the new time on it
   } catch (error) {
     toast((error as Error).message, 'error');
     button.disabled = false;
