@@ -1,5 +1,5 @@
 // Small pop-up messages ("Budget line added") in the corner of the page. `toast` shows one now;
-// `flash` remembers one for the page that loads next (most changes end with a reload) and
+// `flash` remembers one for the page that loads next (for a change that ends in a real navigation) and
 // `showFlash` (called once per page by the layout) shows it. Look: ".toast" in styles/cms/dialog.css.
 import { saveFlash, takeFlash, type FlashKind } from '../lib/flash';
 
@@ -51,7 +51,7 @@ export function toast(message: string, kind: ToastKind = 'success', options: Toa
   container().append(item);
 }
 
-/** Show `message` on the next page that loads (use right before `location.reload()` or a redirect). */
+/** Show `message` on the next page that loads (use right before a real navigation, e.g. `location.href = ...`). */
 export function flash(message: string, kind: ToastKind = 'success'): void {
   try {
     saveFlash(sessionStorage, message, kind);

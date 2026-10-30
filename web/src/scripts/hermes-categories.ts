@@ -1,18 +1,19 @@
 // The categories page: add / edit in a dialog, delete (only unused ones, checked again by the
 // server), and drag-and-drop ordering with the mouse, a finger or the arrow keys on the handle.
 import { askConfirm } from './dialog';
-import { flash, toast } from './toast';
+import { delegate, mountLive, refresh } from './live';
+import { toast } from './toast';
 import { moveId, parseCategoryFields } from '../lib/category-input';
 
 const dialog = document.querySelector<HTMLDialogElement>('#category-dialog');
 const form = document.querySelector<HTMLFormElement>('[data-category-form]');
 const errorEl = document.querySelector<HTMLElement>('[data-category-error]');
 const lockedNote = document.querySelector<HTMLElement>('[data-jenis-locked]');
-const banner = document.querySelector<HTMLElement>('[data-category-banner]');
 
 let editingId: number | null = null;
 
 const say = (text: string, error = false) => {
+  const banner = document.querySelector<HTMLElement>('[data-category-banner]');
   if (!banner) return;
   banner.hidden = !text;
   banner.textContent = text;
@@ -60,20 +61,18 @@ function openDialog(line?: { id: number; name: string; jenis: string; aktif: boo
   field('nama').focus();
 }
 
-document.querySelector('[data-add]')?.addEventListener('click', () => openDialog());
+delegate('click', '[data-add]', () => openDialog());
 dialog?.querySelector('[data-cancel]')?.addEventListener('click', () => dialog.close());
 
-document.querySelectorAll<HTMLButtonElement>('[data-edit]').forEach((button) =>
-  button.addEventListener('click', () =>
-    openDialog({
+delegate<HTMLButtonElement>('click', '[data-edit]', (button) =>
+  openDialog({
       id: Number(button.dataset.id),
       name: button.dataset.name ?? '',
       jenis: button.dataset.jenis ?? 'pengeluaran',
       aktif: button.dataset.aktif !== 'false',
       keywords: button.dataset.keywords ?? '',
       used: button.dataset.used === 'true',
-    }),
-  ),
+  }),
 );
 
 form?.addEventListener('submit', async (event) => {
@@ -92,9 +91,9 @@ form?.addEventListener('submit', async (event) => {
   try {
     if (editingId === null) await call('POST', '/api/finance/categories', parsed.value);
     else await call('PATCH', `/api/finance/categories/${editingId}`, parsed.value);
-    flash(`Category “${parsed.value.nama}” ${editingId === null ? 'added' : 'updated'}`);
+    toast(`Category “${parsed.value.nama}” ${editingId === null ? 'added' : 'updated'}`);
     dialog?.close();
-    location.reload();
+    await refresh();
   } catch (e) {
     errorEl.textContent = (e as Error).message;
     toast((e as Error).message, 'error');
@@ -104,23 +103,21 @@ form?.addEventListener('submit', async (event) => {
 
 // ---- delete ----------------------------------------------------------------------------------
 
-document.querySelectorAll<HTMLButtonElement>('[data-delete]').forEach((button) =>
-  button.addEventListener('click', async () => {
+delegate<HTMLButtonElement>('click', '[data-delete]', async (button) => {
     const name = button.dataset.name ?? 'this category';
     const sure = await askConfirm({ title: 'Delete this category?', message: `“${name}” is not used by any transaction or budget line, so it is removed for good.`, confirm: 'Delete', danger: true });
     if (!sure) return;
     button.disabled = true;
     try {
       await call('DELETE', `/api/finance/categories/${button.dataset.id}`);
-      flash(`Category “${name}” deleted`);
-      location.reload();
+      toast(`Category “${name}” deleted`);
+      await refresh();
     } catch (e) {
       toast((e as Error).message, 'error');
       say((e as Error).message, true);
       button.disabled = false;
     }
-  }),
-);
+});
 
 // ---- drag and drop ---------------------------------------------------------------------------
 
@@ -148,7 +145,8 @@ function saveOrder(group: HTMLElement, before: number[]) {
   });
 }
 
-document.querySelectorAll<HTMLElement>('[data-group]').forEach((group) => {
+mountLive((root) =>
+ root.querySelectorAll<HTMLElement>('[data-group]').forEach((group) => {
   group.querySelectorAll<HTMLButtonElement>('[data-handle]').forEach((handle) => {
     const row = handle.closest<HTMLElement>('[data-row]')!;
 
@@ -214,4 +212,5 @@ document.querySelectorAll<HTMLElement>('[data-group]').forEach((group) => {
       saveOrder(group, before);
     });
   });
-});
+}),
+);

@@ -5,7 +5,8 @@
 // owner when the server has recorded the result (sent, or failed with the reason).
 import { parseSuggestion } from '../lib/feedback.ts';
 import { askConfirm } from './dialog';
-import { flash, toast } from './toast';
+import { delegate, mountLive, refresh } from './live';
+import { toast } from './toast';
 
 export {};
 
@@ -31,21 +32,34 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // ------------------------------------------------------------------ review
 
+/** What the owner expects to see at once; the refresh after the save confirms it (or puts the card back). */
+function showReviewed(button: HTMLButtonElement, undo: boolean) {
+  const card = button.closest<HTMLElement>('[data-feedback]');
+  const tag = card?.querySelector<HTMLElement>('.chips .tag:nth-of-type(2)');
+  if (tag) {
+    tag.textContent = undo ? 'To review' : 'Reviewed';
+    tag.className = undo ? 'tag tag-fail' : 'tag tag-idle';
+  }
+  // Only the look changes, never the data- attribute the click was matched on: the same click is still
+  // travelling through the other delegated listeners and would be taken for the opposite action.
+  button.textContent = undo ? 'Mark as reviewed' : 'Mark as not reviewed';
+}
+
 async function review(id: string, undo: boolean, button: HTMLButtonElement) {
   button.disabled = true;
+  showReviewed(button, undo);
   try {
     const { status, data } = await call(`/api/sejarahpersib/feedback/${id}/review`, { method: undo ? 'DELETE' : 'POST' });
     if (status >= 400) throw new Error(data?.error ?? `Request failed (${status})`);
-    flash(undo ? 'Marked as not reviewed.' : 'Marked as reviewed.');
-    location.reload();
+    toast(undo ? 'Marked as not reviewed.' : 'Marked as reviewed.');
   } catch (error) {
-    button.disabled = false;
     toast(error instanceof Error ? error.message : 'Could not save that', 'error');
   }
+  await refresh(); // confirms the new state, or brings the card back as the server has it
 }
 
-document.querySelectorAll<HTMLButtonElement>('[data-review]').forEach((b) => b.addEventListener('click', () => review(b.dataset.review!, false, b)));
-document.querySelectorAll<HTMLButtonElement>('[data-unreview]').forEach((b) => b.addEventListener('click', () => review(b.dataset.unreview!, true, b)));
+delegate<HTMLButtonElement>('click', '[data-review]', (b) => void review(b.dataset.review!, false, b));
+delegate<HTMLButtonElement>('click', '[data-unreview]', (b) => void review(b.dataset.unreview!, true, b));
 
 // ------------------------------------------------------------------ reply modal
 
@@ -123,33 +137,31 @@ function setupReply(dialog: HTMLDialogElement) {
     }
   }
 
-  document.querySelectorAll<HTMLButtonElement>('[data-reply]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const card = button.closest<HTMLElement>('[data-feedback]');
-      if (!card) return;
-      feedbackId = card.dataset.feedback!;
-      alreadyReplied = button.dataset.replied === 'true';
-      to.value = card.dataset.email ?? '';
-      original.textContent = `${card.dataset.name || 'Anonymous'}: ${card.querySelector('.feedback-message')?.textContent ?? ''}`;
-      subject.value = '';
-      body.value = '';
-      delete body.dataset.draft;
-      fail('');
-      delete sendBtn.dataset.sending;
-      setBusy(false);
-      // A failed send keeps what was written: open the modal with that text instead of asking for a new draft.
-      const retrySubject = button.dataset.retrySubject;
-      const retryBody = button.dataset.retryBody;
-      const retry = Boolean(retrySubject && retryBody);
-      if (retry) {
-        subject.value = retrySubject!;
-        body.value = retryBody!;
-        if (button.dataset.retryFrom && [...from.options].some((o) => o.value === button.dataset.retryFrom)) from.value = button.dataset.retryFrom;
-        say('Your earlier text is back. Check it and send again.');
-      }
-      dialog.showModal();
-      if (!retry) void draft();
-    });
+  delegate<HTMLButtonElement>('click', '[data-reply]', (button) => {
+    const card = button.closest<HTMLElement>('[data-feedback]');
+    if (!card) return;
+    feedbackId = card.dataset.feedback!;
+    alreadyReplied = button.dataset.replied === 'true';
+    to.value = card.dataset.email ?? '';
+    original.textContent = `${card.dataset.name || 'Anonymous'}: ${card.querySelector('.feedback-message')?.textContent ?? ''}`;
+    subject.value = '';
+    body.value = '';
+    delete body.dataset.draft;
+    fail('');
+    delete sendBtn.dataset.sending;
+    setBusy(false);
+    // A failed send keeps what was written: open the modal with that text instead of asking for a new draft.
+    const retrySubject = button.dataset.retrySubject;
+    const retryBody = button.dataset.retryBody;
+    const retry = Boolean(retrySubject && retryBody);
+    if (retry) {
+      subject.value = retrySubject!;
+      body.value = retryBody!;
+      if (button.dataset.retryFrom && [...from.options].some((o) => o.value === button.dataset.retryFrom)) from.value = button.dataset.retryFrom;
+      say('Your earlier text is back. Check it and send again.');
+    }
+    dialog.showModal();
+    if (!retry) void draft();
   });
 
   body.addEventListener('input', () => delete body.dataset.draft);
@@ -226,8 +238,8 @@ function markSending(card: HTMLElement) {
 const watching = new Set<string>();
 
 /**
- * Asks the server how a sending reply is doing until it is over, then reloads with a message. The server
- * finishes the job on its own, so closing the page loses nothing: the next page load shows the result.
+ * Asks the server how a sending reply is doing until it is over, then shows the message and refreshes the list. The server
+ * finishes the job on its own, so closing the page loses nothing: the next time the page is opened shows the result.
  */
 async function watchSending(id: string) {
   if (watching.has(id)) return;
@@ -244,13 +256,13 @@ async function watchSending(id: string) {
       }
       const state = result.data?.state;
       if (state === 'sent') {
-        flash('Reply sent to the visitor and saved with the message.');
-        location.reload();
+        toast('Reply sent to the visitor and saved with the message.');
+        await refresh();
         return;
       }
       if (state === 'failed') {
-        flash(`Sending failed: ${result.data?.error ?? 'unknown reason'}`, 'error');
-        location.reload();
+        toast(`Sending failed: ${result.data?.error ?? 'unknown reason'}`, 'error');
+        await refresh();
         return;
       }
       if (state === 'idle') return;
@@ -261,4 +273,4 @@ async function watchSending(id: string) {
 }
 
 // A card that is already sending when the page opens (a reload, a second tab, a deploy in the middle).
-document.querySelectorAll<HTMLElement>('[data-feedback][data-send="sending"]').forEach((card) => void watchSending(card.dataset.feedback!));
+mountLive((root) => root.querySelectorAll<HTMLElement>('[data-feedback][data-send="sending"]').forEach((card) => void watchSending(card.dataset.feedback!)));

@@ -2,17 +2,18 @@
 // records a request, then waits while the VPS applies it (usually within a minute) and reports
 // what happened. See pages/api/agent/skills/[name]/{enabled,content}.ts and apply_skill_changes.py.
 import { askConfirm } from './dialog';
-import { flash, toast } from './toast';
+import { delegate, refresh } from './live';
+import { toast } from './toast';
 
 export {};
 
-const banner = document.querySelector<HTMLElement>('[data-change-banner]');
-const toggle = document.querySelector<HTMLButtonElement>('[data-toggle]');
-const editor = document.querySelector<HTMLFormElement>('[data-editor]');
+// The page content is swapped after a change, so every element is looked up when it is used.
+const editorForm = () => document.querySelector<HTMLFormElement>('[data-editor]');
 const POLL_MS = 3000;
 const GIVE_UP_MS = 150_000;
 
 const say = (text: string, error = false) => {
+  const banner = document.querySelector<HTMLElement>('[data-change-banner]');
   if (!banner) return;
   banner.hidden = !text;
   banner.textContent = text;
@@ -55,14 +56,14 @@ async function run(button: HTMLElement | null, work: () => Promise<number | null
   try {
     const id = await work();
     if (id === null) {
-      flash('Nothing to change: it was already like that', 'info');
-      location.reload();
+      toast('Nothing to change: it was already like that', 'info');
+      await refresh();
       return;
     }
     const result = await waitForApply(id);
     say(result);
-    flash(done);
-    setTimeout(() => location.reload(), 600);
+    toast(done);
+    await refresh();
   } catch (error) {
     toast((error as Error).message, 'error');
     say((error as Error).message, true);
@@ -71,7 +72,7 @@ async function run(button: HTMLElement | null, work: () => Promise<number | null
   void button;
 }
 
-toggle?.addEventListener('click', async () => {
+delegate<HTMLButtonElement>('click', '[data-toggle]', async (toggle) => {
   const skill = toggle.dataset.skill!;
   const enable = toggle.dataset.enabled === 'false';
   const users = JSON.parse(toggle.dataset.users ?? '[]') as string[];
@@ -88,7 +89,7 @@ toggle?.addEventListener('click', async () => {
   }, enable ? `Skill “${skill}” enabled` : `Skill “${skill}” disabled`);
 });
 
-editor?.addEventListener('submit', async (event) => {
+delegate<HTMLFormElement>('submit', '[data-editor]', async (editor, event) => {
   event.preventDefault();
   const area = editor.elements.namedItem('content') as HTMLTextAreaElement;
   if (area.value === area.defaultValue) {
@@ -103,7 +104,9 @@ editor?.addEventListener('submit', async (event) => {
   }, `Instructions of “${editor.dataset.skill}” saved`);
 });
 
-editor?.querySelector('[data-undo]')?.addEventListener('click', () => {
+delegate('click', '[data-editor] [data-undo]', () => {
+  const editor = editorForm();
+  if (!editor) return;
   const area = editor.elements.namedItem('content') as HTMLTextAreaElement;
   area.value = area.defaultValue;
   say('');
@@ -111,6 +114,6 @@ editor?.querySelector('[data-undo]')?.addEventListener('click', () => {
 
 // Warn before leaving the page with unsaved edits.
 window.addEventListener('beforeunload', (event) => {
-  const area = editor?.elements.namedItem('content') as HTMLTextAreaElement | undefined;
+  const area = editorForm()?.elements.namedItem('content') as HTMLTextAreaElement | undefined;
   if (area && area.value !== area.defaultValue && !area.disabled) event.preventDefault();
 });

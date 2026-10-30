@@ -2,6 +2,7 @@
 // person be switched off from the numbers by clicking their name in a legend. Everything is worked
 // out in the browser with the same functions the server uses (lib/finance.ts), so a click needs no
 // request and the charts glide to their new shape.
+import { mountLive, settled } from './live';
 import {
   BarController,
   BarElement,
@@ -43,10 +44,15 @@ interface Payload {
   single: boolean;
 }
 
-const dataEl = document.getElementById('finance-data');
-if (dataEl) start(JSON.parse(dataEl.textContent ?? '{}') as Payload);
+// The page content is swapped when the dates or the person change, so the charts are built again each time
+// (and the old ones taken down first).
+mountLive((root) => {
+  const dataEl = root.querySelector('#finance-data');
+  if (dataEl) return start(JSON.parse(dataEl.textContent ?? '{}') as Payload);
+});
 
-function start(data: Payload) {
+function start(data: Payload): () => void {
+  const stop = new AbortController();
   Chart.register(BarController, BarElement, LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip, Filler);
   const style = getComputedStyle(document.body);
   Chart.defaults.font.family = style.fontFamily;
@@ -330,6 +336,7 @@ function start(data: Payload) {
     if (hidden.size) url.searchParams.set('hide', [...hidden].join(','));
     else url.searchParams.delete('hide');
     history.replaceState(null, '', url);
+    settled();
   }
 
   document.addEventListener('click', (event) => {
@@ -347,9 +354,9 @@ function start(data: Payload) {
       remember();
       update();
     }
-  });
+  }, { signal: stop.signal });
 
-  // Changing the dates or the person reloads the page: take the current choice along.
+  // Changing the dates or the person fetches the page again: take the current choice along.
   $<HTMLFormElement>('[data-filterbar]')?.addEventListener('submit', (event) => {
     const form = event.currentTarget as HTMLFormElement;
     form.querySelector('input[name="hide"]')?.remove();
@@ -424,4 +431,9 @@ function start(data: Payload) {
   }
 
   update();
+
+  return () => {
+    stop.abort();
+    for (const chart of [cashflowChart, netChart, spendChart, sourceChart]) chart.destroy();
+  };
 }

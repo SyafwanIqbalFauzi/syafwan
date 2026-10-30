@@ -2,16 +2,15 @@
 // /api/agent/skills/<name>/assign, which changes only the agent's skills list in Hermes.
 
 import { askConfirm, askNotice } from './dialog';
-import { flash, toast } from './toast';
+import { delegate, refresh } from './live';
+import { toast } from './toast';
 
 export {}; // makes this file a module so its top-level names stay local
-const list = document.querySelector<HTMLElement>('[data-skill]');
-const attach = document.querySelector<HTMLFormElement>('[data-attach]');
-const skill = (list ?? attach)?.dataset.skill;
-const statusEl = attach?.querySelector<HTMLElement>('[data-assign-status]') ?? null;
+// The lists on this page are swapped after every change, so they are looked up when used.
+const skillName = () => document.querySelector<HTMLElement>('[data-skill]')?.dataset.skill;
 
 async function assign(jobId: string, action: 'add' | 'remove', done: string): Promise<void> {
-  const res = await fetch(`/api/agent/skills/${encodeURIComponent(skill!)}/assign`, {
+  const res = await fetch(`/api/agent/skills/${encodeURIComponent(skillName()!)}/assign`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ job_id: jobId, action }),
@@ -23,13 +22,13 @@ async function assign(jobId: string, action: 'add' | 'remove', done: string): Pr
   }
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error ?? `Request failed (${res.status})`);
-  flash(done);
-  location.reload();
+  toast(done);
+  await refresh();
 }
 
-list?.addEventListener('click', async (event) => {
-  const button = (event.target as HTMLElement).closest<HTMLButtonElement>('[data-assign="remove"]');
-  if (!button || !skill) return;
+delegate<HTMLButtonElement>('click', '[data-assign="remove"]', async (button) => {
+  const skill = skillName();
+  if (!skill) return;
   const agent = button.dataset.jobName ?? 'this agent';
   const sure = await askConfirm({ title: 'Remove this skill?', message: `"${skill}" is removed from "${agent}".\n\nThe agent will no longer load it on its next run.`, confirm: 'Remove', danger: true });
   if (!sure) return;
@@ -43,8 +42,10 @@ list?.addEventListener('click', async (event) => {
   }
 });
 
-attach?.addEventListener('submit', async (event) => {
+delegate<HTMLFormElement>('submit', '[data-attach]', async (attach, event) => {
   event.preventDefault();
+  const skill = attach.dataset.skill;
+  const statusEl = attach.querySelector<HTMLElement>('[data-assign-status]');
   const select = attach.elements.namedItem('job') as HTMLSelectElement;
   if (!select.value || !skill) {
     if (statusEl) statusEl.textContent = 'choose an agent first';

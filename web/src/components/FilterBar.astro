@@ -75,42 +75,50 @@ const active = selects.some((s) => s.value) || Boolean(dateRange?.custom) || Boo
 <script>
   import flatpickr from 'flatpickr';
   import 'flatpickr/dist/flatpickr.min.css';
+  import { mountLive } from '../scripts/live';
 
-  document.querySelectorAll<HTMLFormElement>('[data-filterbar]').forEach((form) => {
-    form.querySelectorAll<HTMLSelectElement>('select').forEach((select) => select.addEventListener('change', () => form.requestSubmit()));
+  // The bar is drawn again whenever the page content is swapped (a filter change fetches the page without
+  // reloading it), so it is set up each time; the calendars are taken down with the old bar.
+  mountLive((root) => {
+    const pickers: { destroy(): void }[] = [];
+    root.querySelectorAll<HTMLFormElement>('[data-filterbar]').forEach((form) => {
+      form.querySelectorAll<HTMLSelectElement>('select').forEach((select) => select.addEventListener('change', () => form.requestSubmit()));
 
-    // One input for both dates. Picking the second date applies the filter.
-    const range = form.querySelector<HTMLInputElement>('[data-daterange]');
-    if (range) {
-      const from = form.querySelector<HTMLInputElement>('input[name="from"]')!;
-      const to = form.querySelector<HTMLInputElement>('input[name="to"]')!;
-      flatpickr(range, {
-        mode: 'range',
-        dateFormat: 'Y-m-d',
-        altInput: true,
-        altFormat: 'j M Y',
-        altInputClass: 'fb-input',
-        defaultDate: [range.dataset.from!, range.dataset.to!],
-        showMonths: window.matchMedia('(min-width: 720px)').matches ? 2 : 1,
-        locale: { firstDayOfWeek: 1, rangeSeparator: ' – ' },
-        disableMobile: true,
-        onClose: (dates, _text, picker) => {
-          if (dates.length !== 2) return;
-          const a = picker.formatDate(dates[0], 'Y-m-d');
-          const b = picker.formatDate(dates[1], 'Y-m-d');
-          if (a === from.value && b === to.value) return;
-          from.value = a;
-          to.value = b;
-          form.requestSubmit();
-        },
-      });
-    }
-    // Keep URLs clean: empty filters are not sent at all.
-    form.addEventListener('submit', () => {
-      form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('select, input[type="search"]').forEach((field) => {
-        if (!field.value) field.disabled = true;
+      // One input for both dates. Picking the second date applies the filter.
+      const range = form.querySelector<HTMLInputElement>('[data-daterange]');
+      if (range) {
+        const from = form.querySelector<HTMLInputElement>('input[name="from"]')!;
+        const to = form.querySelector<HTMLInputElement>('input[name="to"]')!;
+        const picker = flatpickr(range, {
+          mode: 'range',
+          dateFormat: 'Y-m-d',
+          altInput: true,
+          altFormat: 'j M Y',
+          altInputClass: 'fb-input',
+          defaultDate: [range.dataset.from!, range.dataset.to!],
+          showMonths: window.matchMedia('(min-width: 720px)').matches ? 2 : 1,
+          locale: { firstDayOfWeek: 1, rangeSeparator: ' – ' },
+          disableMobile: true,
+          onClose: (dates, _text, picker) => {
+            if (dates.length !== 2) return;
+            const a = picker.formatDate(dates[0], 'Y-m-d');
+            const b = picker.formatDate(dates[1], 'Y-m-d');
+            if (a === from.value && b === to.value) return;
+            from.value = a;
+            to.value = b;
+            form.requestSubmit();
+          },
+        });
+        pickers.push(picker);
+      }
+      // Keep URLs clean: empty filters are not sent at all.
+      form.addEventListener('submit', () => {
+        form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('select, input[type="search"]').forEach((field) => {
+          if (!field.value) field.disabled = true;
+        });
       });
     });
+    return () => pickers.forEach((p) => p.destroy());
   });
 </script>
 

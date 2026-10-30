@@ -1,10 +1,12 @@
 // Switches the type tabs: shows or hides every [data-type-item] by its type, keeps the choice in
 // the address (?type=...), supports the arrow keys, and shows [data-type-empty] when nothing is left.
 import { hrefForTab, parseTypeTab, showsUnder, type TypeTab } from '../lib/type-tabs';
+import { mountLive, settled } from './live';
 
-const bar = document.querySelector<HTMLElement>('[data-type-tabs]');
-
-if (bar) {
+// The tabs are drawn again whenever the page content is swapped, so they are set up each time.
+mountLive((root) => {
+  const bar = root.querySelector<HTMLElement>('[data-type-tabs]');
+  if (!bar) return;
   const tabs = [...bar.querySelectorAll<HTMLButtonElement>('[data-tab]')];
 
   const select = (tab: TypeTab, focus = false) => {
@@ -28,6 +30,7 @@ if (bar) {
     }
     document.dispatchEvent(new CustomEvent('type-tab', { detail: tab }));
     history.replaceState(null, '', hrefForTab(location.search, tab) + location.hash);
+    settled();
   };
 
   tabs.forEach((button, i) => {
@@ -47,4 +50,4 @@ if (bar) {
   // The server already drew the tab from the address; only the empty message needs the first pass.
   const current = tabs.find((b) => b.getAttribute('aria-selected') === 'true');
   select(parseTypeTab(current?.dataset.tab));
-}
+});

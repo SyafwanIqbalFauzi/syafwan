@@ -90,3 +90,9 @@
     padding-inline: var(--gutter);
   }
 }
+
+/* While scripts/live.ts fetches the next version of the page: dim it a little, but only if it takes a moment. */
+.cms-main[aria-busy='true'] > .container {
+  opacity: 0.6;
+  transition: opacity 0.15s 0.25s;
+}
