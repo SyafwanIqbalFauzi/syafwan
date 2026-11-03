@@ -86,5 +86,36 @@ class Token(unittest.TestCase):
             self.assertNotIn("sk-secret-value", str(exc))
 
 
+class Main(unittest.TestCase):
+    def run_main(self, creds_path):
+        import contextlib, io
+        old, old_argv = u.CREDENTIALS, sys.argv
+        u.read_access_token.__defaults__ = (creds_path, None)
+        sys.argv = ["sync_claude_usage.py", "--dry-run"]
+        out = io.StringIO()
+        try:
+            with contextlib.redirect_stdout(out):
+                code = u.main()
+        finally:
+            u.read_access_token.__defaults__ = (old, None)
+            sys.argv = old_argv
+        return code, out.getvalue()
+
+    def test_expired_token_fails_loudly(self):
+        fh = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+        json.dump({"claudeAiOauth": {"accessToken": "secret-token", "expiresAt": 1}}, fh)
+        fh.close()
+        self.addCleanup(os.unlink, fh.name)
+        code, out = self.run_main(fh.name)
+        self.assertEqual(code, 1)
+        self.assertIn("claude /login", out)
+        self.assertNotIn("secret-token", out)
+
+    def test_missing_credentials_fail_loudly(self):
+        code, out = self.run_main("/nonexistent/creds.json")
+        self.assertEqual(code, 1)
+        self.assertIn("no usable Claude login", out)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -11,7 +11,8 @@ What it does
   - uploads ONLY percentages and reset times. The token never leaves this machine.
 
 The endpoint is not part of Anthropic's documented API and may change. If it does, or the token
-has expired, this exits quietly and the website shows the last numbers as "stale".
+has expired, this prints why and exits 1 (so the job shows as failed) and the website shows the last
+numbers as "stale".
 
 Needs: HERMES_SYNC_TOKEN (env or ~/.hermes/.env)
 """
@@ -165,12 +166,15 @@ def main() -> int:
 
     try:
         token = read_access_token()
-    except TokenUnavailable:
-        return 0  # quiet: the website will show the numbers as stale
+    except TokenUnavailable as exc:
+        # Not quiet any more: a silent exit looked like a healthy job while the website went stale.
+        print(f"sync_claude_usage: no usable Claude login ({exc}). Run `claude /login` on the VPS.")
+        return 1
     try:
         payload = fetch_usage(token)
-    except (urllib.error.URLError, ValueError, TimeoutError):
-        return 0  # Anthropic unreachable or the endpoint changed: keep the last numbers
+    except (urllib.error.URLError, ValueError, TimeoutError) as exc:
+        print(f"sync_claude_usage: could not read usage from Anthropic ({type(exc).__name__}: {exc}); keeping the last numbers")
+        return 1
     rows = parse_usage(payload)
     if not rows:
         print("sync_claude_usage: the usage response had no recognisable windows (endpoint changed?)")
