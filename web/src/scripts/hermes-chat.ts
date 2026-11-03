@@ -8,6 +8,7 @@ import { toast } from './toast';
 import { approvalKey, clearActiveRun, loadActiveRun, loadActiveRuns, MAX_ACTIVE_RUNS, pendingApproval, pollRun, saveActiveRun, watchRun, type ActiveRun, type RunEvent, type WatchResult } from '../lib/chat-run';
 import { markerText, type RunState } from '../lib/run-badge';
 import { fitWithin, imageSourcesOf, MAX_IMAGES, MAX_IMAGE_DATA_URL_CHARS, textOfContent } from '../lib/chat-images';
+import { enterSends } from '../lib/composer-keys';
 import { clampManual, COMPOSER_KEY, composerHeight, heightAfterKey } from '../lib/composer-height';
 
 const $ = <T extends HTMLElement>(sel: string) => document.querySelector(sel) as T;
@@ -909,7 +910,13 @@ form.addEventListener('submit', (e) => {
   send(message, pictures).catch((err) => setStatus(err.message));
 });
 
-// Enter never sends: it always adds a new line. Sending is only via the Send button.
+// Desktop: Enter sends, Shift+Enter adds a new line. Phone/tablet (coarse pointer): Enter adds a new line.
+if (matchMedia('(pointer: coarse)').matches) input.placeholder = 'Message Hermes (Enter adds a new line, use the Send button to send)';
+input.addEventListener('keydown', (e) => {
+  if (!enterSends(e, matchMedia('(pointer: coarse)').matches)) return;
+  e.preventDefault();
+  form.requestSubmit();
+});
 
 chatsToggle.addEventListener('click', () => showSessionList(!chatEl.classList.contains('show-sessions')));
 
