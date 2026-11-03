@@ -52,7 +52,7 @@ delegate<HTMLButtonElement>('click', '[data-usage-refresh]', async (button) => {
         break;
       }
     }
-    if (!fresh) toast('The sync is taking longer than expected. Showing the latest numbers available.', 'error');
+    if (!fresh) toast('The numbers did not update. The Claude login on the server may have expired (run `claude /login` on the VPS). Showing the last numbers available.', 'error');
     await refresh(); // the button comes back from the server with the new time on it
   } catch (error) {
     toast((error as Error).message, 'error');
