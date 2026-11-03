@@ -18,3 +18,4 @@ cms/data/
 # OS / editor
 .DS_Store
 Thumbs.db
+__pycache__/
