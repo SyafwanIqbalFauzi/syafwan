@@ -86,10 +86,36 @@ class Token(unittest.TestCase):
             self.assertNotIn("sk-secret-value", str(exc))
 
 
+class HermesToken(unittest.TestCase):
+    def pool(self, entries):
+        fh = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
+        json.dump({"credential_pool": {"anthropic": entries}}, fh)
+        fh.close()
+        self.addCleanup(os.unlink, fh.name)
+        return fh.name
+
+    def test_skips_dead_and_expired_picks_live_by_priority(self):
+        path = self.pool([
+            {"priority": 1, "access_token": "dead", "last_status": "dead", "expires_at_ms": 9e15},
+            {"priority": 2, "access_token": "old", "expires_at_ms": 1},
+            {"priority": 4, "access_token": "second", "last_status": "ok", "expires_at_ms": 9e15},
+            {"priority": 3, "access_token": "first", "last_status": "ok", "expires_at_ms": 9e15},
+        ])
+        self.assertEqual(u.read_hermes_token(path, 1000), "first")
+
+    def test_no_live_entry_is_unavailable(self):
+        with self.assertRaises(u.TokenUnavailable):
+            u.read_hermes_token(self.pool([{"access_token": "x", "last_status": "dead"}]), 1000)
+        with self.assertRaises(u.TokenUnavailable):
+            u.read_hermes_token("/nonexistent/auth.json")
+
+
 class Main(unittest.TestCase):
     def run_main(self, creds_path):
         import contextlib, io
         old, old_argv = u.CREDENTIALS, sys.argv
+        old_h = u.read_hermes_token.__defaults__
+        u.read_hermes_token.__defaults__ = ("/nonexistent/auth.json", None)
         u.read_access_token.__defaults__ = (creds_path, None)
         sys.argv = ["sync_claude_usage.py", "--dry-run"]
         out = io.StringIO()
@@ -98,6 +124,7 @@ class Main(unittest.TestCase):
                 code = u.main()
         finally:
             u.read_access_token.__defaults__ = (old, None)
+            u.read_hermes_token.__defaults__ = old_h
             sys.argv = old_argv
         return code, out.getvalue()
 
@@ -108,7 +135,7 @@ class Main(unittest.TestCase):
         self.addCleanup(os.unlink, fh.name)
         code, out = self.run_main(fh.name)
         self.assertEqual(code, 1)
-        self.assertIn("claude /login", out)
+        self.assertIn("hermes auth add anthropic", out)
         self.assertNotIn("secret-token", out)
 
     def test_missing_credentials_fail_loudly(self):

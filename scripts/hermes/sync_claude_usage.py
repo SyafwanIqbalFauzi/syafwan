@@ -5,7 +5,8 @@ Runs on the VPS as a Hermes no-agent cron job (every ~5 minutes), next to sync_a
   hermes cron create "every 5m" --no-agent --script sync_claude_usage.py --name sync-claude-usage --deliver local
 
 What it does
-  - reads the Claude Code login that Hermes itself uses (~/.claude/.credentials.json), read-only:
+  - reads the Anthropic login from Hermes' credential pool (~/.hermes/auth.json), falling back to
+    the Claude Code login (~/.claude/.credentials.json), both read-only:
     it never refreshes or rewrites the token, so Claude Code / Hermes keep working as before
   - asks Anthropic for the plan's usage windows (5 hours, weekly) with that token
   - uploads ONLY percentages and reset times. The token never leaves this machine.
@@ -29,6 +30,7 @@ import urllib.request
 HOME = os.environ.get("HERMES_HOME") or os.path.expanduser("~/.hermes")
 DIRECTUS = os.environ.get("HERMES_SYNC_URL", "https://syafwan.com/panel").rstrip("/")
 CREDENTIALS = os.environ.get("CLAUDE_CREDENTIALS") or os.path.expanduser("~/.claude/.credentials.json")
+HERMES_AUTH = os.environ.get("HERMES_AUTH_FILE") or os.path.join(HOME, "auth.json")
 USAGE_URL = "https://api.anthropic.com/api/oauth/usage"
 
 # Anthropic field -> the name used on the website
@@ -105,6 +107,40 @@ def read_access_token(path: str = CREDENTIALS, now_ms: float | None = None) -> s
     return token
 
 
+def read_hermes_token(path: str = HERMES_AUTH, now_ms: float | None = None) -> str:
+    """Live Anthropic login from Hermes' own credential pool (read-only), or TokenUnavailable.
+
+    Hermes refreshes these itself; the ~/.claude login is a separate credential that Hermes does not
+    refresh, so it goes stale (and its refresh token dies) while Hermes keeps working.
+    """
+    try:
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, ValueError):
+        raise TokenUnavailable("hermes auth file not readable") from None
+    entries = ((data.get("credential_pool") or {}).get("anthropic") or []) if isinstance(data, dict) else []
+    now = now_ms if now_ms is not None else dt.datetime.now(dt.timezone.utc).timestamp() * 1000
+    for entry in sorted((e for e in entries if isinstance(e, dict)), key=lambda e: e.get("priority", 0)):
+        token = entry.get("access_token")
+        expires = entry.get("expires_at_ms")
+        if not isinstance(token, str) or not token or entry.get("last_status") == "dead":
+            continue
+        if isinstance(expires, (int, float)) and expires <= now + 30_000:
+            continue
+        return token
+    raise TokenUnavailable("no live Anthropic login in the Hermes credential pool")
+
+
+def find_token() -> str:
+    try:
+        return read_hermes_token()
+    except TokenUnavailable as hermes_error:
+        try:
+            return read_access_token()
+        except TokenUnavailable as claude_error:
+            raise TokenUnavailable(f"{hermes_error}; {claude_error}") from None
+
+
 def fetch_usage(token: str) -> dict:
     req = urllib.request.Request(
         USAGE_URL,
@@ -165,10 +201,10 @@ def main() -> int:
     args = ap.parse_args()
 
     try:
-        token = read_access_token()
+        token = find_token()
     except TokenUnavailable as exc:
         # Not quiet any more: a silent exit looked like a healthy job while the website went stale.
-        print(f"sync_claude_usage: no usable Claude login ({exc}). Run `claude /login` on the VPS.")
+        print(f"sync_claude_usage: no usable Claude login ({exc}). Re-authenticate Anthropic in Hermes (`hermes auth add anthropic`).")
         return 1
     try:
         payload = fetch_usage(token)
