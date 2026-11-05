@@ -110,12 +110,32 @@ class HermesToken(unittest.TestCase):
             u.read_hermes_token("/nonexistent/auth.json")
 
 
+class FindToken(unittest.TestCase):
+    def test_expired_hermes_login_is_refreshed_through_the_pool(self):
+        old = (u.read_hermes_token, u.refresh_via_hermes_pool)
+
+        def expired():
+            raise u.TokenUnavailable("expired")
+
+        u.read_hermes_token, u.refresh_via_hermes_pool = expired, lambda: "fresh"
+        try:
+            self.assertEqual(u.find_token(), "fresh")
+        finally:
+            u.read_hermes_token, u.refresh_via_hermes_pool = old
+
+
 class Main(unittest.TestCase):
     def run_main(self, creds_path):
         import contextlib, io
         old, old_argv = u.CREDENTIALS, sys.argv
         old_h = u.read_hermes_token.__defaults__
+        old_pool = u.refresh_via_hermes_pool
         u.read_hermes_token.__defaults__ = ("/nonexistent/auth.json", None)
+
+        def no_pool():
+            raise u.TokenUnavailable("pool stubbed")
+
+        u.refresh_via_hermes_pool = no_pool
         u.read_access_token.__defaults__ = (creds_path, None)
         sys.argv = ["sync_claude_usage.py", "--dry-run"]
         out = io.StringIO()
@@ -125,6 +145,7 @@ class Main(unittest.TestCase):
         finally:
             u.read_access_token.__defaults__ = (old, None)
             u.read_hermes_token.__defaults__ = old_h
+            u.refresh_via_hermes_pool = old_pool
             sys.argv = old_argv
         return code, out.getvalue()
 
