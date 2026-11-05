@@ -7,7 +7,8 @@ Runs on the VPS as a Hermes no-agent cron job (every ~5 minutes), next to sync_a
 What it does
   - reads the Anthropic login from Hermes' credential pool (~/.hermes/auth.json), falling back to
     the Claude Code login (~/.claude/.credentials.json), both read-only:
-    it never refreshes or rewrites the token, so Claude Code / Hermes keep working as before
+    it reads tokens without touching them; only when the Hermes login has expired does it ask Hermes'
+    own credential pool to refresh it (same code path Hermes uses), so Claude Code / Hermes keep working
   - asks Anthropic for the plan's usage windows (5 hours, weekly) with that token
   - uploads ONLY percentages and reset times. The token never leaves this machine.
 
@@ -131,14 +132,46 @@ def read_hermes_token(path: str = HERMES_AUTH, now_ms: float | None = None) -> s
     raise TokenUnavailable("no live Anthropic login in the Hermes credential pool")
 
 
+HERMES_AGENT_DIR = os.environ.get("HERMES_AGENT_DIR") or os.path.join(HOME, "hermes-agent")
+POOL_SNIPPET = (
+    "from agent.credential_pool import load_pool\n"
+    "e = load_pool('anthropic').select()\n"
+    "print(e.access_token if e else '')\n"
+)
+
+
+def refresh_via_hermes_pool() -> str:
+    """Ask Hermes' own credential pool for a token; it refreshes an expired one itself (with its
+    locking and rotation bookkeeping). Needed because the login only gets refreshed when Hermes makes
+    a Claude call, so a quiet stretch (e.g. overnight) leaves it expired and this job failing."""
+    import subprocess
+
+    python = os.path.join(HERMES_AGENT_DIR, "venv", "bin", "python")
+    if not os.path.exists(python):
+        raise TokenUnavailable("hermes venv not found")
+    try:
+        out = subprocess.run(
+            [python, "-c", POOL_SNIPPET], cwd=HERMES_AGENT_DIR, capture_output=True, text=True, timeout=60
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        raise TokenUnavailable("hermes credential pool refresh did not run") from None
+    token = out.stdout.strip().splitlines()[-1] if out.stdout.strip() else ""
+    if out.returncode != 0 or not token:
+        raise TokenUnavailable("hermes credential pool could not refresh the login")
+    return token
+
+
 def find_token() -> str:
     try:
         return read_hermes_token()
     except TokenUnavailable as hermes_error:
         try:
-            return read_access_token()
-        except TokenUnavailable as claude_error:
-            raise TokenUnavailable(f"{hermes_error}; {claude_error}") from None
+            return refresh_via_hermes_pool()
+        except TokenUnavailable as pool_error:
+            try:
+                return read_access_token()
+            except TokenUnavailable as claude_error:
+                raise TokenUnavailable(f"{hermes_error}; {pool_error}; {claude_error}") from None
 
 
 def fetch_usage(token: str) -> dict:
