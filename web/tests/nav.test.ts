@@ -9,7 +9,8 @@ const memory = () => {
 
 test('allItems covers all areas', () => {
   const items = allItems();
-  assert.equal(items.filter((i) => i.area === 'agent').length, 7);
+  assert.equal(items.filter((i) => i.area === 'chat').length, 1);
+  assert.equal(items.filter((i) => i.area === 'agent').length, 6);
   assert.equal(items.filter((i) => i.area === 'finance').length, 4);
   assert.equal(items.filter((i) => i.area === 'accounts').length, 1);
   assert.equal(items.filter((i) => i.area === 'persib').length, 2);
@@ -18,7 +19,9 @@ test('allItems covers all areas', () => {
 
 test('areaOf', () => {
   assert.equal(areaOf('/agent'), 'agent');
-  assert.equal(areaOf('/agent/chat'), 'agent');
+  assert.equal(areaOf('/agent/chat'), 'chat');
+  assert.equal(areaOf('/agent/chatx'), 'agent');
+  assert.equal(areaOf('/agent/agents'), 'agent');
   assert.equal(areaOf('/finance/budgets'), 'finance');
   assert.equal(areaOf('/accounts'), 'accounts');
   assert.equal(areaOf('/accountsx'), null);
@@ -27,6 +30,11 @@ test('areaOf', () => {
   assert.equal(areaOf('/sejarahpersibx'), null);
   assert.equal(areaOf('/financex'), null);
   assert.equal(areaOf('/en'), null);
+});
+
+test('rail order is chat, agents, finance, accounts, persib', async () => {
+  const { AREA_ORDER } = await import('../src/lib/nav.ts');
+  assert.deepEqual(AREA_ORDER, ['chat', 'agent', 'finance', 'accounts', 'persib']);
 });
 
 test('searchItems ranks label matches first and finds by area or group', () => {

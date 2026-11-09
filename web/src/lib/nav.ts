@@ -3,7 +3,7 @@
 // Pure functions; storage is injected, so it is unit-tested without a browser.
 
 export type Section = 'overview' | 'agents' | 'skills' | 'chat' | 'sessions' | 'usage' | 'finance' | 'transactions' | 'budgets' | 'categories' | 'accounts' | 'updates' | 'feedback' | 'design';
-export type Area = 'agent' | 'finance' | 'accounts' | 'persib';
+export type Area = 'chat' | 'agent' | 'finance' | 'accounts' | 'persib';
 
 export interface NavItem {
   section: Section;
@@ -19,6 +19,16 @@ export interface NavGroup {
 }
 
 export const AREAS: Record<Area, { label: string; home: string; groups: NavGroup[] }> = {
+  chat: {
+    label: 'Chat',
+    home: '/agent/chat',
+    groups: [
+      {
+        label: 'Hermes',
+        items: [{ section: 'chat', href: '/agent/chat', label: 'Chat' }],
+      },
+    ],
+  },
   agent: {
     label: 'Agents',
     home: '/agent',
@@ -27,7 +37,6 @@ export const AREAS: Record<Area, { label: string; home: string; groups: NavGroup
         label: 'Workspace',
         items: [
           { section: 'overview', href: '/agent', label: 'Overview' },
-          { section: 'chat', href: '/agent/chat', label: 'Chat' },
         ],
       },
       {
@@ -91,7 +100,7 @@ export const AREAS: Record<Area, { label: string; home: string; groups: NavGroup
   },
 };
 
-export const AREA_ORDER: Area[] = ['agent', 'finance', 'accounts', 'persib'];
+export const AREA_ORDER: Area[] = ['chat', 'agent', 'finance', 'accounts', 'persib'];
 
 export function allItems(): NavItem[] {
   return AREA_ORDER.flatMap((area) =>
@@ -103,6 +112,7 @@ export function areaOf(pathname: string): Area | null {
   if (pathname === '/finance' || pathname.startsWith('/finance/')) return 'finance';
   if (pathname === '/accounts' || pathname.startsWith('/accounts/')) return 'accounts';
   if (pathname === '/sejarahpersib' || pathname.startsWith('/sejarahpersib/')) return 'persib';
+  if (pathname === '/agent/chat' || pathname.startsWith('/agent/chat/')) return 'chat';
   if (pathname === '/agent' || pathname.startsWith('/agent/')) return 'agent';
   return null;
 }
