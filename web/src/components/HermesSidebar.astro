@@ -23,8 +23,8 @@ const { current, email, area = 'agent' } = Astro.props;
 const groups = AREAS[area].groups;
 // Accounts sits at the bottom of the rail, right above Search.
 const railOrder = [...AREA_ORDER.filter((key) => key !== 'accounts'), ...AREA_ORDER.filter((key) => key === 'accounts')];
-const AREA_NAME: Record<Area, string> = { agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'persib' };
-const AREA_PICTOGRAM: Record<Area, Section | 'persib'> = { agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'persib' };
+const AREA_NAME: Record<Area, string> = { chat: 'chat', agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'persib' };
+const AREA_PICTOGRAM: Record<Area, Section | 'persib'> = { chat: 'chat', agent: 'agents', finance: 'finance', accounts: 'accounts', persib: 'persib' };
 const brand = { href: AREAS[area].home, name: AREA_NAME[area] };
 
 // Results that wait for a look from the owner (badge on the Persib rail link and its page entry).
@@ -78,7 +78,7 @@ const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'
           <Pictogram name={AREA_PICTOGRAM[key]} size={22} />
           <span class="rail-label">{AREAS[key].label}</span>
           {key === 'persib' && <span class="live-slot" data-live-slot="persib-rail">{persibWaiting > 0 && <span class="rail-dot" title={persibTitle} aria-label={persibTitle}>{persibWaiting > 99 ? '99+' : persibWaiting}</span>}</span>}
-          {key === 'agent' && <span class="rail-dot" data-agent-dot hidden></span>}
+          {key === 'chat' && <span class="rail-dot" data-agent-dot hidden></span>}
         </a>
       ))
     }
@@ -119,7 +119,7 @@ const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'
 
   <div class="side-foot">
     {email && <p class="who" title={email}>{email}</p>}
-    {area === 'agent' && <button type="button" class="alerts" data-alerts aria-pressed="true">alerts: on</button>}
+    {area === 'chat' && <button type="button" class="alerts" data-alerts aria-pressed="true">alerts: on</button>}
     <form method="post" action="/agent/logout">
       <button type="submit" class="signout">sign out</button>
     </form>
@@ -182,7 +182,7 @@ const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'
       }),
     );
     const summary = summarize(Object.values(states));
-    // Rail dot on "agents": conversations that need an answer or finished and were not opened yet.
+    // Rail dot on "chat": conversations that need an answer or finished and were not opened yet.
     const attention = attentionCount(Object.values(states));
     if (agentDot) {
       agentDot.hidden = attention === 0;
