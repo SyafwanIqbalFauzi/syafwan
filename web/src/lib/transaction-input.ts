@@ -47,6 +47,18 @@ export function parseTransactionFields(body: unknown, today: string): Parsed<Tra
   return { ok: true, value: { tanggal, jenis, kategori, deskripsi: description.value, nominal, member } };
 }
 
+const JENIS_LABEL: Record<Jenis, string> = { pemasukan: 'income', pengeluaran: 'spending', tabungan: 'savings' };
+
+/**
+ * A transaction must be of the same type as its category (a spending row under an income category
+ * never shows in the right tab or total). Returns the error text, or null when they match.
+ */
+export function categoryMismatch(jenis: Jenis, categoryJenis: string): string | null {
+  if (jenis === categoryJenis) return null;
+  const label = (JENIS_LABEL as Record<string, string>)[categoryJenis] ?? categoryJenis;
+  return `That category is for ${label}, but the type is ${JENIS_LABEL[jenis]}. Change the type or pick another category.`;
+}
+
 /**
  * The `waktu` timestamp (UTC) for a transaction on `tanggal`: the real moment when it is today,
  * otherwise noon WIB of that day, so it always lands on the right WIB date.
