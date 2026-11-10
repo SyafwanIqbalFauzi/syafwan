@@ -51,6 +51,7 @@ function openDialog(line?: Line) {
   field('jenis').value = line?.jenis ?? 'pengeluaran';
   showCurrentCategory(field('kategori') as HTMLSelectElement, line?.kategori ?? '');
   field('kategori').value = line?.kategori ?? '';
+  fitCategories();
   field('deskripsi').value = line?.deskripsi ?? '';
   field('nominal').value = line ? money(line.nominal) : '';
   field('member').value = line?.member ?? '';
@@ -61,7 +62,25 @@ function openDialog(line?: Line) {
   field(line ? 'nominal' : 'deskripsi').focus();
 }
 
-// Picking a category sets the type to match it (the type can still be changed afterwards).
+// Only categories of the chosen type can be picked: a spending row under an income category would
+// land in the wrong tab and total. A category that no longer fits is cleared.
+function fitCategories() {
+  const select = field('kategori') as HTMLSelectElement;
+  const jenis = field('jenis').value;
+  select.querySelectorAll<HTMLOptionElement>('option[data-jenis]').forEach((option) => {
+    if (option.dataset.jenis !== jenis) {
+      option.disabled = true;
+      option.hidden = true;
+    } else if (!option.hasAttribute('data-inactive') || option.value === select.value) {
+      option.disabled = false;
+      option.hidden = false;
+    }
+  });
+  if (select.selectedOptions[0]?.disabled) select.value = '';
+}
+form?.querySelector<HTMLSelectElement>('select[name="jenis"]')?.addEventListener('change', fitCategories);
+
+// Picking a category sets the type to match it (kept for a category chosen before the type).
 form?.querySelector<HTMLSelectElement>('select[name="kategori"]')?.addEventListener('change', (event) => {
   const option = (event.target as HTMLSelectElement).selectedOptions[0];
   if (option?.dataset.jenis) field('jenis').value = option.dataset.jenis;

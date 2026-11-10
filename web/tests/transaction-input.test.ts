@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { normalizeDescription, parseTransactionFields, waktuFor } from '../src/lib/transaction-input.ts';
+import { categoryMismatch, normalizeDescription, parseTransactionFields, waktuFor } from '../src/lib/transaction-input.ts';
 
 const TODAY = '2026-10-15';
 const valid = { tanggal: '2026-10-14', jenis: 'pengeluaran', kategori: '4', deskripsi: '  kopi   susu ', nominal: '18.000', member: '1' };
@@ -56,4 +56,12 @@ test('waktuFor: now for today, noon WIB for any other day (so the WIB date never
   const now = Date.parse('2026-10-15T03:25:00Z');
   assert.equal(waktuFor('2026-10-15', TODAY, now), '2026-10-15T03:25:00.000Z');
   assert.equal(waktuFor('2026-10-10', TODAY, now), '2026-10-10T05:00:00.000Z');
+});
+
+test('a transaction must be of the same type as its category', () => {
+  assert.equal(categoryMismatch('tabungan', 'tabungan'), null);
+  assert.equal(categoryMismatch('pengeluaran', 'pengeluaran'), null);
+  assert.match(categoryMismatch('pengeluaran', 'pemasukan') ?? '', /category is for income, but the type is spending/i);
+  assert.match(categoryMismatch('pemasukan', 'tabungan') ?? '', /for savings/i);
+  assert.match(categoryMismatch('pengeluaran', 'tabungan') ?? '', /for savings/i);
 });
