@@ -88,6 +88,7 @@ const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'
     </button>
   </nav>
 
+  {area !== 'chat' && (
   <div class="side-body">
   <div class="side-top">
     <a href={brand.href} class="brand">syafwan <span>/ {brand.name}</span></a>
@@ -119,12 +120,13 @@ const persibTitle = [waiting > 0 && `${waiting} update${waiting === 1 ? '' : 's'
 
   <div class="side-foot">
     {email && <p class="who" title={email}>{email}</p>}
-    {area === 'chat' && <button type="button" class="alerts" data-alerts aria-pressed="true">alerts: on</button>}
+    {area === 'agent' && <button type="button" class="alerts" data-alerts aria-pressed="true">alerts: on</button>}
     <form method="post" action="/agent/logout">
       <button type="submit" class="signout">sign out</button>
     </form>
   </div>
   </div>
+  )}
 </aside>
 
 <script>
