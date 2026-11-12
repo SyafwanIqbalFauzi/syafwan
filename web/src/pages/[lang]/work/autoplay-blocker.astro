@@ -4,7 +4,7 @@
 // page supplies the presentation. Copy lives in lib/autoplay-blocker-content.ts.
 import Layout from '../../../layouts/Layout.astro';
 import { getProject } from '../../../lib/content';
-import { autoplayBlockerContent, AUTOPLAY_BLOCKER_VERSION } from '../../../lib/autoplay-blocker-content';
+import { autoplayBlockerContent, AUTOPLAY_BLOCKER_VERSION, AUTOPLAY_BLOCKER_STORE_URL } from '../../../lib/autoplay-blocker-content';
 import { isLocale, pick, t } from '../../../lib/i18n';
 import { assetUrl } from '../../../lib/assets';
 
@@ -27,6 +27,8 @@ const jsonLd = {
   name: 'Autoplay Blocker',
   applicationCategory: 'BrowserApplication',
   operatingSystem: 'Chrome',
+  downloadUrl: AUTOPLAY_BLOCKER_STORE_URL,
+  installUrl: AUTOPLAY_BLOCKER_STORE_URL,
   softwareVersion: AUTOPLAY_BLOCKER_VERSION,
   description: summary,
   image: heroImage,
@@ -49,10 +51,7 @@ const jsonLd = {
         <h1 class="display">{c.hero.headline}</h1>
         <p class="sub">{c.hero.sub}</p>
         <div class="actions">
-          <span class="btn btn-solid disabled" role="link" aria-disabled="true">
-            {c.hero.install}
-            <span class="tag tag-amber">{c.hero.installNote}</span>
-          </span>
+          <a class="btn btn-solid" href={AUTOPLAY_BLOCKER_STORE_URL} target="_blank" rel="noopener">{c.hero.install}</a>
           <a class="arrow-link" href="#how">{c.hero.how} →</a>
         </div>
         <ul class="tags">
@@ -214,9 +213,7 @@ const jsonLd = {
     <div class="container closing-inner">
       <h2 class="display-sm">{c.closing.title}</h2>
       <p class="muted">{c.closing.text}</p>
-      <span class="btn btn-solid disabled" role="link" aria-disabled="true">
-        {c.hero.install} <span class="tag tag-amber">{c.hero.installNote}</span>
-      </span>
+      <a class="btn btn-solid" href={AUTOPLAY_BLOCKER_STORE_URL} target="_blank" rel="noopener">{c.hero.install}</a>
       <p class="label muted">{c.closing.share}</p>
       <p class="label doc-links">
         <a class="arrow-link" href={`/${locale}/work/autoplay-blocker/privacy`}>{c.privacy.policy}</a>
