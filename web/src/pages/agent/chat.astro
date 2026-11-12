@@ -2,6 +2,7 @@
 import HermesShell from '../../layouts/HermesShell.astro';
 
 export const prerender = false;
+const email = Astro.locals.hermesUser?.email;
 ---
 
 <HermesShell title="Chat" current="chat" area="chat" fill>
@@ -10,6 +11,13 @@ export const prerender = false;
       <button id="new-chat" type="button" class="btn btn-solid">new chat</button>
       <ul id="sessions" class="ruled"></ul>
       <p class="label muted">web chats and your Telegram / Discord conversations. <a class="link" href="/agent/sessions">all sessions</a></p>
+      <div class="side-foot">
+        {email && <p class="who" title={email}>{email}</p>}
+        <button type="button" class="alerts" data-alerts aria-pressed="true">alerts: on</button>
+        <form method="post" action="/agent/logout">
+          <button type="submit" class="signout">sign out</button>
+        </form>
+      </div>
     </aside>
 
     <section class="pane">
@@ -53,6 +61,38 @@ export const prerender = false;
     padding: var(--s-15) var(--gutter);
     border-right: 1px solid var(--te-grey-100);
     min-height: 0;
+  }
+
+  .chat .side-foot {
+    display: grid;
+    gap: var(--s-4);
+    padding-top: var(--s-15);
+    border-top: 1px solid var(--te-grey-100);
+    font-size: var(--text-caption);
+  }
+
+  .chat .side-foot .who {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .chat .side-foot .alerts {
+    justify-self: start;
+    font-size: var(--text-caption);
+    color: var(--te-grey-600);
+  }
+
+  .chat .side-foot .signout {
+    justify-self: start;
+    margin-top: var(--s-4);
+    font-weight: var(--w-regular);
+  }
+
+  .chat .side-foot .alerts:hover,
+  .chat .side-foot .signout:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   .chat #sessions {

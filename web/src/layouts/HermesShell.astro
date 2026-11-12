@@ -45,7 +45,7 @@ const email = Astro.locals.hermesUser?.email;
           <slot />
         </main>
       ) : (
-        <div class="cms">
+        <div class="cms" data-area={area}>
           <HermesSidebar current={current} email={email} area={area} />
           <main id="main" class="cms-main">
             <slot />
@@ -81,6 +81,11 @@ const email = Astro.locals.hermesUser?.email;
     display: grid;
     grid-template-columns: 320px minmax(0, 1fr);
     min-height: 100dvh;
+  }
+
+  /* Chat has no page list: only the narrow rail, the conversation list lives in the page itself. */
+  .cms[data-area='chat'] {
+    grid-template-columns: 68px minmax(0, 1fr);
   }
 
   .cms-main {
