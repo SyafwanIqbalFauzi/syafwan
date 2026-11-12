@@ -18,6 +18,11 @@ body.cms-body {
   --s-4: 4px; /* icon + label, chips, stacked captions */
   --s-11: 11px; /* control padding (inputs, buttons, table cells) */
 
+  /* Text on a white page that must read as "failure": #f05a24 is 3.39:1 there (AA needs 4.5:1 for small text), this is 5.2:1.
+     The bright orange stays for fills; text uses this one. */
+  --ink-danger: #c2410c;
+  --text-micro: 12px; /* smallest text: field labels, dialog errors, chart axes */
+
   /* Rhythm of a page, by role */
   --gap-section: var(--s-33); /* between sections; also the default between any two children of a page */
   --gap-head: var(--s-22); /* after the page head, tabs or a notice */

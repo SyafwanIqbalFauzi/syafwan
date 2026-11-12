@@ -92,7 +92,7 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
                 <span class="sub">{relative(row.date_created)}</span>
               </time>
               <div class="update-body">
-                <h3 class="update-title">
+                <h2 class="update-title">
                   <span>{row.nama || 'Anonymous'}</span>
                   <span class="chips">
                     <span class="tag tag-idle">{row.kategori || 'Lainnya'}</span>
@@ -100,7 +100,7 @@ const stateLabel = { new: 'To review', reviewed: 'Reviewed', replied: 'Replied' 
                     {send === 'sending' && <span class="tag tag-idle">Sending…</span>}
                     {send === 'failed' && <span class="tag tag-fail">Sending failed</span>}
                   </span>
-                </h3>
+                </h2>
                 <p class="feedback-meta label muted">
                   {row.email ? <a href={`mailto:${row.email}`}>{row.email}</a> : 'No email left'}
                   {player && <> · Player: {player.url ? <a href={player.url} target="_blank" rel="noopener">{player.name}</a> : player.name}</>}

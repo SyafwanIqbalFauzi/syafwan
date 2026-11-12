@@ -21,7 +21,7 @@
 
 .chart .axis {
   fill: var(--te-grey-600);
-  font-size: 11px;
+  font-size: var(--text-micro);
   font-variant-numeric: tabular-nums;
 }
 
@@ -210,9 +210,14 @@
   }
 }
 
-/* Long rupiah amounts in key figures stay on one line */
-.figures-money .figure .value {
-  font-size: var(--text-h3);
+/* Long rupiah amounts in key figures stay on one line. The 30px rule in layout.css out-ranked this one, so the amounts
+   ran past their cell (Rp 12.529.382 needed 173px in a 145px box). The size now follows the cell width. */
+.cms-main .figures-money .figure {
+  container-type: inline-size;
+}
+
+.cms-main .figures-money .figure .value {
+  font-size: min(var(--text-h3), 15cqi);
   white-space: nowrap;
 }
 
@@ -246,7 +251,7 @@
 }
 
 .row-trx .row-actions .danger {
-  color: var(--te-orange);
+  color: var(--ink-danger);
 }
 
 .dlg .dlg-field input[type='date'] {
