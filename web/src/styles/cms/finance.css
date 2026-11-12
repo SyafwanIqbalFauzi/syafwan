@@ -240,16 +240,6 @@
   margin-top: var(--s-15);
 }
 
-.row-trx .row-actions button,
-.row-budget .row-actions button {
-  background: none;
-  border: 0;
-  padding: 0;
-  font: inherit;
-  font-size: var(--text-caption);
-  cursor: pointer;
-}
-
 .row-trx .row-actions .danger {
   color: var(--ink-danger);
 }
