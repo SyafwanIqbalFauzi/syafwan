@@ -8,6 +8,7 @@ import { toast } from './toast';
 import { approvalKey, clearActiveRun, loadActiveRun, loadActiveRuns, MAX_ACTIVE_RUNS, pendingApproval, pollRun, saveActiveRun, watchRun, type ActiveRun, type RunEvent, type WatchResult } from '../lib/chat-run';
 import { markerText, type RunState } from '../lib/run-badge';
 import { fitWithin, imageSourcesOf, MAX_IMAGES, MAX_IMAGE_DATA_URL_CHARS, textOfContent } from '../lib/chat-images';
+import { isNearBottom, jumpLabel, shouldAutoScroll } from '../lib/chat-scroll';
 import { enterSends } from '../lib/composer-keys';
 import { clampManual, COMPOSER_KEY, composerHeight, heightAfterKey } from '../lib/composer-height';
 
@@ -146,7 +147,31 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return node;
 }
 
-const scrollDown = () => logEl.scrollTo({ top: logEl.scrollHeight });
+// Follow new content only while the reader is at the bottom; otherwise leave the scroll alone and offer a jump button.
+const jumpBtn = $<HTMLButtonElement>('#jump');
+let following = true;
+let unseen = false;
+function paintJump() {
+  jumpBtn.hidden = following;
+  jumpBtn.dataset.unseen = String(unseen);
+  jumpBtn.textContent = `↓ ${jumpLabel(unseen)}`;
+}
+function scrollDown(force = false) {
+  if (shouldAutoScroll(following, force)) {
+    following = true;
+    unseen = false;
+    logEl.scrollTo({ top: logEl.scrollHeight });
+  } else {
+    unseen = true;
+  }
+  paintJump();
+}
+logEl.addEventListener('scroll', () => {
+  following = isNearBottom(logEl);
+  if (following) unseen = false;
+  paintJump();
+});
+jumpBtn.addEventListener('click', () => scrollDown(true));
 const setStatus = (text: string) => (statusEl.textContent = text);
 
 // A phone's keyboard pops up whenever the box is focused from code, and then covers the screen. Only a
@@ -427,7 +452,7 @@ async function openSession(id: string, title: string, opts: { skipResume?: boole
       else fillUserBubble(bubble, text, pictures);
     }
     if (!logEl.children.length) logEl.append(el('p', 'hint', 'Empty session.'));
-    scrollDown();
+    scrollDown(true); // a freshly opened chat starts at its end
   } catch (e) {
     logEl.replaceChildren(el('p', 'hint', (e as Error).message));
   }
@@ -639,6 +664,7 @@ async function send(message: string, pictures: string[] = []) {
   }
   const placeholder: ActiveRun = { runId: '', sessionId, message, lastSeq: -1, startedAt: Date.now() };
   const turn = beginTurn(placeholder, true, pictures);
+  scrollDown(true); // the person just sent something: show it
   setBusy(true);
   setStatus('');
   try {
