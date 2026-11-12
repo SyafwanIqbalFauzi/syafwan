@@ -31,7 +31,7 @@
 }
 
 .arrow-link.danger {
-  color: var(--te-orange);
+  color: var(--ink-danger);
 }
 
 .row-actions button {
@@ -41,6 +41,15 @@
   font: inherit;
   font-size: var(--text-caption);
   cursor: pointer;
+}
+
+/* Desktop: edit/delete were 22x20 px. Grow the hit area to 24x24+ (WCAG 2.5.8) with padding that a negative margin
+   cancels, so the rows keep their height. Phones have their own 40px rule in phone.css. */
+@media (min-width: 721px) {
+  .row-actions button {
+    padding: var(--s-4);
+    margin: calc(-1 * var(--s-4));
+  }
 }
 
 /* Notes under the last block of a page: they get room above, and two notes in a row stay close together */

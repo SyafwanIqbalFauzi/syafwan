@@ -76,12 +76,13 @@ Source of truth in code: `styles/global.css` (colours, type, base scale), `style
 - **Primary (#000000):** text, rules that matter, solid buttons. The only high-emphasis action on a page is one solid button.
 - **Secondary (#6b6b6b):** muted text. The only grey that passes AA on white; `#b2b2b2` is for carbon backgrounds only.
 - **Tertiary (#f05a24):** failure and destructive actions. Never decoration. Text on it is black (6.2:1); light text on it is only 3.18:1 and fails WCAG AA.
+- **Danger ink (#c2410c):** failure or destructive TEXT on a light surface (delete links, dialog errors), token `--ink-danger`. #f05a24 as text is 3.39:1 on white and fails AA; this is about 5.2:1. The bright orange stays for fills.
 - **Waiting (#f0a800):** paused / waiting notices.
 - **Surface (#f6f8f7) and rule (#e5e5e5):** cells, header rows, hairlines.
 
 ## Typography
 
-Inter Variable only. Weights 200/300 are for large text (page title, figures); body and captions use 300/400 at 16px and 13px. No italics, no all-caps labels.
+Inter Variable only. Weights 200/300 are for large text (page title, figures); body and captions use 300/400 at 16px and 13px. The smallest text (field labels, dialog errors, chart axes) is `--text-micro`, 12px. No italics, no all-caps labels.
 
 ## Layout
 

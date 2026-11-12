@@ -103,7 +103,7 @@ const toneClass = { ok: 'dot', fail: 'dot dot-fail', idle: 'dot dot-idle' } as c
               <span class="sub">{relative(item.run.started_at)}</span>
             </time>
             <div class="update-body">
-              <h3 class="update-title">
+              <h2 class="update-title">
                 <a href={`/agent/agents/${item.run.job_id}${item.run.execution_id ? `?run=${encodeURIComponent(item.run.execution_id)}` : ''}`}>{item.run.job_name ?? item.run.job_id}</a>
                 <span class="chips">
                   <span class="tag">{item.run.kind === 'script' ? 'script' : 'ai'}</span>
@@ -112,7 +112,7 @@ const toneClass = { ok: 'dot', fail: 'dot dot-fail', idle: 'dot dot-idle' } as c
                   {item.attention && <span class="tag tag-fail">needs your check</span>}
                   {item.run.followup_at && <span class="tag tag-idle" title={`Follow-up sent ${formatWhen(item.run.followup_at)}`}>follow-up sent</span>}
                 </span>
-              </h3>
+              </h2>
               {item.attention && item.reason && <p class="update-reason">{item.reason}</p>}
               {item.run.summary && <p class="update-summary">{item.run.summary}</p>}
               {

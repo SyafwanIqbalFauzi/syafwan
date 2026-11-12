@@ -177,6 +177,12 @@ const other = otherLocale(locale);
     font-weight: var(--w-regular);
   }
 
+  /* The language link was 13x18 px. Padding grows the hit area to 25x26; the negative margin keeps the layout. */
+  .lang a {
+    padding: 4px 6px;
+    margin: -4px -6px;
+  }
+
   .slash {
     color: var(--te-grey-300);
   }

@@ -243,7 +243,7 @@ a.row:hover {
 }
 
 .act.danger {
-  color: var(--te-orange);
+  color: var(--ink-danger);
 }
 
 .notice {

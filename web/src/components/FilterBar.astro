@@ -109,6 +109,13 @@ const active = selects.some((s) => s.value) || Boolean(dateRange?.custom) || Boo
             form.requestSubmit();
           },
         });
+        // flatpickr hides the original input and shows an alt input, so the <label for> pointed at a hidden field.
+        const shown = picker.altInput;
+        if (shown) {
+          shown.id = 'fb-daterange-shown';
+          shown.setAttribute('aria-label', 'Date range');
+          form.querySelector('label[for="fb-daterange"]')?.setAttribute('for', shown.id);
+        }
         pickers.push(picker);
       }
       // Keep URLs clean: empty filters are not sent at all.
@@ -146,7 +153,7 @@ const active = selects.some((s) => s.value) || Boolean(dateRange?.custom) || Boo
   }
 
   .fb-label {
-    font-size: 12px;
+    font-size: var(--text-micro);
     color: var(--te-grey-600);
   }
 

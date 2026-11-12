@@ -62,8 +62,8 @@
 
 .dlg .dlg-error {
   min-height: 1.2em;
-  font-size: 12px;
-  color: var(--te-orange);
+  font-size: var(--text-micro);
+  color: var(--ink-danger);
 }
 
 .dlg .dlg-actions {
