@@ -5,7 +5,7 @@ import type { Locale } from './i18n';
 
 interface Content {
   seoTitle: string;
-  hero: { kicker: string; headline: string; sub: string; install: string; installNote: string; how: string; tags: string[] };
+  hero: { kicker: string; headline: string; sub: string; install: string; how: string; tags: string[] };
   problem: { title: string; lead: string; points: { title: string; text: string }[] };
   demo: { title: string; without: string; withIt: string; withoutCaption: string; withCaption: string };
   features: { title: string; items: { title: string; text: string }[] };
@@ -35,7 +35,6 @@ const en: Content = {
     headline: 'Videos and audio play when you ask, not when a page decides.',
     sub: 'Autoplay Blocker stops the playback itself, not only the sound. One click allows any site you trust.',
     install: 'Add to Chrome',
-    installNote: 'coming soon',
     how: 'see how it works',
     tags: ['Manifest V3', 'Free + Pro', 'EN / ID'],
   },
@@ -122,12 +121,12 @@ const en: Content = {
       { q: 'A site stopped working. What now?', a: 'Allow it from the toolbar. To report it, turn on debug mode: run localStorage.setItem("ab-debug", "1") in the page console and reload, then send the lines starting with [AB].' },
       { q: 'Is it free?', a: 'Blocking is free. Pro features are free during the launch and will need a licence later.' },
       { q: 'Does it work in Edge or Firefox?', a: 'Chrome first. Edge is next. Firefox and Safari are not planned.' },
-      { q: 'When will it be on the Chrome Web Store?', a: 'Soon. Until then it is built and tested locally.' },
+      { q: 'When will it be on the Chrome Web Store?', a: 'It already is. Open the listing and click Add to Chrome.' },
     ],
   },
   closing: {
     title: 'Let playback be your choice again',
-    text: 'The Chrome Web Store listing is on its way.',
+    text: 'Autoplay Blocker is now on the Chrome Web Store.',
     share: 'Built by syafwan, in the open as a side project.',
   },
 };
@@ -139,7 +138,6 @@ const id: Content = {
     headline: 'Video dan audio diputar saat kamu minta, bukan saat halaman memutuskan.',
     sub: 'Autoplay Blocker menghentikan pemutarannya, bukan hanya suaranya. Satu klik untuk mengizinkan situs yang kamu percaya.',
     install: 'Tambahkan ke Chrome',
-    installNote: 'segera hadir',
     how: 'lihat cara kerjanya',
     tags: ['Manifest V3', 'Gratis + Pro', 'EN / ID'],
   },
@@ -226,16 +224,19 @@ const id: Content = {
       { q: 'Sebuah situs jadi tidak berfungsi. Bagaimana?', a: 'Izinkan dari toolbar. Untuk melaporkannya, nyalakan mode debug: jalankan localStorage.setItem("ab-debug", "1") di console halaman lalu muat ulang, kemudian kirim baris yang diawali [AB].' },
       { q: 'Apakah gratis?', a: 'Pemblokiran gratis. Fitur Pro gratis selama peluncuran dan nanti memerlukan lisensi.' },
       { q: 'Apakah jalan di Edge atau Firefox?', a: 'Chrome dulu. Edge menyusul. Firefox dan Safari belum direncanakan.' },
-      { q: 'Kapan ada di Chrome Web Store?', a: 'Segera. Sampai saat itu, ekstensi dibangun dan diuji secara lokal.' },
+      { q: 'Kapan ada di Chrome Web Store?', a: 'Sudah ada. Buka halamannya lalu klik Tambahkan ke Chrome.' },
     ],
   },
   closing: {
     title: 'Kembalikan pemutaran ke tanganmu',
-    text: 'Halaman di Chrome Web Store sedang disiapkan.',
+    text: 'Autoplay Blocker sekarang sudah ada di Chrome Web Store.',
     share: 'Dibuat oleh syafwan sebagai proyek sampingan.',
   },
 };
 
 export const autoplayBlockerContent: Record<Locale, Content> = { en, id };
+export const AUTOPLAY_BLOCKER_STORE_URL =
+  'https://chromewebstore.google.com/detail/autoplay-blocker-by-syafw/phifegloknkkappkgnjfdjnoclihkbmg';
+
 export const AUTOPLAY_BLOCKER_VERSION = '0.1.0';
 export type { Content as AutoplayBlockerContent };
