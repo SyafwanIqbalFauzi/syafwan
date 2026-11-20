@@ -389,4 +389,16 @@ h4 {
     position: absolute;
     inset: -12px -4px;
   }
+
+  /* text links that were 16-24px tall */
+  .arrow-link,
+  a.company-link,
+  .crumbs a,
+  .subnav a,
+  footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    min-width: 44px;
+  }
 }
