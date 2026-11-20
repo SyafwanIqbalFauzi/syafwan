@@ -375,6 +375,8 @@ h4 {
   }
 
   ul.filters .filter {
+    min-width: 44px;
+    justify-content: center;
     min-height: 44px;
     align-items: center;
   }
