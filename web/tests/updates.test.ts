@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { attentionParams, categoryOf, isPersibJob, persibParams, checkReason, dedupeRuns, findTwins, visibleAttention, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
+import { attentionParams, categoryOf, isPersibJob, persibParams, checkReason, dedupeRuns, findTwins, twinLookupParams, visibleAttention, feedView, needsCheck, parseCategory, statusCells, type RunRow } from '../src/lib/updates.ts';
 
 const NOW = Date.parse('2026-10-27T10:00:00Z');
 const run = (over: Partial<RunRow>): RunRow => ({
@@ -169,4 +169,14 @@ test('visibleAttention leaves out a flagged file: copy whose twin the feed shows
   const nearby = [checkedTwin, ghost, real, realCopy, lone];
   assert.deepEqual(visibleAttention([ghost, real, realCopy, lone], nearby).map((r) => r.id), [3, 5]);
   assert.deepEqual(visibleAttention([], nearby), []);
+});
+
+test('twinLookupParams asks for every real run around the flagged ones, with no row cap', () => {
+  assert.equal(twinLookupParams([]), null);
+  const params = twinLookupParams([run({ job_id: 'a', started_at: '2026-10-28T01:00:00Z' }), run({ job_id: 'b', started_at: '2026-11-19T01:00:00Z' }), run({ job_id: 'a', started_at: '2026-11-01T01:00:00Z' })])!;
+  assert.equal(params['filter[job_id][_in]'], 'a,b');
+  assert.equal(params['filter[execution_id][_nstarts_with]'], 'file:');
+  assert.equal(params.limit, '-1');
+  assert.equal(params['filter[started_at][_gte]'], '2026-10-28T00:45:00.000Z');
+  assert.equal(params['filter[started_at][_lte]'], '2026-11-19T01:15:00.000Z');
 });
