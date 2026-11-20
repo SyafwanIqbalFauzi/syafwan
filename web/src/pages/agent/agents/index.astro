@@ -124,7 +124,7 @@ const syncedAt = jobs.map((j) => j.synced_at).filter(Boolean).sort().at(-1);
                   </div>
                   <div>
                     <p>{humanizeSchedule(job.schedule_display)}</p>
-                    <p class="sub">{s === 'active' && job.next_run_at ? `next ${formatWhen(job.next_run_at)} (${relative(job.next_run_at)})` : '—'}</p>
+                    <p class="sub">{s === 'active' && job.next_run_at ? `next ${formatWhen(job.next_run_at)} (${relative(job.next_run_at)})` : '-'}</p>
                     <p class="sub">{(job.deliver_labels ?? ['local']).join(', ')}</p>
                   </div>
                   <div>

@@ -28,13 +28,13 @@ export function alertFor(state: string, message = ''): AlertText | null {
   switch (state) {
     case 'waiting_for_approval':
     case 'approval.request':
-      return { kind: 'approval', title: 'Hermes needs your OK', body: `${about} — waiting for you to allow or deny an action.` };
+      return { kind: 'approval', title: 'Hermes needs your OK', body: `${about}: waiting for you to allow or deny an action.` };
     case 'completed':
     case 'run.completed':
-      return { kind: 'done', title: 'Hermes is done', body: `${about} — the answer is ready.` };
+      return { kind: 'done', title: 'Hermes is done', body: `${about}: the answer is ready.` };
     case 'failed':
     case 'run.failed':
-      return { kind: 'failed', title: 'Hermes hit a problem', body: `${about} — it could not finish.` };
+      return { kind: 'failed', title: 'Hermes hit a problem', body: `${about}: it could not finish.` };
     default:
       return null; // running, cancelled, interrupted: nothing to announce
   }

@@ -243,7 +243,8 @@ const other = otherLocale(locale);
 
     .item-label {
       font-size: var(--text-body);
-      padding-block: 8px;
+      padding-block: 13px;
+      margin-block: -5px;
     }
 
     .end {
@@ -255,6 +256,18 @@ const other = otherLocale(locale);
 
     .lang {
       font-size: var(--text-body);
+      gap: 14px;
+    }
+
+    /* tap targets of 44px (antislop R-03); negative margins keep the layout as it was */
+    .wordmark {
+      padding-block: 11px;
+      margin-block: -11px;
+    }
+
+    .lang a {
+      padding: 13px 15px;
+      margin: -13px -15px;
     }
   }
 </style>

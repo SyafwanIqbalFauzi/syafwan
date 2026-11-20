@@ -67,7 +67,7 @@ const sections = [
               <dd>
                 {bio.spoken_languages.map((l) => (
                   <span class="lang-item">
-                    {l.name} <span class="muted">— {l.level}</span>
+                    {l.name} <span class="muted">({l.level})</span>
                   </span>
                 ))}
               </dd>
@@ -253,7 +253,7 @@ const sections = [
       {
         certifications.map((c) => (
           <li class="cert">
-            <span class="label muted">{c.issued_date ? formatMonthYear(c.issued_date, locale) : '—'}</span>
+            <span class="label muted">{c.issued_date ? formatMonthYear(c.issued_date, locale) : '-'}</span>
             <span>
               {c.name} <span class="muted">· {c.issuer}</span>
             </span>

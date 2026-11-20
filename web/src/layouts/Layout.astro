@@ -5,6 +5,7 @@ import '../styles/global.css';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
 import { getProfile } from '../lib/content';
+import { assetUrl } from '../lib/assets';
 import { LOCALES, switchLocalePath, type Locale } from '../lib/i18n';
 import { PUBLIC_GA_ID } from 'astro:env/server';
 
@@ -23,7 +24,9 @@ const { locale, title, description, image, type = 'website', alternates = true, 
 
 const profile = await getProfile().catch(() => null);
 const siteName = profile?.full_name ?? 'Syafwan Iqbal Fauzi';
-const fullTitle = title ? `${title} — ${siteName}` : siteName;
+// Pages without their own picture (work list, about, writing list, privacy) share the profile photo.
+const ogImage = image ?? (profile?.photo ? assetUrl(profile.photo, 1200, 'jpg') : null);
+const fullTitle = title ? `${title}: ${siteName}` : siteName;
 const site = Astro.site ?? new URL(Astro.url.origin);
 const canonical = new URL(Astro.url.pathname, site).href;
 const ogLocale = locale === 'id' ? 'id_ID' : 'en_US';
@@ -56,8 +59,8 @@ const trackable = PUBLIC_GA_ID && !/^\/(agent|finance|panel)(\/|$)/.test(Astro.u
     <meta property="og:type" content={type} />
     <meta property="og:url" content={canonical} />
     <meta property="og:locale" content={ogLocale} />
-    {image && <meta property="og:image" content={image} />}
-    <meta name="twitter:card" content={image ? 'summary_large_image' : 'summary'} />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
     <meta name="theme-color" content="#ffffff" />
     <!-- "SIF" monogram: .ico for older browsers, SVG for the rest, PNG for iOS home screens -->
     <link rel="icon" href="/favicon.ico" sizes="32x32" />

@@ -16,7 +16,7 @@ const dateOnly = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric
 /** `2026-10-15T04:00:00Z` -> "15 Oct 11:00 WIB". Accepts ISO strings or epoch seconds. */
 export function formatWhen(value: string | number | null | undefined): string {
   const date = toDate(value);
-  return date ? `${dateTime.format(date).replace(',', '')} WIB` : '—';
+  return date ? `${dateTime.format(date).replace(',', '')} WIB` : '-';
 }
 
 /** Calendar day in WIB, `YYYY-MM-DD`. */
@@ -34,7 +34,7 @@ export function toDate(value: string | number | null | undefined): Date | null {
 /** "3 min ago", "in 2 h", "2 d ago". */
 export function relative(value: string | number | null | undefined, now = Date.now()): string {
   const date = toDate(value);
-  if (!date) return '—';
+  if (!date) return '-';
   const diff = date.getTime() - now;
   const abs = Math.abs(diff);
   const unit = abs < 60_000 ? ['s', 1000] : abs < 3_600_000 ? ['min', 60_000] : abs < 86_400_000 ? ['h', 3_600_000] : ['d', 86_400_000];
@@ -43,7 +43,7 @@ export function relative(value: string | number | null | undefined, now = Date.n
 }
 
 export function duration(seconds: number | null | undefined): string {
-  if (seconds === null || seconds === undefined) return '—';
+  if (seconds === null || seconds === undefined) return '-';
   if (seconds < 1) return '<1 s';
   if (seconds < 60) return `${Math.round(seconds)} s`;
   const m = Math.floor(seconds / 60);
@@ -53,14 +53,14 @@ export function duration(seconds: number | null | undefined): string {
 
 /** 21714 -> "21.7k", 5_841_816 -> "5.84M". */
 export function compact(n: number | null | undefined): string {
-  if (n === null || n === undefined) return '—';
+  if (n === null || n === undefined) return '-';
   if (n < 1000) return String(Math.round(n));
   if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
   return `${(n / 1_000_000).toFixed(2)}M`;
 }
 
 export function usd(n: number | null | undefined): string {
-  return n === null || n === undefined ? '—' : `$${n.toFixed(n < 1 ? 3 : 2)}`;
+  return n === null || n === undefined ? '-' : `$${n.toFixed(n < 1 ? 3 : 2)}`;
 }
 
 export type Tone = 'ok' | 'wait' | 'fail' | 'idle';
