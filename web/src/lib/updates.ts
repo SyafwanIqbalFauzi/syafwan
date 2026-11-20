@@ -167,6 +167,24 @@ export function dedupeRuns<T extends Pick<RunRow, 'job_id' | 'execution_id' | 's
 }
 
 /**
+ * Directus query params for the rows that can hide a flagged `file:` copy: real (non-`file:`) runs of the same
+ * jobs around the flagged ones. No row limit: a cap cuts off the newest rows (default sort is by id), their
+ * copies then look visible and the sidebar badge counts runs the feed hides.
+ */
+export function twinLookupParams(flagged: Pick<RunRow, 'job_id' | 'started_at'>[]): Record<string, string> | null {
+  const times = flagged.map((r) => Date.parse(r.started_at ?? '')).filter(Number.isFinite);
+  if (!times.length) return null;
+  return {
+    'filter[job_id][_in]': [...new Set(flagged.map((r) => r.job_id))].join(','),
+    'filter[execution_id][_nstarts_with]': 'file:',
+    'filter[started_at][_gte]': new Date(Math.min(...times) - DUPLICATE_WINDOW_MS).toISOString(),
+    'filter[started_at][_lte]': new Date(Math.max(...times) + DUPLICATE_WINDOW_MS).toISOString(),
+    limit: '-1',
+    fields: 'id,job_id,execution_id,summary,started_at',
+  };
+}
+
+/**
  * Of the runs that wait for a look (`attention`), the ones the feed really shows: a `file:` copy whose twin
  * is in `nearby` is hidden by `dedupeRuns` on the page, so the badge must not count it either.
  */
