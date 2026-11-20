@@ -18,7 +18,7 @@ test('alertFor: approval, done and failed are announced; running is not', () => 
 
 test('alertFor: quotes a shortened one-line version of the message', () => {
   const text = alertFor('completed', `line one\n${'x'.repeat(300)}`)!;
-  assert.match(text.body, /^“line one x+…” — /);
+  assert.match(text.body, /^“line one x+…”: /);
   assert.ok(text.body.length < 140);
   assert.match(alertFor('completed')!.body, /^Your message/);
 });

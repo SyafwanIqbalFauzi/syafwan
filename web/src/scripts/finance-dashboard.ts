@@ -256,7 +256,7 @@ function start(data: Payload): () => void {
         if (i) cell.className = 'num';
       });
       if (stacked) {
-        row.insertCell().textContent = people.filter((w) => p.people[w.key]?.expense).map((w) => `${w.name} ${money(p.people[w.key].expense)}`).join(' · ') || '—';
+        row.insertCell().textContent = people.filter((w) => p.people[w.key]?.expense).map((w) => `${w.name} ${money(p.people[w.key].expense)}`).join(' · ') || '-';
       }
     }
     holder.replaceChildren(table);
@@ -281,10 +281,10 @@ function start(data: Payload): () => void {
         const day = document.createElement('span');
         day.textContent = t.tanggal.slice(5);
         const what = document.createElement('span');
-        what.append(document.createTextNode(t.deskripsi || '—'), document.createElement('br'));
+        what.append(document.createTextNode(t.deskripsi || '-'), document.createElement('br'));
         const sub = document.createElement('span');
         sub.className = 'sub';
-        sub.textContent = `${t.kategori ? (categoryName.get(t.kategori) ?? 'Uncategorised') : 'Uncategorised'} · ${t.member ? (memberName.get(t.member) ?? '—') : '—'}`;
+        sub.textContent = `${t.kategori ? (categoryName.get(t.kategori) ?? 'Uncategorised') : 'Uncategorised'} · ${t.member ? (memberName.get(t.member) ?? '-') : '-'}`;
         what.append(sub);
         const amount = document.createElement('span');
         amount.className = 'num';

@@ -86,7 +86,7 @@ test('pctChange: needs something before to compare with', () => {
   assert.equal(pctChange(10, 0), null);
   assert.equal(signedPercent(0.123), '+12%');
   assert.equal(signedPercent(-0.05), '-5%');
-  assert.equal(signedPercent(null), '—');
+  assert.equal(signedPercent(null), '-');
 });
 
 test('cashflow: every day appears, empty ones are zero, cumulative net runs on', () => {

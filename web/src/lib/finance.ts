@@ -381,12 +381,12 @@ export function rupiahShort(n: number): string {
 }
 
 export function percent(ratio: number | null, digits = 0): string {
-  return ratio === null || !Number.isFinite(ratio) ? '—' : `${(ratio * 100).toFixed(digits)}%`;
+  return ratio === null || !Number.isFinite(ratio) ? '-' : `${(ratio * 100).toFixed(digits)}%`;
 }
 
-/** "+12%" / "-5%" / "—" */
+/** "+12%" / "-5%" / "-" */
 export function signedPercent(ratio: number | null): string {
-  if (ratio === null || !Number.isFinite(ratio)) return '—';
+  if (ratio === null || !Number.isFinite(ratio)) return '-';
   const value = Math.round(ratio * 100);
   return `${value > 0 ? '+' : ''}${value}%`;
 }

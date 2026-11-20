@@ -131,7 +131,7 @@ h4 {
 }
 
 :focus-visible {
-  outline: 1px solid currentColor;
+  outline: 2px solid currentColor;
   outline-offset: 3px;
 }
 
@@ -366,4 +366,27 @@ h4 {
 
 .prose-compact > * + * {
   margin-top: 0.6em;
+}
+
+/* ---------- phone tap targets (antislop R-03: 44px) ---------- */
+@media (max-width: 719px) {
+  .btn {
+    min-height: 44px;
+  }
+
+  ul.filters .filter {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  /* project chips: grow the hit area without changing the layout */
+  a.tag {
+    position: relative;
+  }
+
+  a.tag::after {
+    content: '';
+    position: absolute;
+    inset: -12px -4px;
+  }
 }

@@ -13,16 +13,39 @@
     width: 100%;
   }
 
-  /* edit / delete / rename links in rows: a finger needs about 40px */
+  /* edit / delete / rename links in rows: 44px (antislop R-03; was 40px) */
   .row-actions button,
   .row-actions a {
-    min-height: 40px;
-    min-width: 40px;
+    min-height: 44px;
+    min-width: 44px;
     padding: 0 var(--s-8) !important;
   }
 
   .cms-main :is(.btn, button.btn) {
     min-height: 44px;
+  }
+
+  /* selects and text fields were 40-42px tall */
+  .cms :is(select, input:not([type='checkbox'], [type='radio'], [type='range'])),
+  .dlg :is(select, input:not([type='checkbox'], [type='radio'], [type='range'])) {
+    min-height: 44px;
+  }
+
+  /* text links and disclosure rows that were 20-24px tall: grow the box, keep the text where it is */
+  .cms-main :is(.arrow-link, .crumb a, .update-title a) {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .cms .side-top a.brand {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .cms-main summary {
+    padding-block: var(--s-15);
   }
 
   .legend-item,
@@ -31,8 +54,8 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 40px;
-    min-width: 40px;
+    min-height: 44px;
+    min-width: 44px;
   }
 
   .legend-item {

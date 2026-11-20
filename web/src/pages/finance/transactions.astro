@@ -107,9 +107,9 @@ const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-
             {rows.map((t) => (
               <div class="row row-trx">
                 <span>{fmtDay(t.tanggal)}</span>
-                <span>{t.deskripsi || '—'}</span>
+                <span>{t.deskripsi || '-'}</span>
                 <span>{t.kategori ? categoryName.get(t.kategori) : 'Uncategorised'}</span>
-                <span class="sub">{t.member ? memberName.get(t.member) : '—'}</span>
+                <span class="sub">{t.member ? memberName.get(t.member) : '-'}</span>
                 <span class="amount" data-kind={t.jenis === 'pemasukan' ? 'in' : 'out'}>{t.jenis === 'pemasukan' ? '+' : '−'}{rupiah(Number(t.nominal))}</span>
                 <span class="row-actions">
                   <button type="button" class="arrow-link" data-trx-edit data-id={t.id} data-tanggal={t.tanggal} data-jenis={t.jenis} data-kategori={t.kategori ?? ''} data-deskripsi={t.deskripsi ?? ''} data-nominal={Number(t.nominal)} data-member={t.member ?? ''}>edit</button>
@@ -176,7 +176,7 @@ const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-
         <label class="dlg-field">
           <span class="label muted">Person</span>
           <select name="member">
-            <option value="">—</option>
+            <option value="">-</option>
             {members.map((m) => <option value={m.id}>{m.nama_panggilan}</option>)}
           </select>
         </label>

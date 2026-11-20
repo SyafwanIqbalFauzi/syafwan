@@ -160,7 +160,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
         {job?.script && <div class="row row-kv"><span class="muted">script</span><span>{job.script}</span></div>}
         <div class="row row-kv">
           <span class="muted">schedule</span>
-          <span>{humanizeSchedule(scheduleRaw)} <span class="muted">({scheduleRaw ?? '—'})</span></span>
+          <span>{humanizeSchedule(scheduleRaw)} <span class="muted">({scheduleRaw ?? '-'})</span></span>
         </div>
         <div class="row row-kv"><span class="muted">results go to</span><span>{deliver.length ? deliver.join(', ') : 'local only'}</span></div>
         <div class="row row-kv">
@@ -169,7 +169,7 @@ const pageHref = (p: number) => `?${new URLSearchParams(p > 1 ? { page: String(p
         </div>
         <div class="row row-kv">
           <span class="muted">next run</span>
-          <span>{!done && !paused && (job?.next_run_at ?? snapshot?.next_run_at) ? `${formatWhen(job?.next_run_at ?? snapshot?.next_run_at)} (${relative(job?.next_run_at ?? snapshot?.next_run_at)})` : '—'}</span>
+          <span>{!done && !paused && (job?.next_run_at ?? snapshot?.next_run_at) ? `${formatWhen(job?.next_run_at ?? snapshot?.next_run_at)} (${relative(job?.next_run_at ?? snapshot?.next_run_at)})` : '-'}</span>
         </div>
         {
           job && Number(job.failure_streak) > 0 && (

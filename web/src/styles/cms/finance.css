@@ -85,8 +85,12 @@
   font-size: var(--text-caption);
 }
 
-.chart-table summary {
+.chart-table summary,
+.cms summary {
   cursor: pointer;
+}
+
+.chart-table summary {
   color: var(--te-grey-600);
 }
 
@@ -232,7 +236,7 @@
 }
 
 .dlg .dlg-field select:focus-visible {
-  outline: 1px solid var(--te-black);
+  outline: 2px solid var(--te-black);
   outline-offset: 0;
 }
 

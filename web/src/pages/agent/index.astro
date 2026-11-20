@@ -9,6 +9,7 @@ import { hermesGet } from '../../lib/hermes';
 import { compact, formatWhen, relative } from '../../lib/format';
 import { orderGroups, UNGROUPED } from '../../lib/groups';
 import { humanizeSchedule } from '../../lib/schedule';
+import { platformStates } from '../../lib/platform-status';
 
 export const prerender = false;
 
@@ -64,7 +65,7 @@ const failed = failedResult?.data ?? [];
 const recent = recentResult?.data ?? [];
 
 const checks = health?.readiness?.checks ?? {};
-const platforms: [string, string][] = Object.entries(health?.platforms ?? {}).map(([name, p]: [string, any]) => [name, p?.state ?? 'unknown']);
+const platforms = platformStates(health?.platforms, health?.pid);
 const counts = {
   active: allJobs.filter((j) => j.enabled && j.state === 'scheduled').length,
   paused: allJobs.filter((j) => j.state === 'paused' || (j.enabled === false && j.state !== 'completed')).length,
@@ -89,9 +90,9 @@ const counts = {
     <section class="block" id="health">
       <div class="block-head"><h2>Health</h2></div>
       <div class="figures">
-        <div class="figure"><p class="value">{health?.active_agents ?? '—'}</p><p class="label">agents working now</p></div>
+        <div class="figure"><p class="value">{health?.active_agents ?? '-'}</p><p class="label">agents working now</p></div>
         <div class="figure"><p class="value">{counts.active}</p><p class="label">scheduled · {counts.paused} paused</p></div>
-        <div class="figure"><p class="value">{checks.disk?.used_percent !== undefined ? `${Math.round(checks.disk.used_percent)}%` : '—'}</p><p class="label">disk used</p></div>
+        <div class="figure"><p class="value">{checks.disk?.used_percent !== undefined ? `${Math.round(checks.disk.used_percent)}%` : '-'}</p><p class="label">disk used</p></div>
         <div class="figure"><p class="value">{compact(health?.metrics_today?.tokens)}</p><p class="label">web-chat tokens today</p></div>
       </div>
       {
