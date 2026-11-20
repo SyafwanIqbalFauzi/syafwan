@@ -4,7 +4,7 @@ import interWoff2 from '@fontsource-variable/inter/files/inter-latin-wght-normal
 import '../styles/global.css';
 import Nav from '../components/Nav.astro';
 import Footer from '../components/Footer.astro';
-import { getProfile } from '../lib/content';
+import { getProfile, getProjects } from '../lib/content';
 import { assetUrl } from '../lib/assets';
 import { LOCALES, switchLocalePath, type Locale } from '../lib/i18n';
 import { PUBLIC_GA_ID } from 'astro:env/server';
@@ -24,8 +24,10 @@ const { locale, title, description, image, type = 'website', alternates = true, 
 
 const profile = await getProfile().catch(() => null);
 const siteName = profile?.full_name ?? 'Syafwan Iqbal Fauzi';
-// Pages without their own picture (work list, about, writing list, privacy) share the profile photo.
-const ogImage = image ?? (profile?.photo ? assetUrl(profile.photo, 1200, 'jpg') : null);
+// Pages without their own picture (work list, about, writing list, privacy) share what the home page shares:
+// the profile photo, else the cover of the first featured project.
+const shareFallback = image ? null : (profile?.photo ?? (await getProjects({ featured: true, limit: 1 }).catch(() => []))[0]?.cover ?? null);
+const ogImage = image ?? (shareFallback ? assetUrl(shareFallback, 1200, 'jpg') : null);
 const fullTitle = title ? `${title}: ${siteName}` : siteName;
 const site = Astro.site ?? new URL(Astro.url.origin);
 const canonical = new URL(Astro.url.pathname, site).href;
